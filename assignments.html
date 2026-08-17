@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الواجبات والاختبارات | منصة المرسال</title>
+  <meta name="description" content="قائمة بالمهام والواجبات المنزلية المقررة لمادة الأحياء للثانوية العامة وحالة تسليم كل منها.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">الرئيسية</a></li>
+        <li><a href="course-integrated.html" class="nav-link">العلوم المتكاملة (1ث)</a></li>
+        <li><a href="course-biology.html" class="nav-link">الأحياء (3ث)</a></li>
+        <li><a href="assignments.html" class="nav-link active">الواجبات</a></li>
+        <li><a href="dashboard-student.html" class="nav-link">لوحة الطالب</a></li>
+        <li><a href="dashboard-teacher.html" class="nav-link">لوحة المعلم</a></li>
+        <li><a href="about.html" class="nav-link">من نحن</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div class="nav-auth-container"></div>
+        <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Drawer Overlay & Sidebar -->
+  <div class="drawer-overlay"></div>
+  <div class="mobile-drawer">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </div>
+      <button class="mobile-drawer-close">✕</button>
+    </div>
+    <ul class="mobile-links">
+      <li><a href="index.html" class="mobile-link">الرئيسية</a></li>
+      <li><a href="course-integrated.html" class="mobile-link">العلوم المتكاملة (1ث)</a></li>
+      <li><a href="course-biology.html" class="mobile-link">الأحياء (3ث)</a></li>
+      <li><a href="assignments.html" class="mobile-link active">الواجبات</a></li>
+      <li><a href="dashboard-student.html" class="mobile-link">لوحة الطالب</a></li>
+      <li><a href="dashboard-teacher.html" class="mobile-link">لوحة المعلم</a></li>
+      <li><a href="about.html" class="mobile-link">من نحن</a></li>
+    </ul>
+    <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
+  </div>
+
+  <!-- Assignments Main Page -->
+  <main style="padding: 3rem 0; flex: 1;">
+    <div class="container">
+      
+      <!-- Page Header -->
+      <div class="section-header" style="text-align: right; margin-bottom: 2rem;">
+        <span class="section-tag">التقييمات والأنشطة</span>
+        <h1 class="section-title">قائمة واجبات الطالب</h1>
+        <p class="section-subtitle" style="margin-right: 0; margin-left: auto;">متابعة مستمرة لواجباتك الدورية مع إمكانية الحل والرفع مباشرة.</p>
+      </div>
+
+      <!-- Quick Filter Buttons -->
+      <div class="filter-container" style="margin-bottom: 1.5rem;">
+        <button class="filter-btn active" onclick="showToast('عرض كافة الواجبات المقررة', 'success')">الكل (٥)</button>
+        <button class="filter-btn" onclick="showToast('عرض الواجبات المستحقة للحل', 'warning')">مستحق (٣)</button>
+        <button class="filter-btn" onclick="showToast('عرض الواجبات التي تم تسليمها وتصحيحها', 'success')">تم التسليم (١)</button>
+        <button class="filter-btn" onclick="showToast('عرض الواجبات المتأخرة عن الموعد', 'danger')">متأخر (١)</button>
+      </div>
+
+      <!-- Table Card Container -->
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>اسم الواجب</th>
+                <th>الفصل المقرّر</th>
+                <th>تاريخ الاستحقاق</th>
+                <th>درجة التقييم</th>
+                <th>حالة التسليم</th>
+                <th>الإجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row 1 -->
+              <tr>
+                <td style="font-weight: 700;">واجب الدرس الأول: الدعامة في النبات</td>
+                <td>الدعامة والحركة</td>
+                <td>غداً، ١١:٥٩ م</td>
+                <td>--</td>
+                <td><span class="badge badge-warning">مستحق للحل</span></td>
+                <td>
+                  <a href="assignment-view.html" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">عرض وحل الواجب</a>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr>
+                <td style="font-weight: 700;">واجب الدرس الثاني: الهيكل العظمي في الإنسان</td>
+                <td>الدعامة والحركة</td>
+                <td>منذ أسبوع</td>
+                <td style="color: var(--color-primary); font-weight: 700;">٩ / ١٠</td>
+                <td><span class="badge badge-success">تم التسليم</span></td>
+                <td>
+                  <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="alert('لقد قمت بتسليم هذا الواجب وتم تصحيحه بتقدير ممتاز!')">عرض الإجابة</button>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr>
+                <td style="font-weight: 700;">واجب الدرس الثالث: الحركة في الكائنات الحية</td>
+                <td>الدعامة والحركة</td>
+                <td>منذ ٣ أيام</td>
+                <td>--</td>
+                <td><span class="badge badge-danger">متأخر</span></td>
+                <td>
+                  <a href="assignment-view.html" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">حل متأخر</a>
+                </td>
+              </tr>
+              <!-- Row 4 -->
+              <tr>
+                <td style="font-weight: 700;">واجب الدرس الرابع: التنسيق الهرموني والغدد الصماء</td>
+                <td>التنسيق الهرموني</td>
+                <td>بعد ٣ أيام</td>
+                <td>--</td>
+                <td><span class="badge badge-warning">مستحق للحل</span></td>
+                <td>
+                  <a href="assignment-view.html" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">عرض وحل الواجب</a>
+                </td>
+              </tr>
+              <!-- Row 5 -->
+              <tr>
+                <td style="font-weight: 700;">واجب الدرس الخامس: آلية عمل الهرمونات</td>
+                <td>التنسيق الهرموني</td>
+                <td>بعد ٥ أيام</td>
+                <td>--</td>
+                <td><span class="badge badge-warning">مستحق للحل</span></td>
+                <td>
+                  <a href="assignment-view.html" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">عرض وحل الواجب</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>🧬 منصة المرسال</h3>
+          <p>منصة تعليمية متطورة لتدريس مادة الأحياء لطلاب الثانوية العامة في جمهورية مصر العربية. نسعى لتبسيط العلوم الحيوية وبناء عقول علمية تعتمد على الفهم وليس التلقين.</p>
+        </div>
+        <div>
+          <h4 class="footer-links-title">أقسام المنهج</h4>
+          <ul class="footer-links">
+            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="course-integrated.html" class="footer-link">العلوم المتكاملة - الصف الأول الثانوي</a></li>
+            <li><a href="assignments.html" class="footer-link">بنك الأسئلة والواجبات</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">روابط سريعة</h4>
+          <ul class="footer-links">
+            <li><a href="about.html" class="footer-link">نبذة عن المدرس</a></li>
+            <li><a href="about.html" class="footer-link">اتصل بنا للدعم الفني</a></li>
+            <li><a href="login.html" class="footer-link">بوابة الدخول</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

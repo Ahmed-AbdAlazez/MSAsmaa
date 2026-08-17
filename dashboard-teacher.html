@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم المعلم | منصة المرسال</title>
+  <meta name="description"
+    content="لوحة التحكم الخاصة بمعلم المادة لمتابعة درجات طلاب الثانوية العامة ونسب حضورهم وتسليماتهم.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">الرئيسية</a></li>
+        <li><a href="course-integrated.html" class="nav-link">العلوم المتكاملة (1ث)</a></li>
+        <li><a href="course-biology.html" class="nav-link">الأحياء (3ث)</a></li>
+        <li><a href="assignments.html" class="nav-link">الواجبات</a></li>
+        <li><a href="dashboard-student.html" class="nav-link">لوحة الطالب</a></li>
+        <li><a href="dashboard-teacher.html" class="nav-link active">لوحة المعلم</a></li>
+        <li><a href="about.html" class="nav-link">من نحن</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div class="nav-auth-container"></div>
+        <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Drawer Overlay & Sidebar -->
+  <div class="drawer-overlay"></div>
+  <div class="mobile-drawer">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </div>
+      <button class="mobile-drawer-close">✕</button>
+    </div>
+    <ul class="mobile-links">
+      <li><a href="index.html" class="mobile-link">الرئيسية</a></li>
+      <li><a href="course-integrated.html" class="mobile-link">العلوم المتكاملة (1ث)</a></li>
+      <li><a href="course-biology.html" class="mobile-link">الأحياء (3ث)</a></li>
+      <li><a href="assignments.html" class="mobile-link">الواجبات</a></li>
+      <li><a href="dashboard-student.html" class="mobile-link">لوحة الطالب</a></li>
+      <li><a href="dashboard-teacher.html" class="mobile-link active">لوحة المعلم</a></li>
+      <li><a href="about.html" class="mobile-link">من نحن</a></li>
+    </ul>
+    <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
+  </div>
+
+  <!-- Dashboard Workspace -->
+  <main class="dashboard-layout">
+    <div class="container">
+
+      <!-- Dashboard Header -->
+      <div class="dashboard-header">
+        <div class="dashboard-userinfo">
+          <h1>لوحة إدارة المعلمة 👩‍🏫</h1>
+          <p class="text-muted">الأستاذة أسماء مرسال | إدارة دفعة الأحياء 2026</p>
+        </div>
+        <div style="display:flex; gap:0.75rem;">
+          <button id="btn-teacher-export" class="btn btn-secondary">📊 تصدير درجات الطلاب</button>
+          <button id="btn-teacher-add" class="btn btn-primary">➕ إضافة طالب جديد</button>
+        </div>
+      </div>
+
+      <!-- Overview Cards Grid -->
+      <div class="stat-grid">
+        <!-- Card 1 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(16, 185, 129, 0.08); color: var(--color-accent-dark);">
+            👨‍🎓</div>
+          <div>
+            <div class="stat-value">240</div>
+            <div class="stat-label">إجمالي الطلاب</div>
+          </div>
+        </div>
+        <!-- Card 2 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(217, 119, 6, 0.08); color: var(--color-warning);">📤
+          </div>
+          <div>
+            <div class="stat-value">88%</div>
+            <div class="stat-label">نسبة تسليم الواجبات</div>
+          </div>
+        </div>
+        <!-- Card 3 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(15, 76, 58, 0.08); color: var(--color-primary);">📈</div>
+          <div>
+            <div class="stat-value">84%</div>
+            <div class="stat-label">متوسط درجات الدفعة</div>
+          </div>
+        </div>
+        <!-- Card 4 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(239, 68, 68, 0.08); color: var(--color-danger);">⏳</div>
+          <div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">واجبات معلقة للتصحيح</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Records Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">قائمة أداء الطلاب وتتبع الحضور</h2>
+
+      <!-- Table Container -->
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>اسم الطالب</th>
+                <th>الباب الحالي</th>
+                <th>الدروس المنجزة</th>
+                <th>درجة آخر واجب</th>
+                <th>حالة التقدم بالمنصة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row 1 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👨‍🎓</span> عمر مصطفى كمال
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٣ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-primary);">٩ / ١٠</td>
+                <td><span class="badge badge-success">مكتمل النشاط</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('عمر مصطفى سجل دخولاً آخر مرة منذ ساعتين.', 'success')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👩‍🎓</span> سارة عبد الرحمن
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٤ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-primary);">١٠ / ١٠</td>
+                <td><span class="badge badge-success">ممتاز</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('سارة عبد الرحمن أنهت الباب بالكامل!', 'success')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👨‍🎓</span> يوسف طارق علام
+                </td>
+                <td>التنسيق الهرموني</td>
+                <td>١ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-warning);">٦ / ١٠</td>
+                <td><span class="badge badge-warning">مراجعة مطلوبة</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('يوسف طارق يحتاج لمتابعة في الدعامة.', 'warning')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 4 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👨‍🎓</span> أحمد محمد الشافعي
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٣ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-primary);">٩ / ١٠</td>
+                <td><span class="badge badge-success">مكتمل النشاط</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('أحمد محمد مسجل دخول حالياً.', 'success')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 5 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👩‍🎓</span> مريم حسن علي
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٢ / ٤ دروس</td>
+                <td>--</td>
+                <td><span class="badge badge-danger">لم يسلم بعد</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('مريم حسن تأخرت عن موعد واجب الحركة.', 'danger')">تتبع الدخول</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>🧬 منصة المرسال</h3>
+          <p>منصة تعليمية متطورة لتدريس مادة الأحياء لطلاب الثانوية العامة في جمهورية مصر العربية. نسعى لتبسيط العلوم
+            الحيوية وبناء عقول علمية تعتمد على الفهم وليس التلقين.</p>
+        </div>
+        <div>
+          <h4 class="footer-links-title">أقسام المنهج</h4>
+          <ul class="footer-links">
+            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="course-integrated.html" class="footer-link">العلوم المتكاملة - الصف الأول الثانوي</a></li>
+            <li><a href="assignments.html" class="footer-link">بنك الأسئلة والواجبات</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">روابط سريعة</h4>
+          <ul class="footer-links">
+            <li><a href="about.html" class="footer-link">نبذة عن المدرس</a></li>
+            <li><a href="about.html" class="footer-link">اتصل بنا للدعم الفني</a></li>
+            <li><a href="login.html" class="footer-link">بوابة الدخول</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+
+</html>
