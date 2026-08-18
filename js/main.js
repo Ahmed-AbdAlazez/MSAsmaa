@@ -1,4 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // --- Demo accounts for testing ---
+  const DEMO_ACCOUNTS = {
+    student: { username: 'student', password: '123456', displayName: 'أحمد محمد', role: 'student' },
+    teacher: { username: 'teacher', password: '123456', displayName: 'أ. أسماء مرسال', role: 'teacher' }
+  };
+
+  const findAccount = (username, password) => {
+    const key = username.trim().toLowerCase();
+    return Object.values(DEMO_ACCOUNTS).find(
+      (acc) => acc.username === key && acc.password === password
+    );
+  };
+
+  const openLoginModal = () => {
+    document.querySelector('#login-modal-backdrop')?.classList.add('show');
+  };
+
   // --- Mobile Drawer Menu ---
   const navToggle = document.querySelector('.nav-toggle');
   const drawerClose = document.querySelector('.mobile-drawer-close');
@@ -49,40 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 400);
     }, 3000);
-  };
-
-  // --- Simulated Login Flow ---
-  const loginForm = document.querySelector('#login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const email = document.querySelector('#email-input').value.trim();
-      const password = document.querySelector('#password-input').value;
-      
-      if (!email || !password) {
-        showToast('يرجى ملء جميع الحقول المتاحة!', 'danger');
-        return;
-      }
-
-      // Check chosen role
-      const chosenRole = document.querySelector('input[name="role"]:checked');
-      if (!chosenRole) {
-        showToast('يرجى تحديد رتبتك (طالب أو معلم)!', 'warning');
-        return;
-      }
-
-      showToast('جاري تسجيل الدخول كـ ' + (chosenRole.value === 'teacher' ? 'معلم' : 'طالب') + '...', 'success');
-
-      // Redirect after brief delay to simulate API response
-      setTimeout(() => {
-        if (chosenRole.value === 'teacher') {
-          window.location.href = 'dashboard-teacher.html';
-        } else {
-          window.location.href = 'dashboard-student.html';
-        }
-      }, 1000);
-    });
   }
 
   // --- Tab Switcher Logic (e.g., Lesson Page) ---
@@ -206,10 +189,14 @@ document.addEventListener('DOMContentLoaded', () => {
       <div id="login-modal-backdrop" class="welcome-modal-backdrop">
         <div class="welcome-modal">
           <button id="login-modal-close" class="modal-close-btn">✕</button>
-          <div class="welcome-modal-logo">🔑</div>
-          <h2>بوابة تسجيل الدخول</h2>
-          <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--color-text-muted);">اختر دورك وسجل دخولك لتجربة لوحة التحكم المخصصة:</p>
-          <form id="login-modal-form">
+          <div class="welcome-modal-logo">🔐</div>
+          <h2 id="auth-modal-title">تسجيل الدخول</h2>
+          <p id="auth-modal-description" class="auth-modal-description">استخدم بريد Gmail وكلمة المرور للوصول إلى حسابك.</p>
+          <div class="auth-mode-switch" role="tablist" aria-label="خيارات الحساب">
+            <button type="button" class="auth-mode-btn active" data-auth-mode="signin"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
+            <button type="button" class="auth-mode-btn" data-auth-mode="signup"><span aria-hidden="true">✚</span> إنشاء حساب</button>
+          </div>
+          <form id="login-modal-form" novalidate>
             <div class="form-group" style="margin-bottom: 1rem; text-align: right;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">نوع الحساب</label>
               <select id="login-role" class="form-input" style="width: 100%;">
@@ -217,15 +204,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 <option value="teacher">👩‍🏫 معلمة أحياء (أ. أسماء مرسال)</option>
               </select>
             </div>
-            <div class="form-group" style="margin-bottom: 1rem; text-align: right;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">اسم المستخدم</label>
-              <input type="text" id="login-username" class="form-input" placeholder="اسم المستخدم..." required value="طالب_تجريبي" style="width: 100%;">
+            <div class="form-group" id="auth-name-group" style="margin-bottom: 1rem; text-align: right;" hidden>
+              <label for="login-username" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">الاسم</label>
+              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">👤</span><input type="text" id="login-username" class="form-input" placeholder="اكتب اسمك" style="width: 100%;"></div>
             </div>
             <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
-              <input type="password" id="login-password" class="form-input" placeholder="••••••••" required value="123456" style="width: 100%;">
+              <label for="login-email" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">بريد Gmail الإلكتروني</label>
+              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">✉</span><input type="email" id="login-email" class="form-input" placeholder="name@gmail.com" autocomplete="email" required pattern="[a-zA-Z0-9._%+-]+@gmail\\.com" style="width: 100%;"></div>
             </div>
-            <button type="submit" class="btn btn-primary btn-full" style="padding: 0.8rem;">تسجيل الدخول</button>
+            <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
+              <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
+              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">🔒</span><input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" required style="width: 100%;"><button type="button" class="password-toggle" aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">◉</button></div>
+            </div>
+            <p id="password-requirements" class="password-requirements" hidden>يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.</p>
+            <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full" style="padding: 0.8rem;"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
           </form>
         </div>
       </div>
@@ -236,6 +228,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginModal = document.querySelector('#login-modal-backdrop');
   const loginForm = document.querySelector('#login-modal-form');
   const loginClose = document.querySelector('#login-modal-close');
+  const authModeButtons = document.querySelectorAll('.auth-mode-btn');
+  const authNameGroup = document.querySelector('#auth-name-group');
+  const passwordRequirements = document.querySelector('#password-requirements');
+  const authSubmitButton = document.querySelector('#auth-submit-btn');
+  const loginEmail = document.querySelector('#login-email');
+  const loginPassword = document.querySelector('#login-password');
+  let authMode = 'signin';
+
+  const isGmailAddress = (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com$/i.test(email);
+  const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+
+  const setAuthMode = (mode) => {
+    authMode = mode;
+    const isSignUp = mode === 'signup';
+    document.querySelector('#auth-modal-title').textContent = isSignUp ? 'إنشاء حساب' : 'تسجيل الدخول';
+    document.querySelector('#auth-modal-description').textContent = isSignUp
+      ? 'أنشئ حساباً باستخدام بريد Gmail وكلمة مرور آمنة.'
+      : 'استخدم بريد Gmail وكلمة المرور للوصول إلى حسابك.';
+    authNameGroup.hidden = !isSignUp;
+    document.querySelector('#login-username').required = isSignUp;
+    passwordRequirements.hidden = !isSignUp;
+    loginPassword.autocomplete = isSignUp ? 'new-password' : 'current-password';
+    authSubmitButton.innerHTML = isSignUp ? '<span aria-hidden="true">✚</span> إنشاء حساب' : '<span aria-hidden="true">↪</span> تسجيل الدخول';
+    authModeButtons.forEach((button) => button.classList.toggle('active', button.dataset.authMode === mode));
+  };
+
+  authModeButtons.forEach((button) => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
+  document.querySelector('.password-toggle')?.addEventListener('click', (event) => {
+    const willShowPassword = loginPassword.type === 'password';
+    loginPassword.type = willShowPassword ? 'text' : 'password';
+    event.currentTarget.setAttribute('aria-label', willShowPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+    event.currentTarget.setAttribute('title', willShowPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+    event.currentTarget.textContent = willShowPassword ? '◉' : '◌';
+  });
 
   // Populate auth placeholders dynamically
   const updateAuthUI = () => {
@@ -360,18 +386,48 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const role = document.querySelector('#login-role').value;
       const usernameInput = document.querySelector('#login-username').value.trim();
-      
-      if (!usernameInput) {
-        showToast('يرجى إدخال اسم المستخدم!', 'warning');
+      const email = loginEmail.value.trim().toLowerCase();
+      const password = loginPassword.value;
+
+      if (!isGmailAddress(email)) {
+        showToast('يرجى إدخال بريد إلكتروني صحيح ينتهي بـ @gmail.com.', 'warning');
+        loginEmail.focus();
         return;
       }
 
+      if (!isStrongPassword(password)) {
+        showToast('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 'warning');
+        loginPassword.focus();
+        return;
+      }
+
+      const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
+      if (authMode === 'signup') {
+        if (!usernameInput) {
+          showToast('يرجى إدخال الاسم لإنشاء الحساب.', 'warning');
+          return;
+        }
+        if (savedAccounts[email]) {
+          showToast('يوجد حساب مسجل بهذا البريد الإلكتروني. سجّل الدخول بدلاً من ذلك.', 'warning');
+          setAuthMode('signin');
+          return;
+        }
+        savedAccounts[email] = { name: usernameInput, password, role };
+        localStorage.setItem('frontEndAccounts', JSON.stringify(savedAccounts));
+      } else if (savedAccounts[email] && savedAccounts[email].password !== password) {
+        showToast('كلمة المرور غير صحيحة لهذا البريد الإلكتروني.', 'danger');
+        loginPassword.focus();
+        return;
+      }
+
+      const displayName = authMode === 'signup' ? usernameInput : (savedAccounts[email]?.name || email.split('@')[0]);
+
       localStorage.setItem('userRole', role);
-      localStorage.setItem('username', usernameInput);
+      localStorage.setItem('username', displayName);
 
       if (loginModal) loginModal.classList.remove('show');
       
-      showToast(`مرحباً بك يا ${usernameInput}! تم تسجيل الدخول بنجاح. 🎉`, 'success');
+      showToast(`مرحباً بك يا ${displayName}! تم ${authMode === 'signup' ? 'إنشاء الحساب' : 'تسجيل الدخول'} بنجاح. 🎉`, 'success');
       updateAuthUI();
 
       // Redirect depending on role
