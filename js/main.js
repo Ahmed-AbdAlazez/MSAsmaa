@@ -509,5 +509,49 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
+
+  // --- Front-end only chatbot demos ---
+  const chatbotForms = document.querySelectorAll('.chatbot-form');
+  const chatbotReplies = {
+    ai: 'هذا رد تجريبي من مساعد المنهج. لاحقاً يمكن ربط هذا المكان بنموذج AI مع RAG على محتوى الدروس والملخصات.',
+    teacher: 'تم حفظ رسالتك داخل الواجهة فقط. لاحقاً يمكن ربط هذه المحادثة برسائل المعلمة أو لوحة تحكم خاصة بها.'
+  };
+
+  const addChatMessage = (messagesBox, senderName, text, className) => {
+    const message = document.createElement('div');
+    message.className = `chat-message ${className}`;
+
+    const name = document.createElement('span');
+    name.className = 'chat-message-name';
+    name.textContent = senderName;
+
+    const body = document.createElement('p');
+    body.textContent = text;
+
+    message.append(name, body);
+    messagesBox.appendChild(message);
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+  };
+
+  chatbotForms.forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const chatbotType = form.dataset.chatbotForm;
+      const input = form.querySelector('input[name="message"]');
+      const messageText = input.value.trim();
+      const messagesBox = document.querySelector(`[data-chatbot-messages="${chatbotType}"]`);
+
+      if (!messageText || !messagesBox) return;
+
+      addChatMessage(messagesBox, 'أنت', messageText, 'user-message');
+      input.value = '';
+
+      setTimeout(() => {
+        const sender = chatbotType === 'teacher' ? 'أ. أسماء' : 'مساعد المنهج';
+        addChatMessage(messagesBox, sender, chatbotReplies[chatbotType], chatbotType === 'teacher' ? 'bot-message teacher-message' : 'bot-message');
+      }, 450);
+    });
+  });
 });
 
