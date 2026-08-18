@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('#login-modal-backdrop')?.classList.add('show');
   };
 
+  document.addEventListener('click', (event) => {
+    const loginTrigger = event.target.closest('.js-login-trigger');
+    if (!loginTrigger) return;
+
+    event.preventDefault();
+    openLoginModal();
+  });
+
   // --- Mobile Drawer Menu ---
   const navToggle = document.querySelector('.nav-toggle');
   const drawerClose = document.querySelector('.mobile-drawer-close');
@@ -336,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Close mobile drawer if open
         const drawer = document.querySelector('.mobile-drawer');
         const overlay = document.querySelector('.drawer-overlay');
-        if (drawer) drawer.classList.remove('show');
+        if (drawer) drawer.classList.remove('open');
         if (overlay) overlay.classList.remove('show');
       });
     }

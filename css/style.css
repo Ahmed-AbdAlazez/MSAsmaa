@@ -438,15 +438,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .grid-2 {
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
 }
 
 .grid-3 {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 }
 
 .grid-4 {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
 }
 
 /* Section Header */
@@ -1966,6 +1966,129 @@ h1, h2, h3, h4, h5, h6 {
 .modal-close-btn:hover {
   color: var(--color-danger);
   transform: scale(1.1);
+}
+
+/* Responsive Refinements */
+@media (max-width: 1100px) {
+  .navbar {
+    padding: 0.85rem 0;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1rem;
+  }
+
+  .hero {
+    padding: 3.25rem 0;
+  }
+
+  .hero-title,
+  .about-hero h1 {
+    font-size: 2.15rem;
+  }
+
+  .hero-subtitle,
+  .section-subtitle {
+    font-size: 1rem;
+  }
+
+  .cell-art {
+    height: min(320px, 82vw);
+    max-width: 320px;
+  }
+
+  .dashboard-layout {
+    padding: 2rem 0;
+  }
+
+  .dashboard-userinfo h1,
+  .section-title {
+    font-size: 1.65rem;
+  }
+
+  .dashboard-section-title,
+  .assignment-item,
+  .lesson-list-item,
+  .footer-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .tab-nav {
+    gap: 1rem;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+  }
+
+  .tab-panel,
+  .assignment-question-box,
+  .card {
+    padding: 1.25rem;
+  }
+
+  .grid-2 > .card[style*="grid-column: span 2"] {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand {
+    font-size: 1.2rem;
+  }
+
+  .brand-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.75rem;
+  }
+
+  .btn {
+    width: 100%;
+    padding-inline: 1rem;
+  }
+
+  .hero-actions,
+  .hero-badges {
+    justify-content: stretch;
+  }
+
+  .hero-badge {
+    justify-content: center;
+  }
+
+  .hero-title,
+  .chatbots-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .option-label {
+    align-items: flex-start;
+  }
+
+  .welcome-modal {
+    padding: 2rem 1.2rem;
+  }
 }
 
 /* Chatbots Page */
