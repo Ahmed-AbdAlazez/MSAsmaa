@@ -246,6 +246,430 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isGmailAddress = (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com$/i.test(email);
   const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+  const QUIZZES_STORAGE_KEY = 'frontEndQuizzes';
+  const NOTIFICATIONS_STORAGE_KEY = 'frontEndNotifications';
+
+  const getStoredItems = (key, fallbackItems = []) => {
+    try {
+      return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallbackItems));
+    } catch (error) {
+      return fallbackItems;
+    }
+  };
+
+  const setStoredItems = (key, items) => {
+    localStorage.setItem(key, JSON.stringify(items));
+  };
+
+  const getQuizzes = () => getStoredItems(QUIZZES_STORAGE_KEY, [
+    {
+      id: 'quiz-dna-intro',
+      title: 'اختبار سريع: DNA والبروتين',
+      chapter: 'الوراثة الجزيئية',
+      dueDate: 'اليوم 9:00 م',
+      questions: '10',
+      questionItems: [
+        {
+          type: 'mcq',
+          text: 'ما الجزء المسؤول عن حمل الشفرة الوراثية؟',
+          options: ['DNA', 'الجدار الخلوي', 'الريبوسوم', 'السيتوبلازم'],
+          image: ''
+        },
+        {
+          type: 'written',
+          text: 'اشرح باختصار خطوات تضاعف DNA.',
+          options: [],
+          image: ''
+        }
+      ],
+      note: 'اختبار قصير للتأكد من فهم تضاعف DNA والترجمة.',
+      createdAt: 'جاهز الآن'
+    }
+  ]);
+
+  const getNotifications = () => getStoredItems(NOTIFICATIONS_STORAGE_KEY, [
+    {
+      id: 'notify-welcome',
+      title: 'اختبار جديد متاح',
+      message: 'تم إضافة اختبار سريع في الوراثة الجزيئية.',
+      type: 'quiz',
+      read: false
+    }
+  ]);
+
+  const addNotification = (title, message, type = 'news') => {
+    const notifications = getNotifications();
+    notifications.unshift({
+      id: `notify-${Date.now()}`,
+      title,
+      message,
+      type,
+      read: false
+    });
+    setStoredItems(NOTIFICATIONS_STORAGE_KEY, notifications);
+    updateNotificationBadge();
+  };
+
+  const updateNotificationBadge = () => {
+    const unreadCount = getNotifications().filter((item) => !item.read).length;
+    document.querySelectorAll('.notification-count').forEach((badge) => {
+      badge.textContent = unreadCount;
+      badge.hidden = unreadCount === 0;
+    });
+  };
+
+  const renderNotificationsMenu = () => {
+    const notifications = getNotifications();
+    const list = document.querySelector('#notification-list');
+    if (!list) return;
+
+    if (!notifications.length) {
+      list.innerHTML = '<div class="notification-empty">لا توجد إشعارات جديدة الآن.</div>';
+      return;
+    }
+
+    list.innerHTML = notifications.slice(0, 6).map((item) => `
+      <div class="notification-item ${item.read ? '' : 'unread'}">
+        <div class="notification-item-icon">${item.type === 'quiz' ? '؟' : '!'}</div>
+        <div>
+          <h4>${item.title}</h4>
+          <p>${item.message}</p>
+        </div>
+      </div>
+    `).join('');
+  };
+
+  const escapeHTML = (value = '') => String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  const fileToDataURL = (file) => new Promise((resolve, reject) => {
+    if (!file) {
+      resolve('');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(reader.result));
+    reader.addEventListener('error', reject);
+    reader.readAsDataURL(file);
+  });
+
+  const getQuizQuestionCount = (quiz) => {
+    if (Array.isArray(quiz.questionItems) && quiz.questionItems.length) {
+      return quiz.questionItems.length;
+    }
+
+    return Number.parseInt(quiz.questions, 10) || 0;
+  };
+
+  const renderQuestionSummary = (question, index) => {
+    const typeLabel = question.type === 'written' ? 'Written' : 'MCQ';
+    const options = question.type === 'mcq' && question.options?.length
+      ? `<ol class="quiz-question-options">${question.options.map((option) => `<li>${escapeHTML(option)}</li>`).join('')}</ol>`
+      : '<p class="quiz-written-answer-line">مساحة إجابة كتابية للطالب</p>';
+    const image = question.image
+      ? `<img src="${question.image}" alt="Question attachment" class="quiz-question-image">`
+      : '';
+
+    return `
+      <article class="quiz-question-preview">
+        <div class="quiz-question-top">
+          <span class="quiz-question-number">${index + 1}</span>
+          <span class="badge ${question.type === 'written' ? 'badge-warning' : 'badge-success'}">${typeLabel}</span>
+        </div>
+        <p>${escapeHTML(question.text)}</p>
+        ${image}
+        ${options}
+      </article>
+    `;
+  };
+
+  const renderStudentQuizList = () => {
+    const list = document.querySelector('#student-quiz-list');
+    if (!list) return;
+
+    const quizzes = getQuizzes();
+    list.innerHTML = quizzes.map((quiz) => `
+      <div class="quiz-item">
+        <div class="quiz-item-icon">؟</div>
+        <div class="quiz-item-content">
+          <h4>${escapeHTML(quiz.title)}</h4>
+          <p>${escapeHTML(quiz.chapter)} • ${getQuizQuestionCount(quiz)} أسئلة • التسليم: ${escapeHTML(quiz.dueDate)}</p>
+          <div class="quiz-question-preview-list" hidden>
+            ${(quiz.questionItems || []).map(renderQuestionSummary).join('')}
+          </div>
+        </div>
+        <button class="btn btn-primary btn-quiz-start" type="button" data-quiz-title="${escapeHTML(quiz.title)}">ابدأ</button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.btn-quiz-start').forEach((button) => {
+      button.addEventListener('click', () => {
+        const previewList = button.closest('.quiz-item')?.querySelector('.quiz-question-preview-list');
+        if (previewList) previewList.hidden = !previewList.hidden;
+        showToast(`بدأت اختبار "${button.dataset.quizTitle}" داخل الواجهة فقط.`, 'success');
+      });
+    });
+  };
+
+  const renderTeacherQuizList = () => {
+    const list = document.querySelector('#teacher-quiz-list');
+    if (!list) return;
+
+    const quizzes = getQuizzes();
+    list.innerHTML = quizzes.slice(0, 5).map((quiz) => `
+      <div class="quiz-mini-row">
+        <span class="quiz-mini-icon">؟</span>
+        <div>
+          <strong>${quiz.title}</strong>
+          <small>${quiz.chapter} • ${quiz.dueDate}</small>
+        </div>
+      </div>
+    `).join('');
+  };
+
+  const initializeQuizExperience = () => {
+    const dashboardContainer = document.querySelector('.dashboard-layout .container');
+    if (!dashboardContainer) {
+      renderNotificationsMenu();
+      updateNotificationBadge();
+      return;
+    }
+
+    if (window.location.pathname.includes('dashboard-teacher.html') && !document.querySelector('#teacher-quiz-panel')) {
+      const studentRecordsTitle = Array.from(document.querySelectorAll('.dashboard-section-title')).find((title) =>
+        title.textContent.includes('قائمة') || title.textContent.includes('أداء')
+      );
+      const quizPanel = document.createElement('section');
+      quizPanel.id = 'teacher-quiz-panel';
+      quizPanel.className = 'quiz-workspace teacher-quiz-workspace';
+      quizPanel.innerHTML = `
+        <div class="quiz-panel-header">
+          <div>
+            <span class="section-tag">Quizzes</span>
+            <h2>إرسال اختبار جديد للطلاب</h2>
+            <p>تستطيع أ. أسماء إنشاء اختبار سريع، وسيظهر فوراً في لوحة الطالب مع إشعار جديد.</p>
+          </div>
+          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
+        </div>
+        <form id="teacher-quiz-form" class="quiz-form">
+          <div class="form-group">
+            <label for="quiz-title" class="form-label">عنوان الاختبار</label>
+            <input type="text" id="quiz-title" class="form-input" placeholder="مثال: اختبار الدعامة والحركة" required>
+          </div>
+          <div class="form-group">
+            <label for="quiz-chapter" class="form-label">الفصل</label>
+            <select id="quiz-chapter" class="form-input" required>
+              <option value="الدعامة والحركة">الدعامة والحركة</option>
+              <option value="التنسيق الهرموني">التنسيق الهرموني</option>
+              <option value="التكاثر">التكاثر</option>
+              <option value="DNA و RNA">DNA و RNA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="quiz-questions" class="form-label">عدد الأسئلة</label>
+            <input type="number" id="quiz-questions" class="form-input" min="1" max="50" value="10" required>
+          </div>
+          <div class="form-group">
+            <label for="quiz-due-date" class="form-label">موعد التسليم</label>
+            <input type="text" id="quiz-due-date" class="form-input" placeholder="اليوم 9:00 م" required>
+          </div>
+          <div class="form-group quiz-form-wide">
+            <label for="quiz-note" class="form-label">ملاحظة للطلاب</label>
+            <textarea id="quiz-note" class="form-input" placeholder="اكتب تعليمات قصيرة للطلاب..." required></textarea>
+          </div>
+          <div class="quiz-question-builder quiz-form-wide">
+            <div class="quiz-question-builder-head">
+              <div>
+                <h3>أسئلة الامتحان</h3>
+                <p>اختاري نوع السؤال، واكتبي السؤال، ويمكنك إضافة صورة توضيحية.</p>
+              </div>
+              <span class="badge badge-success" id="quiz-draft-count">0 أسئلة</span>
+            </div>
+            <div class="quiz-question-grid">
+              <div class="form-group">
+                <label for="quiz-question-type" class="form-label">نوع السؤال</label>
+                <select id="quiz-question-type" class="form-input">
+                  <option value="mcq">اختيار من متعدد MCQ</option>
+                  <option value="written">سؤال مقالي / Written</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="quiz-question-image" class="form-label">صورة مع السؤال</label>
+                <input type="file" id="quiz-question-image" class="form-input" accept="image/*">
+              </div>
+              <div class="form-group quiz-form-wide">
+                <label for="quiz-question-text" class="form-label">نص السؤال</label>
+                <textarea id="quiz-question-text" class="form-input" placeholder="اكتبي السؤال هنا..."></textarea>
+              </div>
+              <div id="quiz-mcq-options" class="quiz-mcq-options quiz-form-wide">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الأول">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الثاني">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الثالث">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الرابع">
+              </div>
+              <button type="button" id="btn-add-quiz-question" class="btn btn-secondary quiz-form-wide">إضافة السؤال للامتحان</button>
+            </div>
+            <div id="quiz-draft-questions" class="quiz-question-preview-list"></div>
+          </div>
+          <button type="submit" class="btn btn-primary quiz-form-wide">إرسال الاختبار للطلاب</button>
+        </form>
+        <div class="quiz-created-list" id="teacher-quiz-list"></div>
+      `;
+
+      if (studentRecordsTitle) {
+        studentRecordsTitle.before(quizPanel);
+      } else {
+        dashboardContainer.appendChild(quizPanel);
+      }
+
+      const draftQuestions = [];
+      const questionTypeSelect = quizPanel.querySelector('#quiz-question-type');
+      const questionTextInput = quizPanel.querySelector('#quiz-question-text');
+      const questionImageInput = quizPanel.querySelector('#quiz-question-image');
+      const mcqOptionsBox = quizPanel.querySelector('#quiz-mcq-options');
+      const draftQuestionsList = quizPanel.querySelector('#quiz-draft-questions');
+      const draftCount = quizPanel.querySelector('#quiz-draft-count');
+
+      const resetQuestionBuilder = () => {
+        questionTextInput.value = '';
+        questionImageInput.value = '';
+        quizPanel.querySelectorAll('.quiz-option-input').forEach((input) => {
+          input.value = '';
+        });
+      };
+
+      const renderDraftQuestions = () => {
+        draftCount.textContent = `${draftQuestions.length} أسئلة`;
+        draftQuestionsList.innerHTML = draftQuestions.length
+          ? draftQuestions.map(renderQuestionSummary).join('')
+          : '<p class="quiz-draft-empty">لم تتم إضافة أسئلة بعد.</p>';
+      };
+
+      questionTypeSelect.addEventListener('change', () => {
+        mcqOptionsBox.hidden = questionTypeSelect.value === 'written';
+      });
+
+      quizPanel.querySelector('#btn-add-quiz-question').addEventListener('click', async () => {
+        const questionText = questionTextInput.value.trim();
+        const questionType = questionTypeSelect.value;
+        const options = Array.from(quizPanel.querySelectorAll('.quiz-option-input'))
+          .map((input) => input.value.trim())
+          .filter(Boolean);
+
+        if (!questionText) {
+          showToast('اكتبي نص السؤال أولاً.', 'warning');
+          questionTextInput.focus();
+          return;
+        }
+
+        if (questionType === 'mcq' && options.length < 2) {
+          showToast('سؤال MCQ يحتاج اختيارين على الأقل.', 'warning');
+          return;
+        }
+
+        const image = await fileToDataURL(questionImageInput.files[0]);
+        draftQuestions.push({
+          type: questionType,
+          text: questionText,
+          options: questionType === 'mcq' ? options : [],
+          image
+        });
+
+        renderDraftQuestions();
+        resetQuestionBuilder();
+        showToast('تمت إضافة السؤال للامتحان.', 'success');
+      });
+
+      renderDraftQuestions();
+
+      quizPanel.querySelector('#teacher-quiz-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const quiz = {
+          id: `quiz-${Date.now()}`,
+          title: document.querySelector('#quiz-title').value.trim(),
+          chapter: document.querySelector('#quiz-chapter').value,
+          dueDate: document.querySelector('#quiz-due-date').value.trim(),
+          questions: draftQuestions.length,
+          questionItems: [...draftQuestions],
+          note: document.querySelector('#quiz-note').value.trim(),
+          createdAt: 'تم الإرسال الآن'
+        };
+
+        if (!quiz.title || !quiz.dueDate || !quiz.note) {
+          showToast('يرجى إكمال بيانات الاختبار قبل الإرسال.', 'warning');
+          return;
+        }
+
+        if (!draftQuestions.length) {
+          showToast('أضيفي سؤالاً واحداً على الأقل قبل إرسال الامتحان.', 'warning');
+          return;
+        }
+
+        const quizzes = getQuizzes();
+        quizzes.unshift(quiz);
+        setStoredItems(QUIZZES_STORAGE_KEY, quizzes);
+        addNotification('اختبار جديد من أ. أسماء', `${quiz.title} متاح الآن للطلاب.`, 'quiz');
+        renderTeacherQuizList();
+        quizPanel.querySelector('#teacher-quiz-form').reset();
+        draftQuestions.length = 0;
+        renderDraftQuestions();
+        document.querySelector('#quiz-questions').value = 10;
+        showToast('تم إرسال الاختبار للطلاب وظهوره في الإشعارات.', 'success');
+      });
+    }
+
+    if (window.location.pathname.includes('dashboard-student.html') && !document.querySelector('#student-quiz-panel')) {
+      const tasksTitle = Array.from(document.querySelectorAll('.dashboard-section-title')).find((title) =>
+        title.textContent.includes('المهام') || title.textContent.includes('الواجبات')
+      );
+      const quizPanel = document.createElement('section');
+      quizPanel.id = 'student-quiz-panel';
+      quizPanel.className = 'quiz-workspace student-quiz-workspace';
+      quizPanel.innerHTML = `
+        <div class="quiz-panel-header">
+          <div>
+            <span class="section-tag">Quizzes</span>
+            <h2>اختبارات مرسلة من المعلمة</h2>
+            <p>أي اختبار جديد ترسله أ. أسماء يظهر هنا مباشرة مع إشعار في الأعلى.</p>
+          </div>
+          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
+        </div>
+        <div id="student-quiz-list" class="student-quiz-list"></div>
+      `;
+
+      if (tasksTitle?.parentElement) {
+        tasksTitle.parentElement.prepend(quizPanel);
+      } else {
+        dashboardContainer.appendChild(quizPanel);
+      }
+    }
+
+    renderTeacherQuizList();
+    renderStudentQuizList();
+    renderNotificationsMenu();
+    updateNotificationBadge();
+  };
+
+  const getNotificationButtonHTML = () => `
+    <div class="notification-center">
+      <button class="notification-btn" id="notification-btn" type="button" title="الإشعارات" aria-label="الإشعارات">
+        <span class="notification-symbol">!</span>
+        <span class="notification-count" hidden>0</span>
+      </button>
+      <div class="notification-menu" id="notification-menu">
+        <div class="notification-menu-header">
+          <strong>الإشعارات</strong>
+          <button type="button" id="mark-notifications-read">تمت القراءة</button>
+        </div>
+        <div id="notification-list"></div>
+      </div>
+    </div>
+  `;
 
   const setAuthMode = (mode) => {
     authMode = mode;
@@ -291,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (navAuthContainer) {
         navAuthContainer.innerHTML = `
+          ${getNotificationButtonHTML()}
           <button class="login-icon-btn logged-in" id="auth-action-btn" title="${logoutTitle}">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -303,6 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (mobileAuthContainer) {
         mobileAuthContainer.innerHTML = `
+          <button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>
           <button class="btn btn-danger btn-full" id="mobile-logout-btn">تسجيل الخروج (${username})</button>
         `;
       }
@@ -310,6 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // User is logged out
       if (navAuthContainer) {
         navAuthContainer.innerHTML = `
+          ${getNotificationButtonHTML()}
           <button class="login-icon-btn" id="auth-action-btn" title="تسجيل الدخول">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -321,6 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (mobileAuthContainer) {
         mobileAuthContainer.innerHTML = `
+          <button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>
           <button class="btn btn-primary btn-full" id="mobile-login-btn">تسجيل الدخول</button>
         `;
       }
@@ -330,6 +758,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const authBtn = document.querySelector('#auth-action-btn');
     if (authBtn) {
       authBtn.addEventListener('click', handleAuthAction);
+    }
+
+    const notificationBtn = document.querySelector('#notification-btn');
+    const notificationMenu = document.querySelector('#notification-menu');
+    if (notificationBtn && notificationMenu) {
+      notificationBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        renderNotificationsMenu();
+        notificationMenu.classList.toggle('show');
+      });
+    }
+
+    const markNotificationsRead = document.querySelector('#mark-notifications-read');
+    if (markNotificationsRead) {
+      markNotificationsRead.addEventListener('click', () => {
+        const notifications = getNotifications().map((item) => ({ ...item, read: true }));
+        setStoredItems(NOTIFICATIONS_STORAGE_KEY, notifications);
+        renderNotificationsMenu();
+        updateNotificationBadge();
+      });
+    }
+
+    const mobileNotificationsBtn = document.querySelector('#mobile-notifications-btn');
+    if (mobileNotificationsBtn) {
+      mobileNotificationsBtn.addEventListener('click', () => {
+        const latestNotification = getNotifications()[0];
+        showToast(latestNotification?.message || 'لا توجد إشعارات جديدة الآن.', latestNotification?.type === 'quiz' ? 'success' : 'warning');
+      });
     }
 
     const mobileLogoutBtn = document.querySelector('#mobile-logout-btn');
@@ -348,7 +804,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (overlay) overlay.classList.remove('show');
       });
     }
+
+    renderNotificationsMenu();
+    updateNotificationBadge();
   };
+
+  document.addEventListener('click', (event) => {
+    const notificationCenter = document.querySelector('.notification-center');
+    const notificationMenu = document.querySelector('#notification-menu');
+    if (notificationCenter && notificationMenu && !notificationCenter.contains(event.target)) {
+      notificationMenu.classList.remove('show');
+    }
+  });
 
   const handleAuthAction = () => {
     const userRole = localStorage.getItem('userRole');
@@ -451,6 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Auth UI
   updateAuthUI();
+  initializeQuizExperience();
 
   // Add teacher student addition mock button trigger
   const btnAddStudent = document.querySelector('#btn-teacher-add');
