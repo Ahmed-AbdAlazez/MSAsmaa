@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>المحادثات الذكية | منصة المرسال</title>
+  <meta name="description" content="محادثات تجريبية للطالب مع مساعد المنهج ومع المعلمة داخل منصة المرسال.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">الرئيسية</a></li>
+        <li><a href="course-integrated.html" class="nav-link">العلوم المتكاملة (1ث)</a></li>
+        <li><a href="course-biology.html" class="nav-link">الأحياء (3ث)</a></li>
+        <li><a href="assignments.html" class="nav-link">الواجبات</a></li>
+        <li><a href="chatbots.html" class="nav-link active">المحادثات</a></li>
+        <li><a href="dashboard-student.html" class="nav-link">لوحة الطالب</a></li>
+        <li><a href="dashboard-teacher.html" class="nav-link">لوحة المعلم</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div class="nav-auth-container"></div>
+        <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Drawer Overlay & Sidebar -->
+  <div class="drawer-overlay"></div>
+  <div class="mobile-drawer">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </div>
+      <button class="mobile-drawer-close">✕</button>
+    </div>
+    <ul class="mobile-links">
+      <li><a href="index.html" class="mobile-link">الرئيسية</a></li>
+      <li><a href="course-integrated.html" class="mobile-link">العلوم المتكاملة (1ث)</a></li>
+      <li><a href="course-biology.html" class="mobile-link">الأحياء (3ث)</a></li>
+      <li><a href="assignments.html" class="mobile-link">الواجبات</a></li>
+      <li><a href="chatbots.html" class="mobile-link active">المحادثات</a></li>
+      <li><a href="dashboard-student.html" class="mobile-link">لوحة الطالب</a></li>
+      <li><a href="dashboard-teacher.html" class="mobile-link">لوحة المعلم</a></li>
+    </ul>
+    <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
+  </div>
+
+  <main class="chatbots-page">
+    <section class="container">
+      <div class="chatbots-header">
+        <span class="section-tag">مركز المساعدة</span>
+        <h1>اسأل بطريقتين مختلفتين</h1>
+        <p class="text-muted">واجهة جاهزة للمحادثة مع مساعد المنهج ومع المعلمة. حالياً تعمل كتجربة أمامية فقط بدون اتصال بأي خدمة خارجية.</p>
+      </div>
+
+      <div class="chatbots-grid">
+        <section class="chatbot-panel chatbot-panel-ai" aria-labelledby="ai-chat-title">
+          <div class="chatbot-topbar">
+            <div class="chatbot-identity">
+              <div class="chatbot-avatar">AI</div>
+              <div>
+                <h2 id="ai-chat-title">مساعد المنهج الذكي</h2>
+                <p>مخصص لاحقاً للـ RAG على محتوى المنهج</p>
+              </div>
+            </div>
+            <span class="chatbot-status">تجريبي</span>
+          </div>
+
+          <div class="chatbot-messages" data-chatbot-messages="ai" aria-live="polite">
+            <div class="chat-message bot-message">
+              <span class="chat-message-name">مساعد المنهج</span>
+              <p>اكتب سؤالك في الأحياء أو العلوم، وسأعرض لك رداً تجريبياً إلى أن يتم توصيلي بالمنهج.</p>
+            </div>
+          </div>
+
+          <form class="chatbot-form" data-chatbot-form="ai">
+            <input class="form-input chatbot-input" type="text" name="message" placeholder="مثال: اشرح الدعامة والحركة" autocomplete="off" required>
+            <button class="btn btn-primary" type="submit">إرسال</button>
+          </form>
+        </section>
+
+        <section class="chatbot-panel chatbot-panel-teacher" aria-labelledby="teacher-chat-title">
+          <div class="chatbot-topbar">
+            <div class="chatbot-identity">
+              <div class="chatbot-avatar">أ</div>
+              <div>
+                <h2 id="teacher-chat-title">محادثة المعلمة</h2>
+                <p>مكان رسائل الطالب مع أ. أسماء مرسال لاحقاً</p>
+              </div>
+            </div>
+            <span class="chatbot-status teacher-status">غير متصل</span>
+          </div>
+
+          <div class="chatbot-messages" data-chatbot-messages="teacher" aria-live="polite">
+            <div class="chat-message bot-message teacher-message">
+              <span class="chat-message-name">أ. أسماء</span>
+              <p>اترك سؤالك هنا. هذه واجهة تجريبية فقط، وسيتم ربطها بنظام رسائل المعلمة لاحقاً.</p>
+            </div>
+          </div>
+
+          <form class="chatbot-form" data-chatbot-form="teacher">
+            <input class="form-input chatbot-input" type="text" name="message" placeholder="اكتب رسالتك للمعلمة" autocomplete="off" required>
+            <button class="btn btn-primary" type="submit">إرسال</button>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
