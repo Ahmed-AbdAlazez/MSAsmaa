@@ -1,5 +1,19 @@
-# Secrets — never commit these
-.env
-
 # Dependencies
 node_modules/
+
+# Environment Variables & Secrets
+.env
+*.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
