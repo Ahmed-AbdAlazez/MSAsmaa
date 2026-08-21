@@ -50,6 +50,9 @@ app.use(express.static(path.join(__dirname)));
 // Real video API (upload prep + signed playback URLs).
 app.use("/api/lessons", videoRoutes);
 
+// Teacher-only video management (edit metadata / delete).
+app.use("/api/videos", require("./src/routes/video-manage.routes.js"));
+
 /* ==========================================================================
  * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a
  * real database + hashed passwords later).

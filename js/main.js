@@ -1059,14 +1059,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // --- Real video playback via Bunny Stream (backend API) ---
+    // --- Lesson identity + chapter-synced sidebar ---
     const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
     const chapters = (window.CURRICULUM && window.CURRICULUM.biology) || [];
 
-    // --- Sidebar: show the lessons of THE chapter being viewed ---
     const listBox = document.querySelector('#sidebar-lessons-list');
     if (listBox && chapters.length) {
-      let chapter =
+      const chapter =
         chapters.find((c) => c.id === urlParams.get('chapter')) ||
         chapters.find((c) => c.lessons.some((l) => l.id === lessonId)) ||
         chapters[0];
@@ -1092,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // --- Real video duration in the player overlay ---
+    // --- Real video playback via Bunny Stream (backend API) ---
     const durationEl = document.querySelector('#lesson-video-duration');
     const formatDuration = (totalSeconds) => {
       const s = Math.round(totalSeconds);
@@ -1106,53 +1105,108 @@ document.addEventListener('DOMContentLoaded', () => {
       return out.trim();
     };
 
-    if (durationEl) {
-      const userId = localStorage.getItem('userId') || 'dev-student';
-      const userRole = localStorage.getItem('userRole') || 'student';
-      fetchJson(`${API_BASE}/api/lessons/${lessonId}/video-status`, {
-        headers: { 'x-user-id': userId, 'x-user-role': userRole },
-      })
-        .then((st) => {
-          if (!st.ready) {
-            durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
-          } else if (st.lengthSeconds) {
-            durationEl.textContent =
-              `أ. أسماء مرسال | ⏱ ${formatDuration(st.lengthSeconds)}`;
-          }
-        })
-        .catch((err) => {
-          if (/لم يتم رفع فيديو/.test(err.message)) {
-            durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
-          }
-        });
-    }
-
     const playBtn = document.querySelector('.video-play-btn');
     const playerBox = document.querySelector('.video-player-mock');
 
+    // Playlist state: a lesson can have several videos (شرح + مراجعة...).
+    let lessonVideos = [];
+    let currentVideoIdx = 0;
+
+    const loadIframe = (videoEntry) => {
+      playerBox.innerHTML =
+        `<iframe src="${videoEntry.playbackUrl}" ` +
+        'style="width:100%; height:100%; border:0;" ' +
+        'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
+        'allowfullscreen loading="lazy"></iframe>';
+    };
+
+    // Renders the part-selector above the player when there is more than one.
+    const renderVideoChooser = () => {
+      if (lessonVideos.length < 2) return;
+      let chooser = document.querySelector('#lesson-videos-chooser');
+      if (!chooser) {
+        chooser = document.createElement('div');
+        chooser.id = 'lesson-videos-chooser';
+        chooser.style.cssText =
+          'display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;';
+        playerBox.parentNode.insertBefore(chooser, playerBox);
+      }
+      chooser.innerHTML = '';
+      lessonVideos.forEach((v, i) => {
+        const btn = document.createElement('button');
+        btn.className = i === currentVideoIdx
+          ? 'btn btn-primary'
+          : 'btn btn-light';
+        btn.style.cssText = 'font-size:0.85rem; padding:0.45rem 1rem;';
+        btn.textContent = v.name || `الفيديو ${i + 1}`;
+        if (!v.ready) btn.textContent += ' (معالجة...)';
+        btn.addEventListener('click', () => {
+          currentVideoIdx = i;
+          renderVideoChooser();
+          if (playerBox.querySelector('iframe')) loadIframe(v);
+          else if (durationEl && v.lengthSeconds) {
+            durationEl.textContent =
+              `أ. أسماء مرسال | ⏱ ${formatDuration(v.lengthSeconds)}`;
+          }
+        });
+        chooser.appendChild(btn);
+      });
+    };
+
+    // Load the lesson's videos once on page open.
+    const userId = localStorage.getItem('userId') || 'dev-student';
+    const userRole = localStorage.getItem('userRole') || 'student';
+
+    fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
+      headers: { 'x-user-id': userId, 'x-user-role': userRole },
+    })
+      .then((data) => {
+        lessonVideos = data.videos || [];
+
+        if (!lessonVideos.length) {
+          if (durationEl) {
+            durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
+          }
+          return;
+        }
+
+        // Show the first ready video's real duration in the overlay.
+        const readyVideo = lessonVideos.find((v) => v.ready);
+        if (durationEl) {
+          if (!readyVideo) {
+            durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
+          } else if (readyVideo.lengthSeconds) {
+            durationEl.textContent =
+              `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
+          }
+        }
+
+        // Start from the first READY video (skip still-processing parts).
+        const readyIdx = lessonVideos.findIndex((v) => v.ready);
+        currentVideoIdx = readyIdx >= 0 ? readyIdx : 0;
+
+        renderVideoChooser();
+      })
+      .catch(() => {
+        /* endpoint errors already surface when the user presses play */
+      });
+
     if (playBtn && playerBox) {
       playBtn.addEventListener('click', async () => {
-        playBtn.disabled = true;
-        showToast('جاري تحضير الفيديو...', 'success');
-
-        try {
-          // Auth headers from the signed-in account (dev scheme until real JWT).
-          const userId = localStorage.getItem('userId') || 'dev-student';
-          const userRole = localStorage.getItem('userRole') || 'student';
-          const data = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video-url`, {
-            headers: { 'x-user-id': userId, 'x-user-role': userRole },
-          });
-
-          // Swap the mock overlay for Bunny's embed player.
-          playerBox.innerHTML =
-            `<iframe src="${data.playbackUrl}" ` +
-            'style="width:100%; height:100%; border:0;" ' +
-            'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
-            'allowfullscreen loading="lazy"></iframe>';
-        } catch (error) {
-          showToast(error.message, 'danger');
-          playBtn.disabled = false;
+        if (!lessonVideos.length) {
+          showToast('لا يوجد فيديو مرفوع لهذا الدرس بعد.', 'warning');
+          return;
         }
+
+        const videoEntry = lessonVideos[currentVideoIdx];
+        if (!videoEntry.ready) {
+          showToast('الفيديو ما زال قيد المعالجة على Bunny، حاولي بعد قليل.', 'warning');
+          return;
+        }
+
+        playBtn.disabled = true;
+        showToast('جاري تشغيل الفيديو...', 'success');
+        loadIframe(videoEntry);
       });
     }
   }
@@ -1349,5 +1403,170 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 450);
     });
   });
+
+  // --- Teacher dashboard: manage already-uploaded videos (edit / delete) ---
+  const manageChapter = document.querySelector('#manage-chapter');
+  const manageLesson = document.querySelector('#manage-lesson');
+
+  if (manageChapter && manageLesson && window.CURRICULUM) {
+    const fillManageLessons = (chapterIdx) => {
+      const chapter = window.CURRICULUM.biology[chapterIdx];
+      manageLesson.innerHTML = '';
+      chapter.lessons.forEach((lesson) => {
+        const opt = document.createElement('option');
+        opt.value = lesson.id;
+        opt.textContent = `${lesson.name} (${lesson.id})`;
+        manageLesson.appendChild(opt);
+      });
+      // Also refresh the "move to lesson" dropdown in the edit form.
+      const moveSelect = document.querySelector('#edit-move-lesson');
+      if (moveSelect) {
+        moveSelect.innerHTML = '<option value="">— إبقاء الدرس الحالي —</option>';
+        window.CURRICULUM.biology.forEach((ch) => {
+          ch.lessons.forEach((l) => {
+            const o = document.createElement('option');
+            o.value = l.id;
+            o.textContent = `${ch.name.split(':')[0]} — ${l.name}`;
+            moveSelect.appendChild(o);
+          });
+        });
+      }
+    };
+
+    window.CURRICULUM.biology.forEach((chapter, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      manageChapter.appendChild(opt);
+    });
+    manageChapter.addEventListener('change', () =>
+      fillManageLessons(Number(manageChapter.value))
+    );
+    fillManageLessons(0);
+
+    const editForm = document.querySelector('#video-edit-form');
+    const videosListBox = document.querySelector('#manage-videos-list');
+    let loadedVideos = [];
+
+    const renderManageList = () => {
+      videosListBox.innerHTML = '';
+
+      if (!loadedVideos.length) {
+        videosListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">لا توجد فيديوهات مرفوعة لهذا الدرس بعد.</p>';
+        return;
+      }
+
+      loadedVideos.forEach((v, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText =
+          'display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;';
+
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1; min-width:200px;';
+        info.innerHTML =
+          `<div style="font-weight:700;">${idx + 1}. ${v.name || '(بدون اسم)'}</div>` +
+          `<div class="text-muted" style="font-size:0.8rem;">` +
+          `${v.ready ? `⏱ ${Math.max(1, Math.round(v.lengthSeconds / 60))} دقيقة` : '⏳ قيد المعالجة'}` +
+          `${v.description ? ` • ${v.description.slice(0, 60)}` : ''}</div>`;
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex; gap:0.5rem;';
+        actions.innerHTML =
+          '<button class="btn btn-light js-edit-video" style="font-size:0.8rem;">✏️ تعديل</button>' +
+          '<button class="btn btn-light js-delete-video" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
+
+        row.append(info, actions);
+
+        row.querySelector('.js-edit-video').addEventListener('click', () => {
+          document.querySelector('#edit-video-id').value = v.videoId;
+          document.querySelector('#edit-name').value = v.name || '';
+          document.querySelector('#edit-attachment').value = v.attachmentUrl || '';
+          document.querySelector('#edit-description').value = v.description || '';
+          document.querySelector('#edit-move-lesson').value = '';
+          editForm.style.display = 'block';
+          editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        row.querySelector('.js-delete-video').addEventListener('click', async () => {
+          if (!confirm(`حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`)) return;
+          try {
+            await fetchJson(`${API_BASE}/api/videos/${v.videoId}`, {
+              method: 'DELETE',
+              headers: {
+                'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+                'x-user-role': 'teacher',
+              },
+            });
+            showToast('تم حذف الفيديو بنجاح.', 'success');
+            loadVideosList();
+          } catch (error) {
+            showToast(error.message, 'danger');
+          }
+        });
+
+        videosListBox.appendChild(row);
+      });
+    };
+
+    const loadVideosList = async () => {
+      const lessonId = manageLesson.value;
+      try {
+        videosListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
+        const data = await fetchJson(
+          `${API_BASE}/api/lessons/${lessonId}/videos`,
+          {
+            headers: {
+              'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+              'x-user-role': 'teacher',
+            },
+          }
+        );
+        loadedVideos = data.videos || [];
+        renderManageList();
+      } catch (error) {
+        loadedVideos = [];
+        videosListBox.innerHTML = '';
+        showToast(error.message, 'danger');
+      }
+    };
+
+    document
+      .querySelector('#btn-load-videos')
+      .addEventListener('click', loadVideosList);
+
+    document.querySelector('#btn-cancel-edit').addEventListener('click', () => {
+      editForm.style.display = 'none';
+    });
+
+    document.querySelector('#btn-save-edit').addEventListener('click', async () => {
+      const videoId = document.querySelector('#edit-video-id').value;
+      const body = {
+        name: document.querySelector('#edit-name').value,
+        attachmentUrl: document.querySelector('#edit-attachment').value,
+        description: document.querySelector('#edit-description').value,
+      };
+      const moveTo = document.querySelector('#edit-move-lesson').value;
+      if (moveTo) body.lessonId = moveTo;
+
+      try {
+        await fetchJson(`${API_BASE}/api/videos/${videoId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+            'x-user-role': 'teacher',
+          },
+          body: JSON.stringify(body),
+        });
+        showToast('تم حفظ التعديلات بنجاح.', 'success');
+        editForm.style.display = 'none';
+        loadVideosList();
+      } catch (error) {
+        showToast(error.message, 'danger');
+      }
+    });
+  }
 });
 

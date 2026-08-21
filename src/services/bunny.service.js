@@ -205,7 +205,17 @@ async function getVideo(videoId) {
  *                                 video for this lesson exists yet.
  * @throws {Error} If the network call fails or Bunny replies with an error.
  */
-async function findVideoByLessonId(lessonId) {
+
+/**
+ * Finds ALL Bunny videos that belong to a lesson (a lesson can have several,
+ * e.g. "شرح" + "مراجعة"), ordered oldest-first so parts stay in upload order.
+ *
+ * See findVideoByLessonId for the title-convention explanation.
+ *
+ * @param {string} lessonId - e.g. "lesson-1".
+ * @returns {Promise<Array<Object>>} Full Bunny video objects (may be empty).
+ */
+async function findAllVideosByLessonId(lessonId) {
   const url =
     `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos` +
     `?search=${encodeURIComponent(lessonId)}&orderBy=date&itemsPerPage=100`;
@@ -217,21 +227,128 @@ async function findVideoByLessonId(lessonId) {
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(
-      `Bunny findVideoByLessonId failed (HTTP ${response.status}): ${errorBody}`
+      `Bunny findAllVideosByLessonId failed (HTTP ${response.status}): ${errorBody}`
     );
   }
 
   const data = await response.json();
   const items = Array.isArray(data.items) ? data.items : [];
 
-  const match = items.find((video) => {
+  const matches = items.filter((video) => {
     const title = typeof video.title === "string" ? video.title : "";
-    return (
-      title === lessonId || title.startsWith(`${lessonId} `)
-    );
+    return title === lessonId || title.startsWith(`${lessonId} `);
   });
 
-  return match ? match.guid : null;
+  // Oldest first so "part 1" plays before "part 2".
+  matches.sort((a, b) =>
+    String(a.dateUploaded || "").localeCompare(String(b.dateUploaded || ""))
+  );
+
+  return matches;
+}
+
+/**
+ * Finds the NEWEST video belonging to a lesson.
+ * Used where a single video is expected (legacy playback URL, upload polling).
+ */
+async function findVideoByLessonId(lessonId) {
+  const matches = await findAllVideosByLessonId(lessonId);
+  if (!matches.length) return null;
+
+  const newest = matches[matches.length - 1];
+  return newest.guid;
+}
+
+/**
+ * Renames a Bunny video (this is how editing metadata works — the platform
+ * stores name/attachment/description inside the title, see buildTitle).
+ *
+ * @param {string} videoId - The video's ID ("guid").
+ * @param {string} title   - The new full title (already built by buildTitle).
+ */
+async function updateVideoTitle(videoId, title) {
+  const response = await fetch(
+    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos/${videoId}`,
+    {
+      method: "POST",
+      headers: {
+        AccessKey: bunnyEnv.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Bunny updateVideoTitle failed (HTTP ${response.status}): ${errorBody}`
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Permanently deletes a video from the Bunny library.
+ *
+ * @param {string} videoId - The video's ID ("guid").
+ */
+async function deleteVideo(videoId) {
+  const response = await fetch(
+    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos/${videoId}`,
+    {
+      method: "DELETE",
+      headers: { AccessKey: bunnyEnv.apiKey },
+    }
+  );
+
+  if (!response.ok && response.status !== 404) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Bunny deleteVideo failed (HTTP ${response.status}): ${errorBody}`
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Parses a platform title back into its structured parts.
+ * Inverse of buildTitle — see its docs for the exact format.
+ *
+ * @param {string} title - A full Bunny video title.
+ * @returns {{lessonId: string, name: string, attachmentUrl: string, description: string}}
+ */
+function parseLessonTitle(title) {
+  const segs = String(title || "").split(" | ");
+  return {
+    lessonId: segs[0] || "",
+    name: segs[1] || "",
+    attachmentUrl: segs[2] || "",
+    description: segs.slice(3).join(" | "),
+  };
+}
+
+/**
+ * Builds the platform title from its structured parts.
+ *
+ * FORMAT: "lessonId | name [| attachmentUrl [| description]]"
+ *   - "|" typed by the user is replaced with "/" (sanitized upstream).
+ *   - Trailing empty segments are dropped; EMPTY MIDDLE segments are kept
+ *     so each value always lands back in the same slot when parsed.
+ *
+ * @returns {string} The title to store on Bunny.
+ */
+function buildTitle(lessonId, name, attachmentUrl, description) {
+  const segs = [
+    lessonId,
+    name || "شرح الدرس",
+    attachmentUrl || "",
+    description || "",
+  ];
+  while (segs.length > 2 && segs[segs.length - 1] === "") segs.pop();
+  return segs.join(" | ");
 }
 
 module.exports = {
@@ -240,4 +357,9 @@ module.exports = {
   generateSignedPlaybackUrl,
   getVideo,
   findVideoByLessonId,
+  findAllVideosByLessonId,
+  updateVideoTitle,
+  deleteVideo,
+  parseLessonTitle,
+  buildTitle,
 };
