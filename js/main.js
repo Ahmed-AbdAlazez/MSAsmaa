@@ -76,6 +76,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3000);
   }
 
+  // --- Backend API helpers -------------------------------------------------
+  // The Node backend (server.js) runs on port 3000. When the frontend is
+  // opened from anywhere else (VS Code Live Server :5500, GitHub Pages,
+  // file://, another machine), API calls must point at the backend origin.
+  const API_BASE = (() => {
+    const { protocol, hostname, port } = window.location;
+    if (protocol === 'file:') return 'http://localhost:3000';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return port === '3000' ? '' : 'http://localhost:3000';
+    }
+    // Served from a real host (e.g. GitHub Pages) — assume the backend is
+    // deployed there too; change this line to the backend URL if separate.
+    return '';
+  })();
+
+  /**
+   * fetch() + safe JSON parsing with human-readable Arabic errors.
+   * Prevents cryptic "Unexpected token '<' in JSON" crashes when the
+   * backend is down or the request lands on a static page instead.
+   */
+  const fetchJson = async (url, options = {}) => {
+    let response;
+    try {
+      response = await fetch(url, options);
+    } catch (networkError) {
+      throw new Error(
+        'لا يمكن الوصول إلى السيرفر. تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.'
+      );
+    }
+
+    const raw = await response.text();
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch (parseError) {
+      throw new Error(
+        'رد غير متوقع من السيرفر (ليس JSON). غالباً السيرفر الخلفي لا يعمل على هذا العنوان.'
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || `خطأ من السيرفر (${response.status}).`);
+    }
+    return data;
+  };
+
   // --- Tab Switcher Logic (e.g., Lesson Page) ---
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
@@ -830,6 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (confirm('هل تريد بالتأكيد تسجيل الخروج من الحساب؟')) {
       localStorage.removeItem('userRole');
       localStorage.removeItem('username');
+      localStorage.removeItem('userId');
       showToast('تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋', 'success');
       updateAuthUI();
       // Redirect to index page
@@ -857,7 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle Login submission
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const role = document.querySelector('#login-role').value;
       const usernameInput = document.querySelector('#login-username').value.trim();
@@ -874,6 +921,25 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 'warning');
         loginPassword.focus();
         return;
+      }
+
+      // --- Real backend authentication (hardcoded dev accounts on server) ---
+      if (authMode === 'signin') {
+        try {
+          const data = await fetchJson(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+
+          completeLogin(data.role, data.name, data.id);
+          return;
+        } catch (error) {
+          // Backend answered with a real error (wrong credentials / down).
+          showToast(error.message, 'danger');
+          loginPassword.focus();
+          return;
+        }
       }
 
       const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
@@ -896,24 +962,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const displayName = authMode === 'signup' ? usernameInput : (savedAccounts[email]?.name || email.split('@')[0]);
-
-      localStorage.setItem('userRole', role);
-      localStorage.setItem('username', displayName);
-
-      if (loginModal) loginModal.classList.remove('show');
-      
-      showToast(`مرحباً بك يا ${displayName}! تم ${authMode === 'signup' ? 'إنشاء الحساب' : 'تسجيل الدخول'} بنجاح. 🎉`, 'success');
-      updateAuthUI();
-
-      // Redirect depending on role
-      setTimeout(() => {
-        if (role === 'teacher') {
-          window.location.href = 'dashboard-teacher.html';
-        } else {
-          window.location.href = 'dashboard-student.html';
-        }
-      }, 1000);
+      completeLogin(role, displayName, email);
     });
+  }
+
+  /**
+   * Shared finish-login routine: stores the session, closes the modal,
+   * shows the welcome toast and redirects to the role's dashboard.
+   */
+  function completeLogin(role, displayName, userId) {
+    localStorage.setItem('userRole', role);
+    localStorage.setItem('username', displayName);
+    localStorage.setItem('userId', userId);
+
+    if (loginModal) loginModal.classList.remove('show');
+
+    showToast(`مرحباً بك يا ${displayName}! تم تسجيل الدخول بنجاح. 🎉`, 'success');
+    updateAuthUI();
+
+    // Redirect depending on role
+    setTimeout(() => {
+      if (role === 'teacher') {
+        window.location.href = 'dashboard-teacher.html';
+      } else {
+        window.location.href = 'dashboard-student.html';
+      }
+    }, 1000);
   }
 
   // Initialize Auth UI
@@ -984,6 +1058,145 @@ document.addEventListener('DOMContentLoaded', () => {
         videoTitle.textContent = `شرح درس: ${decodedTitle}`;
       }
     }
+
+    // --- Real video playback via Bunny Stream (backend API) ---
+    const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
+    const playBtn = document.querySelector('.video-play-btn');
+    const playerBox = document.querySelector('.video-player-mock');
+
+    if (playBtn && playerBox) {
+      playBtn.addEventListener('click', async () => {
+        playBtn.disabled = true;
+        showToast('جاري تحضير الفيديو...', 'success');
+
+        try {
+          // Auth headers from the signed-in account (dev scheme until real JWT).
+          const userId = localStorage.getItem('userId') || 'dev-student';
+          const userRole = localStorage.getItem('userRole') || 'student';
+          const data = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video-url`, {
+            headers: { 'x-user-id': userId, 'x-user-role': userRole },
+          });
+
+          // Swap the mock overlay for Bunny's embed player.
+          playerBox.innerHTML =
+            `<iframe src="${data.playbackUrl}" ` +
+            'style="width:100%; height:100%; border:0;" ' +
+            'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
+            'allowfullscreen loading="lazy"></iframe>';
+        } catch (error) {
+          showToast(error.message, 'danger');
+          playBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  // --- Teacher dashboard: video upload to Bunny Stream ---
+  const uploadBtn = document.querySelector('#btn-upload-video');
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', async () => {
+      const lessonIdInput = document.querySelector('#upload-lesson-id');
+      const titleInput = document.querySelector('#upload-title');
+      const fileInput = document.querySelector('#upload-file');
+      const progressArea = document.querySelector('#upload-progress-area');
+      const progressBar = document.querySelector('#upload-progress-bar');
+      const statusText = document.querySelector('#upload-status-text');
+
+      const lessonId = (lessonIdInput?.value || '').trim();
+      const file = fileInput?.files[0];
+
+      if (!/^lesson-[\w-]+$/.test(lessonId)) {
+        showToast('أدخلي معرف درس صحيح مثل lesson-1', 'warning');
+        return;
+      }
+      if (!file) {
+        showToast('اختاري ملف الفيديو أولاً.', 'warning');
+        return;
+      }
+
+      // Only teachers may upload.
+      if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
+        showToast('رفع الفيديوهات متاح لحساب المعلمة فقط.', 'danger');
+        return;
+      }
+
+      const authHeaders = {
+        'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+        'x-user-role': 'teacher',
+      };
+
+      try {
+        uploadBtn.disabled = true;
+        progressArea.style.display = 'block';
+        progressBar.style.width = '0%';
+        statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
+
+        // Step 1: reserve a slot on Bunny (title follows the lesson convention).
+        const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ title: titleInput?.value.trim() || undefined }),
+        });
+
+        // Step 2: PUT the raw file straight to Bunny with upload progress.
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', prepared.uploadUrl);
+          xhr.setRequestHeader('AccessKey', prepared.accessKey);
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100);
+              progressBar.style.width = pct + '%';
+              statusText.textContent = `جاري رفع الملف... ${pct}%`;
+            }
+          });
+          xhr.addEventListener('load', () =>
+            xhr.status >= 200 && xhr.status < 300
+              ? resolve()
+              : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
+          );
+          xhr.addEventListener('error', () =>
+            reject(new Error('انقطع الاتصال أثناء الرفع.'))
+          );
+          xhr.send(file);
+        });
+
+        statusText.textContent = 'تم الرفع! جاري معالجة الفيديو على Bunny...';
+
+        // Step 3: poll encoding status until the video is watchable.
+        const poll = setInterval(async () => {
+          try {
+            const st = await fetchJson(
+              `${API_BASE}/api/lessons/${lessonId}/video-status`,
+              { headers: authHeaders }
+            );
+            progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
+
+            if (st.ready) {
+              clearInterval(poll);
+              progressBar.style.width = '100%';
+              statusText.textContent =
+                `الفيديو جاهز للمشاهدة ✅ (المدة: ${Math.round(st.lengthSeconds / 60)} دقيقة)`;
+              showToast(`تم رفع فيديو ${lessonId} بنجاح! الطلاب يستطيعون مشاهدته الآن.`, 'success');
+              uploadBtn.disabled = false;
+            } else if ([5, 6].includes(st.status)) {
+              clearInterval(poll);
+              statusText.textContent = 'فشلت معالجة الفيديو على Bunny.';
+              showToast('فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.', 'danger');
+              uploadBtn.disabled = false;
+            }
+          } catch (pollError) {
+            clearInterval(poll);
+            statusText.textContent = pollError.message;
+            uploadBtn.disabled = false;
+          }
+        }, 5000);
+      } catch (error) {
+        showToast(error.message, 'danger');
+        progressArea.style.display = 'none';
+        uploadBtn.disabled = false;
+      }
+    });
   }
 
   // --- Front-end only chatbot demos ---

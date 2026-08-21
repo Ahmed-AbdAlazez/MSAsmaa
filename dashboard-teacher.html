@@ -21,7 +21,6 @@
       </a>
       <ul class="nav-links">
         <li><a href="index.html" class="nav-link">الرئيسية</a></li>
-        <li><a href="course-integrated.html" class="nav-link">العلوم المتكاملة (1ث)</a></li>
         <li><a href="course-biology.html" class="nav-link">الأحياء (3ث)</a></li>
         <li><a href="assignments.html" class="nav-link">الواجبات</a></li>
         <li><a href="chatbots.html" class="nav-link">المحادثات</a></li>
@@ -47,7 +46,6 @@
     </div>
     <ul class="mobile-links">
       <li><a href="index.html" class="mobile-link">الرئيسية</a></li>
-      <li><a href="course-integrated.html" class="mobile-link">العلوم المتكاملة (1ث)</a></li>
       <li><a href="course-biology.html" class="mobile-link">الأحياء (3ث)</a></li>
       <li><a href="assignments.html" class="mobile-link">الواجبات</a></li>
       <li><a href="chatbots.html" class="mobile-link">المحادثات</a></li>
@@ -107,6 +105,35 @@
           <div>
             <div class="stat-value">12</div>
             <div class="stat-label">واجبات معلقة للتصحيح</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Upload Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">رفع فيديوهات الشرح 🎬</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:180px;">
+            <label for="upload-lesson-id" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">معرف الدرس</label>
+            <input id="upload-lesson-id" type="text" placeholder="lesson-1"
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">عنوان الدرس (اختياري)</label>
+            <input id="upload-title" type="text" placeholder="شرح الدعامة في النبات"
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف الفيديو</label>
+            <input id="upload-file" type="file" accept="video/*"
+              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <button id="btn-upload-video" class="btn btn-primary" style="min-width:140px;">⬆ رفع الفيديو</button>
+        </div>
+        <div id="upload-progress-area" style="display:none; margin-top:1.25rem;">
+          <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-status-text">جاري الرفع...</div>
+          <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
+            <div id="upload-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
           </div>
         </div>
       </div>
@@ -220,7 +247,6 @@
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
             <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
-            <li><a href="course-integrated.html" class="footer-link">العلوم المتكاملة - الصف الأول الثانوي</a></li>
             <li><a href="assignments.html" class="footer-link">بنك الأسئلة والواجبات</a></li>
           </ul>
         </div>
