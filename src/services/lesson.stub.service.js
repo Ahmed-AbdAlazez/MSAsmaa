@@ -82,7 +82,18 @@ async function saveLessonVideoId(lessonId, videoId) {
  */
 async function getLessonVideoId(lessonId) {
   // TODO(REPLACE-STUB): real implementation must read from the lessons table.
-  return lessonVideoIdsById[lessonId] ?? null;
+  if (lessonVideoIdsById[lessonId]) {
+    return lessonVideoIdsById[lessonId];
+  }
+
+  // Serverless fallback (Vercel): each function invocation gets a fresh
+  // empty memory, so the seeded demo lesson reads its video ID from the
+  // environment instead. Keep until the real database lands.
+  if (lessonId === "lesson-1" && process.env.LESSON_1_VIDEO_ID) {
+    return process.env.LESSON_1_VIDEO_ID;
+  }
+
+  return null;
 }
 
 module.exports = { saveLessonVideoId, getLessonVideoId };

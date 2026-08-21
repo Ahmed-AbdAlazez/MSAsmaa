@@ -76,6 +76,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3000);
   }
 
+  // --- Backend API helpers -------------------------------------------------
+  // The Node backend (server.js) runs on port 3000. When the frontend is
+  // opened from anywhere else (VS Code Live Server :5500, GitHub Pages,
+  // file://, another machine), API calls must point at the backend origin.
+  const API_BASE = (() => {
+    const { protocol, hostname, port } = window.location;
+    if (protocol === 'file:') return 'http://localhost:3000';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return port === '3000' ? '' : 'http://localhost:3000';
+    }
+    // Served from a real host (e.g. GitHub Pages) — assume the backend is
+    // deployed there too; change this line to the backend URL if separate.
+    return '';
+  })();
+
+  /**
+   * fetch() + safe JSON parsing with human-readable Arabic errors.
+   * Prevents cryptic "Unexpected token '<' in JSON" crashes when the
+   * backend is down or the request lands on a static page instead.
+   */
+  const fetchJson = async (url, options = {}) => {
+    let response;
+    try {
+      response = await fetch(url, options);
+    } catch (networkError) {
+      throw new Error(
+        'لا يمكن الوصول إلى السيرفر. تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.'
+      );
+    }
+
+    const raw = await response.text();
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch (parseError) {
+      throw new Error(
+        'رد غير متوقع من السيرفر (ليس JSON). غالباً السيرفر الخلفي لا يعمل على هذا العنوان.'
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || `خطأ من السيرفر (${response.status}).`);
+    }
+    return data;
+  };
+
   // --- Tab Switcher Logic (e.g., Lesson Page) ---
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
@@ -880,23 +926,19 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- Real backend authentication (hardcoded dev accounts on server) ---
       if (authMode === 'signin') {
         try {
-          const response = await fetch('/api/auth/login', {
+          const data = await fetchJson(`${API_BASE}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
-          const data = await response.json();
-
-          if (!response.ok) {
-            showToast(data.error || 'بيانات الدخول غير صحيحة.', 'danger');
-            loginPassword.focus();
-            return;
-          }
 
           completeLogin(data.role, data.name, data.id);
           return;
         } catch (error) {
-          // Server unreachable — fall through to the front-end-only mock below.
+          // Backend answered with a real error (wrong credentials / down).
+          showToast(error.message, 'danger');
+          loginPassword.focus();
+          return;
         }
       }
 
@@ -1031,14 +1073,9 @@ document.addEventListener('DOMContentLoaded', () => {
           // Auth headers from the signed-in account (dev scheme until real JWT).
           const userId = localStorage.getItem('userId') || 'dev-student';
           const userRole = localStorage.getItem('userRole') || 'student';
-          const response = await fetch(`/api/lessons/${lessonId}/video-url`, {
+          const data = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video-url`, {
             headers: { 'x-user-id': userId, 'x-user-role': userRole },
           });
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(data.error || 'تعذر تحميل الفيديو.');
-          }
 
           // Swap the mock overlay for Bunny's embed player.
           playerBox.innerHTML =
