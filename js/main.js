@@ -830,6 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (confirm('هل تريد بالتأكيد تسجيل الخروج من الحساب؟')) {
       localStorage.removeItem('userRole');
       localStorage.removeItem('username');
+      localStorage.removeItem('userId');
       showToast('تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋', 'success');
       updateAuthUI();
       // Redirect to index page
@@ -857,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle Login submission
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const role = document.querySelector('#login-role').value;
       const usernameInput = document.querySelector('#login-username').value.trim();
@@ -874,6 +875,29 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 'warning');
         loginPassword.focus();
         return;
+      }
+
+      // --- Real backend authentication (hardcoded dev accounts on server) ---
+      if (authMode === 'signin') {
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            showToast(data.error || 'بيانات الدخول غير صحيحة.', 'danger');
+            loginPassword.focus();
+            return;
+          }
+
+          completeLogin(data.role, data.name, data.id);
+          return;
+        } catch (error) {
+          // Server unreachable — fall through to the front-end-only mock below.
+        }
       }
 
       const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
@@ -896,24 +920,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const displayName = authMode === 'signup' ? usernameInput : (savedAccounts[email]?.name || email.split('@')[0]);
-
-      localStorage.setItem('userRole', role);
-      localStorage.setItem('username', displayName);
-
-      if (loginModal) loginModal.classList.remove('show');
-      
-      showToast(`مرحباً بك يا ${displayName}! تم ${authMode === 'signup' ? 'إنشاء الحساب' : 'تسجيل الدخول'} بنجاح. 🎉`, 'success');
-      updateAuthUI();
-
-      // Redirect depending on role
-      setTimeout(() => {
-        if (role === 'teacher') {
-          window.location.href = 'dashboard-teacher.html';
-        } else {
-          window.location.href = 'dashboard-student.html';
-        }
-      }, 1000);
+      completeLogin(role, displayName, email);
     });
+  }
+
+  /**
+   * Shared finish-login routine: stores the session, closes the modal,
+   * shows the welcome toast and redirects to the role's dashboard.
+   */
+  function completeLogin(role, displayName, userId) {
+    localStorage.setItem('userRole', role);
+    localStorage.setItem('username', displayName);
+    localStorage.setItem('userId', userId);
+
+    if (loginModal) loginModal.classList.remove('show');
+
+    showToast(`مرحباً بك يا ${displayName}! تم تسجيل الدخول بنجاح. 🎉`, 'success');
+    updateAuthUI();
+
+    // Redirect depending on role
+    setTimeout(() => {
+      if (role === 'teacher') {
+        window.location.href = 'dashboard-teacher.html';
+      } else {
+        window.location.href = 'dashboard-student.html';
+      }
+    }, 1000);
   }
 
   // Initialize Auth UI
@@ -983,6 +1015,42 @@ document.addEventListener('DOMContentLoaded', () => {
       if (videoTitle) {
         videoTitle.textContent = `شرح درس: ${decodedTitle}`;
       }
+    }
+
+    // --- Real video playback via Bunny Stream (backend API) ---
+    const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
+    const playBtn = document.querySelector('.video-play-btn');
+    const playerBox = document.querySelector('.video-player-mock');
+
+    if (playBtn && playerBox) {
+      playBtn.addEventListener('click', async () => {
+        playBtn.disabled = true;
+        showToast('جاري تحضير الفيديو...', 'success');
+
+        try {
+          // Auth headers from the signed-in account (dev scheme until real JWT).
+          const userId = localStorage.getItem('userId') || 'dev-student';
+          const userRole = localStorage.getItem('userRole') || 'student';
+          const response = await fetch(`/api/lessons/${lessonId}/video-url`, {
+            headers: { 'x-user-id': userId, 'x-user-role': userRole },
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'تعذر تحميل الفيديو.');
+          }
+
+          // Swap the mock overlay for Bunny's embed player.
+          playerBox.innerHTML =
+            `<iframe src="${data.playbackUrl}" ` +
+            'style="width:100%; height:100%; border:0;" ' +
+            'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
+            'allowfullscreen loading="lazy"></iframe>';
+        } catch (error) {
+          showToast(error.message, 'danger');
+          playBtn.disabled = false;
+        }
+      });
     }
   }
 
