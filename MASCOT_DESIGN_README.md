@@ -1,8 +1,10 @@
 # Sama — Mascot & Homepage Effects
 
-"Sama" is the friendly mascot of منصة المرسال: a flat, teal, cell-like blob whose
-smile is drawn as a stethoscope. She lives in the hero section of the homepage
-and powers three lightweight effects inspired by Duolingo / Brilliant.org.
+"Sama" is the friendly mascot of منصة المرسال: a flat vector character drawn as
+a **circle in the site's primary brand green** with a **white doctor figure**
+inside it (white coat, V-collar, teal stethoscope across the chest, round eyes,
+small smile). She lives in the hero section of the homepage and powers three
+lightweight effects inspired by Duolingo / Brilliant.org.
 
 All files are **frontend-only** (no backend/API changes) and each effect lives in
 its own file so any piece can be edited or deleted independently:
@@ -33,22 +35,22 @@ mount element in `index.html` (hero section):
 ```
 
 **Changing colors:** open `css/mascot.css` and edit the theme tokens at the top
-(no SVG knowledge needed):
+(no SVG knowledge needed). Since the v2 redesign, every token **reuses an
+existing site variable**, so Sama always matches the palette exactly:
 
 ```css
 .sama-mascot {
-  --sama-body: #26a183;         /* main blob fill */
-  --sama-line: #0f4c3a;         /* stethoscope tube + outlines */
-  --sama-pupil-color: #123b31;
-  --sama-cheek-color: rgba(9, 51, 39, 0.16);
-  --sama-chest-inner: #9fe8d0;  /* stethoscope chest piece */
+  --sama-body:  var(--color-primary);       /* outer circle = brand green */
+  --sama-line:  var(--color-primary-dark);  /* face lines / eye rings */
+  --sama-tube:  var(--color-accent-blue);   /* teal stethoscope */
 }
 ```
 
-**Changing the shape:** the blob is a single SVG `<path>` inside
-`samaMascot.js` (search for `class="sama-body"`). Replace that `d="..."`
-with any closed path on a `220x220` viewBox and the eyes/stethoscope keep
-working since they are separate elements.
+**Changing the shape:** the outer body is a single `<circle class="sama-body">`
+inside `samaMascot.js`; the white coat/collar/stethoscope live in a group that
+is clipped by `#sama-circle-clip`. Edit those paths (220×220 viewBox) and the
+eyes keep working — they are separate elements carrying the `.sama-eye` /
+`.sama-pupil` hooks.
 
 ---
 
@@ -99,26 +101,49 @@ scope element:
 ```
 
 **How it works** (`js/components/scrollBiology.js`): on each animation frame
-while scrolling, the wrapper's position is converted into a progress value
-`p = 0..1` (0 = zone entering the viewport, 1 = leaving). That becomes a
-centered value `c = p - 0.5` which drives, per shape:
+while scrolling, the wrapper's position is converted into a **footer-reveal
+progress** value `p = 0..1`:
+
+```
+p = clamp( (viewportHeight - rect.top) / rect.height , 0 , 1 )
+```
+
+`p = 0` when the zone's top edge appears at the viewport bottom; `p = 1` when
+the page is scrolled to its very end (true because this zone is the last
+element on the page). That becomes a centered value `c = p - 0.5` which drives,
+per shape:
 
 ```
 translate3d(c × driftX, c × driftY) rotate(c × spin)
 ```
 
-Negative values move opposite to positive ones, so shapes drift apart/in
-together as you scroll down and perfectly reverse when scrolling up.
-Only `transform` is ever written (one passive scroll listener + rAF), so there
-is no layout thrash. The layer sits above section backgrounds but below real
-content, has `pointer-events: none`, and is clipped by `overflow: hidden` so it
-can never cover main content or the navbar.
+Negative values move opposite to positive ones, so shapes drift up/inward as
+you scroll down and perfectly reverse when scrolling up.
+
+**v2 fix:** the previous formula divided by `rect.height + viewportHeight`,
+which describes a zone traveling *through* the viewport — impossible for the
+last element on a page. Progress saturated around 0.5 before the footer was
+even visible and the drift was smeared over ~1700px of scroll, so the shapes
+looked frozen. The new mapping stays live for every remaining scroll pixel.
+
+On top of that raw mapping sits an **eased chase loop**: scroll events only set
+a target, and `current += (target - current) * 0.18` per frame glides the
+shapes toward it until they settle (< 0.1% away). Fast flicks therefore glide
+instead of jumping, slow scrolls track almost 1:1, and the lerp can never
+overshoot. The loop cancels itself once settled, so there is no idle CPU use.
+
+Only `transform` is ever written (one passive scroll listener + rAF batching,
+one layout read per recompute), so there is no layout thrash. The layer sits
+above section backgrounds but below real content, has `pointer-events: none`,
+and is clipped by `overflow: hidden` so it can never cover main content or the
+navbar.
 
 **Tuning intensity/speed once you see it live:**
 
 | What feels off | Change |
 |---|---|
-| Everything too fast/subtle overall | `INTENSITY` constant at top of `scrollBiology.js` (`1.0` → try `1.4` or `0.6`) |
+| Everything too fast/subtle overall | `INTENSITY` constant at top of `scrollBiology.js` (default `1.4`; try `2.0` or `0.8`) |
+| Motion feels laggy / too floaty after flicks | raise `EASE` (default `0.18`) in the same file |
 | One shape travels too far | its `data-drift-y` px value in `index.html` |
 | Rotation distracting | set `data-spin="0"` on that shape |
 | Too many shapes on phones | add/remove the `hide-mobile` class (shapes with it disappear under 600px) |
@@ -127,3 +152,25 @@ can never cover main content or the navbar.
 Everything also switches itself off automatically for users with
 `prefers-reduced-motion: reduce`, and eye-tracking disables itself on touch
 devices where Sama instead runs a CSS idle blink/wander animation.
+
+---
+
+## Revision 2 changelog
+
+1. **Sama redesigned** (`samaMascot.js`, tokens in `mascot.css`):
+   outer blob replaced by a plain circle filled with `var(--color-primary)` —
+   the site's exact brand green, no new colors introduced; inside sits a white
+   doctor figure (coat + V-collar + teal stethoscope loop across the chest,
+   drawn with `var(--color-accent-blue)`), round ringed eyes and a small smile
+   line. The old "stethoscope-as-mouth" is gone.
+2. **Footer scroll effect fixed** (`scrollBiology.js`): new footer-reveal
+   progress formula + eased chase loop (see section 3). Shapes now move visibly
+   while approaching the footer, reverse smoothly when scrolling back up, work
+   at both fast and slow speeds without jumps or overshoot.
+3. **Interaction logic untouched:** eye tracking still moves only the
+   `.sama-pupil` groups (they were preserved verbatim in the new SVG), the nav
+   hover-reveal still calls the same `SamaMascot.reveal()/hide()` API, blink /
+   idle-wander CSS animations still hook the same classes, and the scroll
+   effect still reads the same `data-drift-*` attributes from `index.html`.
+   All three behaviors run together on the homepage with no duplicated
+   components.

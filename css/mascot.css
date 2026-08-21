@@ -14,15 +14,17 @@
 
 /* --------------------------------------------------------------------------
    1) THEME TOKENS — edit these to re-skin Sama without touching the SVG.
-   Calm teal/green palette matching the site (--color-primary family).
+   v2 design: every color REUSES an existing site variable (no new greens):
+     --sama-body  -> outer circle = site brand green (--color-primary)
+     --sama-line  -> face lines / eye rings
+     --sama-tube  -> stethoscope = existing teal accent
    -------------------------------------------------------------------------- */
 .sama-mascot {
-  --sama-body: #26a183;            /* main blob fill */
-  --sama-body-dark: #1c7f68;       /* outline stroke */
-  --sama-line: #0f4c3a;            /* stethoscope tube + facial lines */
-  --sama-pupil-color: #123b31;     /* pupils */
-  --sama-cheek-color: rgba(9, 51, 39, 0.16);
-  --sama-chest-inner: #9fe8d0;     /* stethoscope chest-piece center */
+  --sama-body: var(--color-primary);          /* #0F4C3A brand green disc */
+  --sama-line: var(--color-primary-dark);     /* facial features (#093327) */
+  --sama-pupil-color: var(--color-primary-dark);
+  --sama-cheek-color: rgba(15, 76, 58, 0.10);
+  --sama-tube: var(--color-accent-blue);      /* #14B8A6 teal stethoscope */
 }
 
 

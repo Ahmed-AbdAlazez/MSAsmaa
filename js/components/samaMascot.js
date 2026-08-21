@@ -1,9 +1,13 @@
 /**
  * samaMascot.js — "Sama", the Samasemo platform mascot.
  *
- * A flat, vector (SVG) character:
- *  - rounded cell-like blob body (biology nod)
- *  - a stethoscope loop drawn as the mouth/smile (medical nod)
+ * Flat, vector (SVG) character (v2 design):
+ *  - outer shape: a plain circle in the site's primary brand green
+ *    (exact color via CSS var --color-primary — see css/mascot.css)
+ *  - inner: a friendly white doctor figure clipped inside the disc,
+ *    with a white coat, V-collar and a teal stethoscope loop across
+ *    the chest (accessory detail, NOT the mouth)
+ *  - face: simple round eyes + a small smile line
  *  - two round eyes with pupils that other modules can move
  *
  * This file only RENDERS the mascot and exposes a tiny API
@@ -76,53 +80,68 @@
 
       <!--
         SVG structure (flat / no gradients so it scales crisply):
-          .sama-body       -> the blob
-          .sama-eye        -> white of one eye (blinks via CSS)
+          circle.sama-body -> brand-green disc (the outer shape)
+          white group      -> doctor figure clipped inside the disc
+          .sama-eye        -> one eye (blinks via CSS, unchanged)
           .sama-pupil      -> pupil group; eye-tracking moves THIS only
       -->
       <svg class="sama-svg" viewBox="0 0 220 220" role="img" aria-label="ساما، تميمة منصة المرسال">
-        <!-- Body: rounded cell-like blob -->
-        <path class="sama-body"
-          d="M55 30 C85 8 135 8 165 30 C195 52 205 95 192 130 C179 165 145 190 110 192 C75 194 38 172 25 137 C12 102 25 52 55 30 Z"/>
-        <!-- soft membrane highlight (kept flat, low opacity) -->
-        <path d="M60 34 C86 16 128 14 154 28 C130 22 90 26 68 44 C58 52 52 62 50 74 C46 58 50 42 60 34 Z"
-              fill="rgba(255,255,255,0.22)"/>
-        <!-- membrane dots like organelles -->
-        <circle cx="63" cy="63" r="6" fill="rgba(255,255,255,0.30)"/>
-        <circle cx="163" cy="72" r="5" fill="rgba(255,255,255,0.30)"/>
-        <circle cx="48" cy="150" r="4" fill="rgba(255,255,255,0.22)"/>
+        <defs>
+          <clipPath id="sama-circle-clip">
+            <circle cx="110" cy="110" r="100"/>
+          </clipPath>
+        </defs>
 
-        <!-- Eyes -->
+        <!-- Outer body: a plain circle in the site's primary brand green.
+             Fill comes from --sama-body (mapped to var(--color-primary)
+             in css/mascot.css), so it matches the site exactly. -->
+        <circle class="sama-body" cx="110" cy="110" r="100"/>
+
+        <!-- White doctor character, clipped so nothing pokes outside -->
+        <g clip-path="url(#sama-circle-clip)">
+          <!-- White coat: rounded-torso arch across the bottom of the disc -->
+          <path fill="#FFFFFF"
+            d="M46 226 V196 C46 170 68 153 94 151 H126 C152 153 174 170 174 196 V226 Z"/>
+          <!-- V collar notch: green shows through to suggest lapels -->
+          <path fill="var(--sama-body)" d="M95 151 L110 171 L125 151 Z"/>
+
+          <!-- Stethoscope draped around the neck across the chest,
+               ending in the chest piece (separate accessory detail) -->
+          <g fill="none" stroke="var(--sama-tube)" stroke-width="5.5" stroke-linecap="round">
+            <path d="M94 154 C86 192 134 192 126 154"/>
+            <path d="M110 186 C112 193 116 195 121 196"/>
+          </g>
+          <circle cx="127" cy="197" r="7.5" fill="#FFFFFF" stroke="var(--sama-tube)" stroke-width="4.5"/>
+          <circle cx="127" cy="197" r="2.6" fill="var(--sama-tube)"/>
+        </g>
+
+        <!-- Face: kept minimal and flat on a round white head -->
+        <circle cx="110" cy="92" r="46" fill="#FFFFFF"/>
+
+        <!-- Eyes: ringed sclera so they read against the white head;
+             same class hooks as before (blink + pupil tracking) -->
         <g class="sama-eye">
-          <circle cx="82" cy="95" r="20" fill="#FFFFFF"/>
+          <circle cx="93" cy="87" r="12.5" fill="#FFFFFF"
+                  stroke="var(--sama-line)" stroke-opacity="0.18" stroke-width="1.5"/>
           <g class="sama-pupil">
-            <circle cx="82" cy="95" r="8.5" fill="var(--sama-pupil-color)"/>
-            <circle cx="79" cy="92" r="2.6" fill="#FFFFFF"/>
+            <circle cx="93" cy="87" r="5.8" fill="var(--sama-pupil-color)"/>
+            <circle cx="90.6" cy="84.6" r="2" fill="#FFFFFF"/>
           </g>
         </g>
         <g class="sama-eye">
-          <circle cx="138" cy="95" r="20" fill="#FFFFFF"/>
+          <circle cx="127" cy="87" r="12.5" fill="#FFFFFF"
+                  stroke="var(--sama-line)" stroke-opacity="0.18" stroke-width="1.5"/>
           <g class="sama-pupil">
-            <circle cx="138" cy="95" r="8.5" fill="var(--sama-pupil-color)"/>
-            <circle cx="135" cy="92" r="2.6" fill="#FFFFFF"/>
+            <circle cx="127" cy="87" r="5.8" fill="var(--sama-pupil-color)"/>
+            <circle cx="124.6" cy="84.6" r="2" fill="#FFFFFF"/>
           </g>
         </g>
 
-        <!-- Blush cheeks -->
-        <ellipse cx="60" cy="126" rx="10" ry="6" fill="var(--sama-cheek-color)"/>
-        <ellipse cx="160" cy="126" rx="10" ry="6" fill="var(--sama-cheek-color)"/>
-
-        <!-- Stethoscope smile:
-             main arc = the tube held like a grin,
-             it continues down into the chest-piece (diaphragm). -->
-        <g fill="none" stroke="var(--sama-line)" stroke-width="7" stroke-linecap="round">
-          <path d="M70 132 Q110 162 150 132"/>
-          <path d="M70 132 Q64 128 61 122"/>          <!-- left ear-tip stub -->
-          <path d="M150 132 Q161 143 157 155"/>       <!-- tube to chest piece -->
-        </g>
-        <circle cx="60" cy="119" r="4.5" fill="var(--sama-line)"/>
-        <circle cx="157" cy="166" r="11" fill="var(--sama-chest-inner)" stroke="var(--sama-line)" stroke-width="5"/>
-        <circle cx="157" cy="166" r="3.2" fill="var(--sama-line)"/>
+        <!-- Soft blush + small friendly mouth line -->
+        <ellipse cx="79" cy="105" rx="6.5" ry="4" fill="var(--sama-cheek-color)"/>
+        <ellipse cx="141" cy="105" rx="6.5" ry="4" fill="var(--sama-cheek-color)"/>
+        <path d="M101 111 Q110 120 119 111" fill="none"
+              stroke="var(--sama-line)" stroke-width="4" stroke-linecap="round"/>
       </svg>
     </div>`;
 
