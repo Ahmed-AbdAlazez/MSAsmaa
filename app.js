@@ -140,4 +140,23 @@ app.post("/api/dev/lessons/:lessonId/video-id", async (req, res) => {
   }
 });
 
+/* ==========================================================================
+ * Adham's auth backend (merged from feat/user-auth-and-registration):
+ * JWT signup/login + registration requests, backed by Prisma/PostgreSQL.
+ *
+ * Mounted AFTER the dev login above, so:
+ *   - POST /api/auth/login        -> dev accounts above (frontend today)
+ *   - POST /api/v1/auth/login     -> REAL JWT auth (Prisma users)
+ *   - everything else under /api/v1/auth & /api/v1/registration-requests
+ * Switching the frontend to the real endpoints retires the dev block.
+ * ========================================================================== */
+const apiRoutes = require("./src/routes/index.js");
+app.use("/api", apiRoutes);
+
+// Adham's centralized error handlers (JSON 404 for unknown API paths +
+// formatted error responses). Mounted last on purpose.
+const { notFound, errorHandler } = require("./src/middlewares/errorMiddleware.js");
+app.use(notFound);
+app.use(errorHandler);
+
 module.exports = app;
