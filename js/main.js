@@ -1092,25 +1092,61 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Teacher dashboard: video upload to Bunny Stream ---
+  const chapterSelect = document.querySelector('#upload-chapter');
+  const lessonSelect = document.querySelector('#upload-lesson');
+
+  // Populate the chapter -> lesson dependent dropdowns from the curriculum.
+  if (chapterSelect && lessonSelect && window.CURRICULUM) {
+    const fillLessons = (chapterIdx) => {
+      const chapter = window.CURRICULUM.biology[chapterIdx];
+      lessonSelect.innerHTML = '';
+      chapter.lessons.forEach((lesson) => {
+        const opt = document.createElement('option');
+        opt.value = lesson.id;
+        opt.textContent = `${chapter.name.split(':')[0]} — ${lesson.name} (${lesson.id})`;
+        lessonSelect.appendChild(opt);
+      });
+    };
+
+    window.CURRICULUM.biology.forEach((chapter, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      chapterSelect.appendChild(opt);
+    });
+
+    chapterSelect.addEventListener('change', () => fillLessons(Number(chapterSelect.value)));
+    fillLessons(0);
+  }
+
   const uploadBtn = document.querySelector('#btn-upload-video');
   if (uploadBtn) {
     uploadBtn.addEventListener('click', async () => {
-      const lessonIdInput = document.querySelector('#upload-lesson-id');
       const titleInput = document.querySelector('#upload-title');
+      const attachmentInput = document.querySelector('#upload-attachment');
+      const descriptionInput = document.querySelector('#upload-description');
       const fileInput = document.querySelector('#upload-file');
       const progressArea = document.querySelector('#upload-progress-area');
       const progressBar = document.querySelector('#upload-progress-bar');
       const statusText = document.querySelector('#upload-status-text');
 
-      const lessonId = (lessonIdInput?.value || '').trim();
+      const lessonId = lessonSelect ? lessonSelect.value : '';
+      const videoName = (titleInput?.value || '').trim();
+      const attachmentUrl = (attachmentInput?.value || '').trim();
+      const description = (descriptionInput?.value || '').trim();
       const file = fileInput?.files[0];
 
-      if (!/^lesson-[\w-]+$/.test(lessonId)) {
-        showToast('أدخلي معرف درس صحيح مثل lesson-1', 'warning');
+      if (!lessonId) {
+        showToast('اختاري الفصل والدرس أولاً.', 'warning');
+        return;
+      }
+      if (!videoName) {
+        showToast('اكتبي اسم الفيديو.', 'warning');
+        titleInput.focus();
         return;
       }
       if (!file) {
-        showToast('اختاري ملف الفيديو أولاً.', 'warning');
+        showToast('اختاري ملف الفيديو.', 'warning');
         return;
       }
 
@@ -1131,11 +1167,16 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBar.style.width = '0%';
         statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
 
-        // Step 1: reserve a slot on Bunny (title follows the lesson convention).
+        // Step 1: reserve a slot on Bunny. Title follows the platform
+        // convention: "lesson-N | name | attachment | description".
         const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body: JSON.stringify({ title: titleInput?.value.trim() || undefined }),
+          body: JSON.stringify({
+            title: videoName,
+            attachmentUrl,
+            description,
+          }),
         });
 
         // Step 2: PUT the raw file straight to Bunny with upload progress.
@@ -1176,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
               clearInterval(poll);
               progressBar.style.width = '100%';
               statusText.textContent =
-                `الفيديو جاهز للمشاهدة ✅ (المدة: ${Math.round(st.lengthSeconds / 60)} دقيقة)`;
+                `الفيديو جاهز ✅ — يظهر الآن للطلاب في درس: ${st.lessonName}`;
               showToast(`تم رفع فيديو ${lessonId} بنجاح! الطلاب يستطيعون مشاهدته الآن.`, 'success');
               uploadBtn.disabled = false;
             } else if ([5, 6].includes(st.status)) {

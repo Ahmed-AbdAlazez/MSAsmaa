@@ -73,13 +73,24 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
   }
 
   const { lessonId } = req.params;
-  const customTitle = (req.body && req.body.title) || "شرح الدرس";
+  const rawTitle = ((req.body && req.body.title) || "شرح الدرس").trim();
+  const attachmentUrl = ((req.body && req.body.attachmentUrl) || "").trim();
+  const description = ((req.body && req.body.description) || "").trim();
 
-  // TITLE CONVENTION — this is how the platform remembers which video
-  // belongs to which lesson WITHOUT a database: the title always starts
-  // with the lesson ID, e.g. "lesson-1 | شرح الدعامة".
-  // findVideoByLessonId() relies on this at playback time.
-  const videoTitle = `${lessonId} | ${customTitle}`;
+  // Sanitize: "|" is our metadata separator inside the Bunny title.
+  const clean = (s) => s.replace(/\|/g, "/").replace(/\s+/g, " ");
+
+  // TITLE CONVENTION — this is how the platform remembers a lesson's video
+  // AND its optional metadata WITHOUT a database (Bunny does not persist
+  // video descriptions, verified against their API):
+  //   "lesson-N | name"                              (minimum)
+  //   "lesson-N | name | attachmentUrl | description" (optional extras)
+  // findVideoByLessonId() matches on segment 0; parseLessonTitle() reads
+  // the rest. Segment order is fixed and empty segments are dropped.
+  const segments = [lessonId, clean(rawTitle), clean(attachmentUrl), clean(description)]
+    .slice(0, attachmentUrl || description ? 4 : 2)
+    .filter((seg, i) => i < 2 || seg !== "");
+  const videoTitle = segments.join(" | ");
 
   try {
     // Ask Bunny to reserve a slot for this video; Bunny returns its own ID
@@ -212,9 +223,20 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
 
     const video = await getVideo(videoId);
 
+    // Parse the title convention back into structured metadata:
+    // "lesson-N | name | attachmentUrl | description" -> fields.
+    const segs = String(video.title || "").split(" | ");
+    const meta = {
+      name: segs[1] || "",
+      attachmentUrl: segs[2] || "",
+      description: segs.slice(3).join(" | "),
+    };
+
     return res.json({
       lessonId: req.params.lessonId,
       videoId,
+      title: video.title,
+      ...meta,
       status: video.status,
       encodeProgress: video.encodeProgress,
       lengthSeconds: video.length,
