@@ -79,7 +79,7 @@
               </svg>
             </button>
             <div class="video-title" id="lesson-video-title">شرح الدعامة الفسيولوجية والدعامة التركيبية في النبات</div>
-            <div class="video-duration">أ. أسماء مرسال | ⏱ 45 دقيقة</div>
+            <div class="video-duration" id="lesson-video-duration">أ. أسماء مرسال</div>
           </div>
         </div>
 
@@ -167,24 +167,7 @@
         <!-- Sidebar Chapters list -->
         <div class="lesson-sidebar-box">
           <h3 class="lesson-sidebar-title">دروس هذا الباب</h3>
-          <div style="display:flex; flex-direction:column;">
-            <a href="lesson-view.html" class="sidebar-lesson-item active">
-              <span class="sidebar-lesson-icon">١</span>
-              <span class="sidebar-lesson-name">الدعامة في النبات</span>
-            </a>
-            <a href="#" class="sidebar-lesson-item" onclick="alert('هذا الدرس مغلق في النموذج البصري المؤقت. تصفح درس الدعامة في النبات للتحقق من العرض.')">
-              <span class="sidebar-lesson-icon">٢</span>
-              <span class="sidebar-lesson-name">الدعامة في الإنسان</span>
-            </a>
-            <a href="#" class="sidebar-lesson-item" onclick="alert('هذا الدرس مغلق في النموذج البصري المؤقت.')">
-              <span class="sidebar-lesson-icon">٣</span>
-              <span class="sidebar-lesson-name">الحركة في الكائنات الحية</span>
-            </a>
-            <a href="#" class="sidebar-lesson-item" onclick="alert('هذا الدرس مغلق في النموذج البصري المؤقت.')">
-              <span class="sidebar-lesson-icon">٤</span>
-              <span class="sidebar-lesson-name">التنسيق الهرموني في الكائنات</span>
-            </a>
-          </div>
+          <div id="sidebar-lessons-list" style="display:flex; flex-direction:column;"></div>
         </div>
 
       </div>
@@ -222,6 +205,7 @@
     </div>
   </footer>
 
+  <script src="js/curriculum.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -217,7 +217,7 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
 
     if (!videoId) {
       return res.status(404).json({
-        error: "No video has been uploaded for this lesson yet.",
+        error: "لم يتم رفع فيديو لهذا الدرس بعد.",
       });
     }
 

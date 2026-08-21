@@ -1061,6 +1061,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Real video playback via Bunny Stream (backend API) ---
     const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
+    const chapters = (window.CURRICULUM && window.CURRICULUM.biology) || [];
+
+    // --- Sidebar: show the lessons of THE chapter being viewed ---
+    const listBox = document.querySelector('#sidebar-lessons-list');
+    if (listBox && chapters.length) {
+      let chapter =
+        chapters.find((c) => c.id === urlParams.get('chapter')) ||
+        chapters.find((c) => c.lessons.some((l) => l.id === lessonId)) ||
+        chapters[0];
+
+      const sidebarTitle = document.querySelector('.lesson-sidebar-title');
+      if (sidebarTitle) {
+        sidebarTitle.textContent = `دروس ${chapter.name.split(':')[0]}`;
+      }
+
+      const arabicNums = ['١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩', '١٠'];
+      listBox.innerHTML = '';
+      chapter.lessons.forEach((lesson, i) => {
+        const link = document.createElement('a');
+        link.className =
+          'sidebar-lesson-item' + (lesson.id === lessonId ? ' active' : '');
+        link.href =
+          `lesson-view.html?title=${encodeURIComponent(lesson.name)}` +
+          `&lesson=${lesson.id}&chapter=${chapter.id}`;
+        link.innerHTML =
+          `<span class="sidebar-lesson-icon">${arabicNums[i] || i + 1}</span>` +
+          `<span class="sidebar-lesson-name">${lesson.name}</span>`;
+        listBox.appendChild(link);
+      });
+    }
+
+    // --- Real video duration in the player overlay ---
+    const durationEl = document.querySelector('#lesson-video-duration');
+    const formatDuration = (totalSeconds) => {
+      const s = Math.round(totalSeconds);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      let out = '';
+      if (h) out += `${h} ساعة `;
+      if (m) out += `${m} دقيقة `;
+      if (sec || (!h && !m)) out += `${sec} ثانية`;
+      return out.trim();
+    };
+
+    if (durationEl) {
+      const userId = localStorage.getItem('userId') || 'dev-student';
+      const userRole = localStorage.getItem('userRole') || 'student';
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/video-status`, {
+        headers: { 'x-user-id': userId, 'x-user-role': userRole },
+      })
+        .then((st) => {
+          if (!st.ready) {
+            durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
+          } else if (st.lengthSeconds) {
+            durationEl.textContent =
+              `أ. أسماء مرسال | ⏱ ${formatDuration(st.lengthSeconds)}`;
+          }
+        })
+        .catch((err) => {
+          if (/لم يتم رفع فيديو/.test(err.message)) {
+            durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
+          }
+        });
+    }
+
     const playBtn = document.querySelector('.video-play-btn');
     const playerBox = document.querySelector('.video-player-mock');
 
