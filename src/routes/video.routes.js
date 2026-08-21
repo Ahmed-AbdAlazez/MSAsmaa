@@ -28,6 +28,8 @@ const {
   createVideo,
   getUploadUrl,
   generateSignedPlaybackUrl,
+  getVideo,
+  findVideoByLessonId,
 } = require("../services/bunny.service.js");
 
 // ⚠️ STUB imports — see "STUBS TO REPLACE LATER" in VIDEO_INTEGRATION_README.md
@@ -71,7 +73,13 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
   }
 
   const { lessonId } = req.params;
-  const videoTitle = req.body.title || `Lesson ${lessonId}`;
+  const customTitle = (req.body && req.body.title) || "شرح الدرس";
+
+  // TITLE CONVENTION — this is how the platform remembers which video
+  // belongs to which lesson WITHOUT a database: the title always starts
+  // with the lesson ID, e.g. "lesson-1 | شرح الدعامة".
+  // findVideoByLessonId() relies on this at playback time.
+  const videoTitle = `${lessonId} | ${customTitle}`;
 
   try {
     // Ask Bunny to reserve a slot for this video; Bunny returns its own ID
@@ -79,7 +87,8 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
     const createdVideo = await createVideo(videoTitle);
     const bunnyVideoId = createdVideo.guid;
 
-    // Remember which video belongs to this lesson (in-memory stub for now).
+    // Also cache the mapping in memory (local dev convenience only —
+    // Bunny's title remains the source of truth).
     await saveLessonVideoId(lessonId, bunnyVideoId);
 
     return res.status(201).json({
@@ -88,6 +97,11 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       lessonId,
       videoId: bunnyVideoId,
       uploadUrl: getUploadUrl(bunnyVideoId),
+      // ⚠️ TEST-ONLY: the browser needs this header value to PUT the file
+      // directly to Bunny (serverless proxies can't stream big files).
+      // Replace with TUS resumable uploads or a streaming proxy before
+      // real students/teachers use this in production.
+      accessKey: require("../config/bunny.env.config.js").apiKey,
     });
   } catch (error) {
     console.error(`[video.routes] Upload prep failed for lesson ${lessonId}:`, error);
@@ -134,8 +148,15 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
   }
 
   try {
-    // Look up which Bunny video belongs to this lesson (stub storage for now).
-    const lessonVideoId = await getLessonVideoId(req.params.lessonId);
+    // Resolve the lesson's video ID. Order:
+    //   1. In-memory cache (fast, survives within one server process)
+    //   2. Bunny title search (source of truth — works on serverless
+    //      where memory is empty, and for videos named in the dashboard)
+    let lessonVideoId = await getLessonVideoId(req.params.lessonId);
+
+    if (!lessonVideoId) {
+      lessonVideoId = await findVideoByLessonId(req.params.lessonId);
+    }
 
     if (!lessonVideoId) {
       // 404, not 403: the user IS allowed to watch, there just isn't a video
@@ -165,6 +186,47 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
     );
     return res.status(500).json({
       error: "Failed to create the playback URL. Please try again later.",
+    });
+  }
+});
+
+/**
+ * GET /api/lessons/:lessonId/video-status
+ *
+ * Upload UI helper. After the browser PUTs the file to Bunny, Bunny still
+ * needs time to encode. The teacher dashboard polls this endpoint to show
+ * live progress until the video is watchable.
+ */
+router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
+  try {
+    let videoId = await getLessonVideoId(req.params.lessonId);
+    if (!videoId) {
+      videoId = await findVideoByLessonId(req.params.lessonId);
+    }
+
+    if (!videoId) {
+      return res.status(404).json({
+        error: "No video has been uploaded for this lesson yet.",
+      });
+    }
+
+    const video = await getVideo(videoId);
+
+    return res.json({
+      lessonId: req.params.lessonId,
+      videoId,
+      status: video.status,
+      encodeProgress: video.encodeProgress,
+      lengthSeconds: video.length,
+      ready: video.status === 4,
+    });
+  } catch (error) {
+    console.error(
+      `[video.routes] Status check failed for lesson ${req.params.lessonId}:`,
+      error
+    );
+    return res.status(500).json({
+      error: "Failed to check the video status. Please try again later.",
     });
   }
 });

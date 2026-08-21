@@ -1091,6 +1091,114 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- Teacher dashboard: video upload to Bunny Stream ---
+  const uploadBtn = document.querySelector('#btn-upload-video');
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', async () => {
+      const lessonIdInput = document.querySelector('#upload-lesson-id');
+      const titleInput = document.querySelector('#upload-title');
+      const fileInput = document.querySelector('#upload-file');
+      const progressArea = document.querySelector('#upload-progress-area');
+      const progressBar = document.querySelector('#upload-progress-bar');
+      const statusText = document.querySelector('#upload-status-text');
+
+      const lessonId = (lessonIdInput?.value || '').trim();
+      const file = fileInput?.files[0];
+
+      if (!/^lesson-[\w-]+$/.test(lessonId)) {
+        showToast('أدخلي معرف درس صحيح مثل lesson-1', 'warning');
+        return;
+      }
+      if (!file) {
+        showToast('اختاري ملف الفيديو أولاً.', 'warning');
+        return;
+      }
+
+      // Only teachers may upload.
+      if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
+        showToast('رفع الفيديوهات متاح لحساب المعلمة فقط.', 'danger');
+        return;
+      }
+
+      const authHeaders = {
+        'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+        'x-user-role': 'teacher',
+      };
+
+      try {
+        uploadBtn.disabled = true;
+        progressArea.style.display = 'block';
+        progressBar.style.width = '0%';
+        statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
+
+        // Step 1: reserve a slot on Bunny (title follows the lesson convention).
+        const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ title: titleInput?.value.trim() || undefined }),
+        });
+
+        // Step 2: PUT the raw file straight to Bunny with upload progress.
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', prepared.uploadUrl);
+          xhr.setRequestHeader('AccessKey', prepared.accessKey);
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100);
+              progressBar.style.width = pct + '%';
+              statusText.textContent = `جاري رفع الملف... ${pct}%`;
+            }
+          });
+          xhr.addEventListener('load', () =>
+            xhr.status >= 200 && xhr.status < 300
+              ? resolve()
+              : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
+          );
+          xhr.addEventListener('error', () =>
+            reject(new Error('انقطع الاتصال أثناء الرفع.'))
+          );
+          xhr.send(file);
+        });
+
+        statusText.textContent = 'تم الرفع! جاري معالجة الفيديو على Bunny...';
+
+        // Step 3: poll encoding status until the video is watchable.
+        const poll = setInterval(async () => {
+          try {
+            const st = await fetchJson(
+              `${API_BASE}/api/lessons/${lessonId}/video-status`,
+              { headers: authHeaders }
+            );
+            progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
+
+            if (st.ready) {
+              clearInterval(poll);
+              progressBar.style.width = '100%';
+              statusText.textContent =
+                `الفيديو جاهز للمشاهدة ✅ (المدة: ${Math.round(st.lengthSeconds / 60)} دقيقة)`;
+              showToast(`تم رفع فيديو ${lessonId} بنجاح! الطلاب يستطيعون مشاهدته الآن.`, 'success');
+              uploadBtn.disabled = false;
+            } else if ([5, 6].includes(st.status)) {
+              clearInterval(poll);
+              statusText.textContent = 'فشلت معالجة الفيديو على Bunny.';
+              showToast('فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.', 'danger');
+              uploadBtn.disabled = false;
+            }
+          } catch (pollError) {
+            clearInterval(poll);
+            statusText.textContent = pollError.message;
+            uploadBtn.disabled = false;
+          }
+        }, 5000);
+      } catch (error) {
+        showToast(error.message, 'danger');
+        progressArea.style.display = 'none';
+        uploadBtn.disabled = false;
+      }
+    });
+  }
+
   // --- Front-end only chatbot demos ---
   const chatbotForms = document.querySelectorAll('.chatbot-form');
   const chatbotReplies = {

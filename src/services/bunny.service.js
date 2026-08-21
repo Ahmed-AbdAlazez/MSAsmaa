@@ -156,8 +156,88 @@ function generateSignedPlaybackUrl(
   );
 }
 
+/**
+ * Fetches one video's full metadata from Bunny.
+ *
+ * Used to check encoding status after upload (Bunny processes videos
+ * asynchronously — "created" does not mean "watchable yet").
+ *
+ * @param {string} videoId - The video's ID ("guid").
+ * @returns {Promise<Object>} The video object. Useful fields:
+ *            status (0=Created 1=Uploaded 2=Processing 3=Transcoding
+ *                    4=Finished 5=Error 6=UploadFailed),
+ *            encodeProgress (0-100), length (seconds), thumbnailCount.
+ * @throws {Error} If the network call fails or Bunny replies with an error.
+ */
+async function getVideo(videoId) {
+  const response = await fetch(
+    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos/${videoId}`,
+    { headers: { AccessKey: bunnyEnv.apiKey } }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Bunny getVideo failed (HTTP ${response.status}): ${errorBody}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Finds the Bunny video that belongs to a lesson by TITLE CONVENTION.
+ *
+ * This project stores the lesson->video mapping ON BUNNY ITSELF instead of
+ * a database: every video created through the platform is titled
+ *     "{lessonId} | {human readable name}"
+ * e.g. "lesson-1 | الدعامة في الكائنات الحية".
+ * Videos uploaded manually through the Bunny dashboard work too, as long as
+ * the title starts with the lesson ID followed by a space.
+ *
+ * How the match works: Bunny's "search" query returns videos whose title
+ * contains the term; we then keep only titles where the FIRST token equals
+ * the lesson ID exactly, so "lesson-1 ..." never matches "lesson-10 ...".
+ * The most recently uploaded match wins.
+ *
+ * @param {string} lessonId - The lesson whose video we want, e.g. "lesson-1".
+ * @returns {Promise<string|null>} The video ID ("guid"), or null when no
+ *                                 video for this lesson exists yet.
+ * @throws {Error} If the network call fails or Bunny replies with an error.
+ */
+async function findVideoByLessonId(lessonId) {
+  const url =
+    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos` +
+    `?search=${encodeURIComponent(lessonId)}&orderBy=date&itemsPerPage=100`;
+
+  const response = await fetch(url, {
+    headers: { AccessKey: bunnyEnv.apiKey },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Bunny findVideoByLessonId failed (HTTP ${response.status}): ${errorBody}`
+    );
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  const match = items.find((video) => {
+    const title = typeof video.title === "string" ? video.title : "";
+    return (
+      title === lessonId || title.startsWith(`${lessonId} `)
+    );
+  });
+
+  return match ? match.guid : null;
+}
+
 module.exports = {
   createVideo,
   getUploadUrl,
   generateSignedPlaybackUrl,
+  getVideo,
+  findVideoByLessonId,
 };
