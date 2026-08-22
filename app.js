@@ -8,7 +8,7 @@
  *   - api/index.js   -> Vercel serverless function (production)
  *
  * Endpoints:
- *   POST /api/auth/login                      hardcoded dev accounts
+ *   POST /api/auth/login                      hardcoded code+password accounts
  *   POST /api/lessons/:lessonId/video         teacher upload prep (Bunny)
  *   GET  /api/lessons/:lessonId/video-url     signed playback URL
  *   POST /api/dev/lessons/:lessonId/video-id  dev helper to attach a video ID
@@ -57,21 +57,22 @@ app.use("/api/videos", require("./src/routes/video-manage.routes.js"));
  * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a
  * real database + hashed passwords later).
  *
- *   Student:  student@gmail.com  /  Student@123
- *   Teacher:  teacher@gmail.com  /  Teacher@123
+ * Login is now CODE + PASSWORD (no emails):
+ *   Student:  STU-2026-01   /  Stu@2026
+ *   Teacher:  TCH-2026-01   /  Tea@2026
  * ========================================================================== */
 const DEV_ACCOUNTS = [
   {
     id: "student-1",
-    email: "student@gmail.com",
-    password: "Student@123",
-    name: "طالب تجريبي",
+    code: "STU-2026-01",
+    password: "Stu@2026",
+    name: "أحمد محمد",
     role: "student",
   },
   {
     id: "teacher-1",
-    email: "teacher@gmail.com",
-    password: "Teacher@123",
+    code: "TCH-2026-01",
+    password: "Tea@2026",
     name: "أ. أسماء مرسال",
     role: "teacher",
   },
@@ -79,24 +80,28 @@ const DEV_ACCOUNTS = [
 
 /**
  * POST /api/auth/login
- * Body: { email, password }
+ * Body: { code, password }   ("email" is still accepted as a fallback key
+ * for older clients, but it must contain the login CODE)
  * Returns the user profile when the credentials match one of the hardcoded
  * dev accounts, otherwise 401.
  */
 app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body || {};
+  const { code, email, password } = req.body || {};
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required." });
+  // Accept either body key, normalize to the canonical CODE format.
+  const identifier = String(code || email || "").trim().toUpperCase();
+
+  if (!identifier || !password) {
+    return res.status(400).json({ error: "كود الدخول وكلمة المرور مطلوبان." });
   }
 
   const account = DEV_ACCOUNTS.find(
-    (a) => a.email === String(email).trim().toLowerCase() && a.password === password
+    (a) => a.code === identifier && a.password === password
   );
 
   if (!account) {
     return res.status(401).json({
-      error: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      error: "كود الدخول أو كلمة المرور غير صحيحة.",
     });
   }
 
@@ -104,7 +109,7 @@ app.post("/api/auth/login", (req, res) => {
     id: account.id,
     name: account.name,
     role: account.role,
-    email: account.email,
+    code: account.code,
   });
 });
 

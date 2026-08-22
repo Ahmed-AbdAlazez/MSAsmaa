@@ -1,15 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // --- Demo accounts for testing ---
-  const DEMO_ACCOUNTS = {
-    student: { username: 'student', password: '123456', displayName: 'أحمد محمد', role: 'student' },
-    teacher: { username: 'teacher', password: '123456', displayName: 'أ. أسماء مرسال', role: 'teacher' }
-  };
-
-  const findAccount = (username, password) => {
-    const key = username.trim().toLowerCase();
-    return Object.values(DEMO_ACCOUNTS).find(
-      (acc) => acc.username === key && acc.password === password
-    );
+  // --- Login accounts (CODE + PASSWORD) ------------------------------------
+  // The old username/123456 demo accounts were removed. Login now works
+  // with the teacher-issued codes below (matched case-insensitively).
+  // Locally-created signup accounts are stored separately in
+  // localStorage under 'frontEndAccounts', also keyed by code.
+  const LOGIN_ACCOUNTS = {
+    'STU-2026-01': { password: 'Stu@2026', displayName: 'أحمد محمد', role: 'student' },
+    'TCH-2026-01': { password: 'Tea@2026', displayName: 'أ. أسماء مرسال', role: 'teacher' }
   };
 
   const openLoginModal = () => {
@@ -245,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <button id="login-modal-close" class="modal-close-btn">✕</button>
           <div class="welcome-modal-logo">🔐</div>
           <h2 id="auth-modal-title">تسجيل الدخول</h2>
-          <p id="auth-modal-description" class="auth-modal-description">استخدم بريد Gmail وكلمة المرور للوصول إلى حسابك.</p>
+          <p id="auth-modal-description" class="auth-modal-description">استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.</p>
           <div class="auth-mode-switch" role="tablist" aria-label="خيارات الحساب">
             <button type="button" class="auth-mode-btn active" data-auth-mode="signin"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
             <button type="button" class="auth-mode-btn" data-auth-mode="signup"><span aria-hidden="true">✚</span> إنشاء حساب</button>
@@ -263,8 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">👤</span><input type="text" id="login-username" class="form-input" placeholder="اكتب اسمك" style="width: 100%;"></div>
             </div>
             <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
-              <label for="login-email" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">بريد Gmail الإلكتروني</label>
-              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">✉</span><input type="email" id="login-email" class="form-input" placeholder="name@gmail.com" autocomplete="email" required pattern="[a-zA-Z0-9._%+-]+@gmail\\.com" style="width: 100%;"></div>
+              <label for="login-code" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كود الدخول</label>
+              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="مثال: STU-2026-01" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
             </div>
             <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
               <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
@@ -286,11 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const authNameGroup = document.querySelector('#auth-name-group');
   const passwordRequirements = document.querySelector('#password-requirements');
   const authSubmitButton = document.querySelector('#auth-submit-btn');
-  const loginEmail = document.querySelector('#login-email');
+  const loginCode = document.querySelector('#login-code');
   const loginPassword = document.querySelector('#login-password');
   let authMode = 'signin';
 
-  const isGmailAddress = (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com$/i.test(email);
+  const normalizeCode = (value = '') => value.trim().toUpperCase();
   const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
   const QUIZZES_STORAGE_KEY = 'frontEndQuizzes';
   const NOTIFICATIONS_STORAGE_KEY = 'frontEndNotifications';
@@ -722,8 +719,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSignUp = mode === 'signup';
     document.querySelector('#auth-modal-title').textContent = isSignUp ? 'إنشاء حساب' : 'تسجيل الدخول';
     document.querySelector('#auth-modal-description').textContent = isSignUp
-      ? 'أنشئ حساباً باستخدام بريد Gmail وكلمة مرور آمنة.'
-      : 'استخدم بريد Gmail وكلمة المرور للوصول إلى حسابك.';
+      ? 'أنشئ حساباً باختيار كود خاص بك (4 أحرف على الأقل) مع كلمة مرور آمنة.'
+      : 'استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.';
     authNameGroup.hidden = !isSignUp;
     document.querySelector('#login-username').required = isSignUp;
     passwordRequirements.hidden = !isSignUp;
@@ -908,12 +905,12 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const role = document.querySelector('#login-role').value;
       const usernameInput = document.querySelector('#login-username').value.trim();
-      const email = loginEmail.value.trim().toLowerCase();
+      const code = normalizeCode(loginCode.value);
       const password = loginPassword.value;
 
-      if (!isGmailAddress(email)) {
-        showToast('يرجى إدخال بريد إلكتروني صحيح ينتهي بـ @gmail.com.', 'warning');
-        loginEmail.focus();
+      if (!code || code.length < 4) {
+        showToast('يرجى إدخال كود الدخول (4 أحرف على الأقل).', 'warning');
+        loginCode.focus();
         return;
       }
 
@@ -923,16 +920,33 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // --- Real backend authentication (hardcoded dev accounts on server) ---
+      // Locally-created accounts (signup mode), stored by CODE not email.
+      const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
+
+      // --- Sign in: hardcoded teacher-issued codes first ---------------------
       if (authMode === 'signin') {
+        const localAccount = LOGIN_ACCOUNTS[code] || savedAccounts[code];
+
+        if (localAccount) {
+          if (localAccount.password !== password) {
+            showToast('كلمة المرور غير صحيحة لهذا الكود.', 'danger');
+            loginPassword.focus();
+            return;
+          }
+          completeLogin(localAccount.role, localAccount.displayName || localAccount.name || code, code);
+          return;
+        }
+
+        // Not a local account -> try the backend (server.js / Vercel API),
+        // which now also authenticates by code.
         try {
           const data = await fetchJson(`${API_BASE}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ code, password }),
           });
 
-          completeLogin(data.role, data.name, data.id);
+          completeLogin(data.role, data.name, data.id || code);
           return;
         } catch (error) {
           // Backend answered with a real error (wrong credentials / down).
@@ -942,27 +956,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
+      // --- Sign up: create a new locally-stored account keyed by code ------
       if (authMode === 'signup') {
         if (!usernameInput) {
           showToast('يرجى إدخال الاسم لإنشاء الحساب.', 'warning');
           return;
         }
-        if (savedAccounts[email]) {
-          showToast('يوجد حساب مسجل بهذا البريد الإلكتروني. سجّل الدخول بدلاً من ذلك.', 'warning');
-          setAuthMode('signin');
+        if (LOGIN_ACCOUNTS[code] || savedAccounts[code]) {
+          showToast('هذا الكود مستخدم بالفعل. اختر كوداً آخر أو سجّل الدخول.', 'warning');
           return;
         }
-        savedAccounts[email] = { name: usernameInput, password, role };
+        savedAccounts[code] = { name: usernameInput, password, role };
         localStorage.setItem('frontEndAccounts', JSON.stringify(savedAccounts));
-      } else if (savedAccounts[email] && savedAccounts[email].password !== password) {
-        showToast('كلمة المرور غير صحيحة لهذا البريد الإلكتروني.', 'danger');
-        loginPassword.focus();
-        return;
+        showToast(`تم إنشاء حسابك بنجاح! احفظ كود الدخول الخاص بك: ${code}`, 'success');
+        completeLogin(role, usernameInput, code);
       }
-
-      const displayName = authMode === 'signup' ? usernameInput : (savedAccounts[email]?.name || email.split('@')[0]);
-      completeLogin(role, displayName, email);
     });
   }
 
