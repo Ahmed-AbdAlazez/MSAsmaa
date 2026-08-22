@@ -92,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * fetch() + safe JSON parsing with human-readable Arabic errors.
    * Prevents cryptic "Unexpected token '<' in JSON" crashes when the
    * backend is down or the request lands on a static page instead.
+   * The error now names the exact URL + status so misrouted requests
+   * (Live Server / GitHub Pages hitting a non-API origin) are obvious.
    */
   const fetchJson = async (url, options = {}) => {
     let response;
@@ -99,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
       response = await fetch(url, options);
     } catch (networkError) {
       throw new Error(
-        'لا يمكن الوصول إلى السيرفر. تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.'
+        `لا يمكن الوصول إلى السيرفر (${url}). تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.`
       );
     }
 
@@ -108,8 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch (parseError) {
+      // Non-JSON response: usually HTML from a static host or an error page.
+      const preview = raw.replace(/<[^>]*>/g, ' ').trim().slice(0, 80);
       throw new Error(
-        'رد غير متوقع من السيرفر (ليس JSON). غالباً السيرفر الخلفي لا يعمل على هذا العنوان.'
+        `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ''}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`
       );
     }
 
