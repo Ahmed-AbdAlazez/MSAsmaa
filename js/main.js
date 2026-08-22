@@ -80,16 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // The Node backend (server.js) runs on port 3000. When the frontend is
   // opened from anywhere else (VS Code Live Server :5500, GitHub Pages,
   // file://, another machine), API calls must point at the backend origin.
-  const API_BASE = (() => {
-    const { protocol, hostname, port } = window.location;
-    if (protocol === 'file:') return 'http://localhost:3000';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return port === '3000' ? '' : 'http://localhost:3000';
-    }
-    // Served from a real host (e.g. GitHub Pages) — assume the backend is
-    // deployed there too; change this line to the backend URL if separate.
-    return '';
-  })();
+  const API_BASE = import.meta.env.VITE_API_URL;
 
   /**
    * fetch() + safe JSON parsing with human-readable Arabic errors.
