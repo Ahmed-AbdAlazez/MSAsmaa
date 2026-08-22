@@ -1374,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const uploadBtn = document.querySelector('#btn-upload-video');
   const uploadMaterialBtn = document.querySelector('#btn-upload-material');
-  const uploadSelectedMaterial = async () => {
+  const uploadSelectedMaterial = async (onProgress) => {
     const titleInput = document.querySelector('#upload-title');
     const pdfInput = document.querySelector('#upload-pdf-file');
     const lessonId = lessonSelect ? lessonSelect.value : '';
@@ -1404,13 +1404,41 @@ document.addEventListener('DOMContentLoaded', () => {
     formData.append('file', pdfFile);
     formData.append('title', (titleInput?.value || pdfFile.name).trim());
 
-    const data = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
-      method: 'POST',
-      headers: {
-        'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-        'x-user-role': 'teacher',
-      },
-      body: formData,
+    // XMLHttpRequest (not fetch) because only XHR reports upload progress.
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/api/lessons/${lessonId}/materials`);
+      xhr.setRequestHeader('x-user-id', localStorage.getItem('userId') || 'dev-teacher');
+      xhr.setRequestHeader('x-user-role', 'teacher');
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && typeof onProgress === 'function') {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {});
+          } catch (parseError) {
+            resolve({});
+          }
+        } else {
+          let message = `فشل رفع ملف PDF (${xhr.status}).`;
+          try {
+            const serverError = JSON.parse(xhr.responseText);
+            if (serverError && serverError.error) message = serverError.error;
+          } catch (_) { /* response was not JSON */ }
+          reject(new Error(message));
+        }
+      });
+
+      xhr.addEventListener('error', () =>
+        reject(new Error('انقطع الاتصال أثناء رفع ملف PDF.'))
+      );
+
+      xhr.send(formData);
     });
 
     pdfInput.value = '';
@@ -1420,11 +1448,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (uploadMaterialBtn) {
     uploadMaterialBtn.addEventListener('click', async () => {
+      // Same progress UI the video upload uses.
+      const progressArea = document.querySelector('#upload-progress-area');
+      const progressBar = document.querySelector('#upload-progress-bar');
+      const statusText = document.querySelector('#upload-status-text');
+
       try {
         uploadMaterialBtn.disabled = true;
-        await uploadSelectedMaterial();
+        if (progressArea && progressBar && statusText) {
+          progressArea.style.display = 'block';
+          progressBar.style.width = '0%';
+          statusText.textContent = 'جاري تجهيز الملف...';
+        }
+
+        await uploadSelectedMaterial((pct) => {
+          if (progressBar && statusText) {
+            progressBar.style.width = pct + '%';
+            statusText.textContent = `جاري رفع ملف الـ PDF... ${pct}%`;
+          }
+        });
+
+        if (progressBar && statusText) {
+          progressBar.style.width = '100%';
+          statusText.textContent = 'تم رفع ملف PDF للدرس بنجاح ✔';
+        }
       } catch (error) {
         showToast(error.message, 'danger');
+        if (statusText) statusText.textContent = 'فشل رفع ملف PDF.';
       } finally {
         uploadMaterialBtn.disabled = false;
       }
@@ -1493,8 +1543,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (pdfFile) {
-          statusText.textContent = 'جاري رفع ملف PDF الخاص بالدرس...';
-          await uploadSelectedMaterial();
+          await uploadSelectedMaterial((pct) => {
+            progressBar.style.width = pct + '%';
+            statusText.textContent = `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
+          });
+          statusText.textContent = 'تم رفع الـ PDF ✔ — جاري رفع الفيديو...';
+          progressBar.style.width = '0%';
         }
 
         // Step 2: PUT the raw file straight to Bunny with upload progress.
