@@ -12,7 +12,7 @@
 
 const express = require("express");
 const multer = require("multer");
-const { Readable } = require("stream");
+const { Readable, Transform } = require("stream");
 
 const { requireAuth } = require("../middleware/auth.middleware.js");
 const {
@@ -353,18 +353,41 @@ router.get("/materials/:materialId/view", async (request, response) => {
         .send("Failed to load the PDF from storage. Please try again later.");
     }
 
+    // DEBUG: count the bytes actually piped to the client and compare with
+    // what Supabase declared. A mismatch here means corruption in the pipe.
+    const declaredLength = upstream.headers.get("content-length");
+    const wasEncoded = upstream.headers.get("content-encoding");
+    let pipedBytes = 0;
+    const byteCounter = new Transform({
+      transform(chunk, _encoding, callback) {
+        pipedBytes += chunk.length;
+        callback(null, chunk);
+      },
+      flush(callback) {
+        console.log(
+          `[materials.routes] view ${request.params.materialId}: ` +
+            `status=${upstream.status} declaredLength=${declaredLength || "none"} ` +
+            `contentEncoding=${wasEncoded || "identity"} pipedBytes=${pipedBytes}`
+        );
+        callback();
+      },
+    });
+
     const responseHeaders = {
       "Content-Type": "application/pdf",
       "Content-Disposition": 'inline; filename="material.pdf"',
       "Cache-Control": "private, max-age=300",
     };
-    const upstreamLength = upstream.headers.get("content-length");
-    if (upstreamLength) {
-      responseHeaders["Content-Length"] = upstreamLength;
+    // Only forward Content-Length when Supabase sent UNCOMPRESSED bytes.
+    // fetch() transparently decompresses gzip/br responses, so a forwarded
+    // compressed length would under-report the real byte count and the
+    // browser would truncate the PDF mid-stream (corrupt file, HTTP 200).
+    if (declaredLength && !wasEncoded) {
+      responseHeaders["Content-Length"] = declaredLength;
     }
     response.set(responseHeaders);
 
-    Readable.fromWeb(upstream.body).pipe(response);
+    Readable.fromWeb(upstream.body).pipe(byteCounter).pipe(response);
   } catch (error) {
     console.error(
       `[materials.routes] Inline view failed for material ${request.params.materialId}:`,
