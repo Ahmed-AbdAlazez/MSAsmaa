@@ -156,6 +156,126 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   })();
 
+  // ------------------------------------------------------------------
+  // Service-Worker background uploads. When a worker controls the page,
+  // uploads are handed to it (job stored in IndexedDB) so they KEEP RUNNING
+  // while the teacher navigates to other pages of the app. Progress arrives
+  // over a BroadcastChannel and drives the floating card from any page.
+  // Browsers without SW fall back to the classic inline upload.
+  // ------------------------------------------------------------------
+  const UPLOAD_CHANNEL_NAME = 'msasmaa-uploads';
+  const swUploadAvailable =
+    'serviceWorker' in navigator && typeof BroadcastChannel !== 'undefined';
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline/dev */ });
+  }
+
+  function openUploadDb() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('msasmaa-uploads', 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('jobs', { keyPath: 'id' });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function idbPutJob(job) {
+    const db = await openUploadDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('jobs', 'readwrite');
+      tx.objectStore('jobs').put(job);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /** Resolves when the worker reports done/failed for this job. */
+  function waitForUploadOutcome(jobId) {
+    return new Promise((resolve) => {
+      const channel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
+      const handler = (event) => {
+        const m = event.data || {};
+        if (m.jobId !== jobId) return;
+        if (m.type === 'done') {
+          cleanup();
+          resolve({ ok: true, kind: m.kind });
+        } else if (m.type === 'failed') {
+          cleanup();
+          resolve({ ok: false, error: m.error });
+        }
+      };
+      const cleanup = () => {
+        channel.removeEventListener('message', handler);
+        channel.close();
+      };
+      channel.addEventListener('message', handler);
+    });
+  }
+
+  /** Registers global progress listeners once, driving the floating card. */
+  let uploadGlueInstalled = false;
+  function installUploadUiGlue() {
+    if (uploadGlueInstalled || !swUploadAvailable) return;
+    uploadGlueInstalled = true;
+
+    const channel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
+    channel.onmessage = (event) => {
+      const m = event.data || {};
+      if (m.type === 'started') {
+        UploadFloat.show(m.label || 'جاري رفع ملف');
+      } else if (m.type === 'progress') {
+        UploadFloat.update(m.pct, m.stage === 'finalizing'
+          ? 'جاري تحسين الملف على السيرفر...'
+          : `جاري الرفع... ${m.pct}%`);
+      } else if (m.type === 'done') {
+        UploadFloat.done('تم الرفع بنجاح ✔');
+        showToast('اكتمل رفع الملف بنجاح.', 'success');
+      } else if (m.type === 'failed') {
+        UploadFloat.fail('فشل الرفع.');
+        showToast(`فشل رفع الملف: ${m.error || ''}`, 'danger');
+      }
+    };
+
+    // Restore the card after navigation if jobs are still running.
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) {
+        registration.active.postMessage({ type: 'GET_ACTIVE_JOBS' });
+      }
+    });
+
+    const stateChannel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
+    stateChannel.onmessage = (event) => {
+      const m = event.data || {};
+      if (m.type === 'ACTIVE_JOBS' && m.jobs && m.jobs.length) {
+        UploadFloat.show(m.jobs[0].label || 'جاري رفع ملف');
+      }
+    };
+  }
+  installUploadUiGlue();
+
+  /** Hands an upload job to the service worker; resolves on its outcome. */
+  async function startSwUploadJob(job) {
+    await idbPutJob(job);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      (registration.active || navigator.serviceWorker.controller)
+        .postMessage({ type: 'START_UPLOAD', jobId: job.id });
+    } catch (error) {
+      // Worker unreachable — remove the queued job and signal failure so
+      // the caller can fall back to the inline path cleanly.
+      try {
+        const db = await openUploadDb();
+        const tx = db.transaction('jobs', 'readwrite');
+        tx.objectStore('jobs').delete(job.id);
+      } catch (_) { /* ignore */ }
+      return { ok: false, error: error.message };
+    }
+    return waitForUploadOutcome(job.id);
+  }
+
   // Warn before closing/leaving the page mid-upload — an in-flight upload
   // dies with the page, so the teacher should confirm first.
   window.addEventListener('beforeunload', (event) => {
