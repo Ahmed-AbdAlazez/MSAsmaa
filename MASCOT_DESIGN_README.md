@@ -175,10 +175,10 @@ clamped progress value from `0..1`. Four overlapping smoothstep ranges then map
 that progress to CSS variables:
 
 ```js
-outline  = smoothstep(0.02, 0.24, p)
-skeleton = smoothstep(0.20, 0.54, p)
-ribs     = smoothstep(0.43, 0.72, p)
-heart    = smoothstep(0.66, 0.94, p)
+outline  = smoothstep(0.00, 0.18, p)
+skeleton = smoothstep(0.15, 0.45, p)
+ribs     = smoothstep(0.34, 0.62, p)
+heart    = smoothstep(0.52, 0.82, p)
 ```
 
 Those ranges intentionally overlap, so the outline, skeleton, rib cage emphasis,
@@ -213,8 +213,8 @@ only when the heart reveal is essentially complete, and it is disabled under
 section is off-screen. Scroll and resize events only schedule rAF work. During
 scroll, the effect updates CSS variables that feed opacity and transform styles;
 no layout-changing properties are animated on every scroll tick. Mobile uses a
-shorter section height so touch scrolling reaches the complete anatomy state
-without feeling oversized.
+shorter section height so desktop and touch scrolling reach the complete
+anatomy state without feeling oversized or paused at the end.
 
 ---
 

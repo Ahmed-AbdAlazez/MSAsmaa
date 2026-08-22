@@ -21,9 +21,25 @@
             <title id="anatomy-title">Layered human anatomy illustration</title>
             <desc id="anatomy-desc">A flat vector human body builds from outline to skeleton, rib cage highlight, and heart as the page scrolls.</desc>
 
+            <g class="anatomy-hospital" aria-hidden="true">
+              <rect class="anatomy-room-wall" x="18" y="18" width="324" height="584" rx="28"/>
+              <rect class="anatomy-room-window" x="52" y="54" width="86" height="74" rx="14"/>
+              <path class="anatomy-room-window-line" d="M95 58v66M56 91h78"/>
+              <rect class="anatomy-room-chart" x="232" y="56" width="62" height="78" rx="14"/>
+              <path class="anatomy-room-cross" d="M263 75v39M244 95h38"/>
+              <rect class="anatomy-room-monitor" x="232" y="172" width="72" height="54" rx="12"/>
+              <path class="anatomy-room-pulse" d="M244 200h13l8-15 11 29 8-14h8"/>
+              <path class="anatomy-room-rail" d="M47 416h266"/>
+              <path class="anatomy-room-floor" d="M37 514c48-28 238-28 286 0v44H37z"/>
+              <rect class="anatomy-room-bed" x="72" y="405" width="216" height="36" rx="18"/>
+              <path class="anatomy-room-bed-leg" d="M105 437v48M255 437v48"/>
+            </g>
+
             <g class="anatomy-layer anatomy-layer--outline">
               <path class="anatomy-outline-fill" d="M180 39c35 0 62 27 62 62 0 24-13 45-32 55v35l43 18c22 9 39 27 46 50l28 91c5 16-4 33-20 38-15 5-31-3-37-18l-26-75-5 122 41 121c6 18-3 37-21 43-17 6-36-3-42-20l-37-101-37 101c-6 17-25 26-42 20-18-6-27-25-21-43l41-121-5-122-26 75c-6 15-22 23-37 18-16-5-25-22-20-38l28-91c7-23 24-41 46-50l43-18v-35c-19-10-32-31-32-55 0-35 27-62 62-62z"/>
               <path class="anatomy-outline-stroke" d="M180 39c35 0 62 27 62 62 0 24-13 45-32 55v35l43 18c22 9 39 27 46 50l28 91c5 16-4 33-20 38-15 5-31-3-37-18l-26-75-5 122 41 121c6 18-3 37-21 43-17 6-36-3-42-20l-37-101-37 101c-6 17-25 26-42 20-18-6-27-25-21-43l41-121-5-122-26 75c-6 15-22 23-37 18-16-5-25-22-20-38l28-91c7-23 24-41 46-50l43-18v-35c-19-10-32-31-32-55 0-35 27-62 62-62z"/>
+              <path class="anatomy-lung anatomy-lung--left" d="M169 182c-30 14-45 47-39 91 3 22 16 36 34 34 15-2 22-17 20-39-3-35-1-61 7-81-5-5-12-6-22-5z"/>
+              <path class="anatomy-lung anatomy-lung--right" d="M191 182c30 14 45 47 39 91-3 22-16 36-34 34-15-2-22-17-20-39 3-35 1-61-7-81 5-5 12-6 22-5z"/>
             </g>
 
             <g class="anatomy-layer anatomy-layer--skeleton">
@@ -76,6 +92,7 @@
     section.style.setProperty('--ribs-opacity', (ribs * 0.94).toFixed(4));
     section.style.setProperty('--heart-opacity', heart.toFixed(4));
     section.style.setProperty('--halo-opacity', (0.22 + skeleton * 0.18).toFixed(4));
+    section.style.setProperty('--hospital-opacity', (0.82 + outline * 0.18).toFixed(4));
     section.style.setProperty('--outline-y', `${((1 - outline) * 14).toFixed(2)}px`);
     section.style.setProperty('--skeleton-y', `${((1 - skeleton) * 22).toFixed(2)}px`);
     section.style.setProperty('--ribs-y', `${((1 - ribs) * 12).toFixed(2)}px`);
@@ -105,8 +122,8 @@
   const computeProgress = () => {
     const rect = section.getBoundingClientRect();
     const vh = window.innerHeight || document.documentElement.clientHeight;
-    const travel = rect.height + vh * 0.12;
-    const raw = (vh * 0.86 - rect.top) / travel;
+    const travel = rect.height * 0.82;
+    const raw = (vh * 0.82 - rect.top) / travel;
     return clamp(raw);
   };
 
@@ -114,10 +131,10 @@
     rafId = null;
 
     const p = computeProgress();
-    const outline = smoothstep(0.02, 0.24, p);
-    const skeleton = smoothstep(0.20, 0.54, p);
-    const ribs = smoothstep(0.43, 0.72, p);
-    const heart = smoothstep(0.66, 0.94, p);
+    const outline = smoothstep(0.00, 0.18, p);
+    const skeleton = smoothstep(0.15, 0.45, p);
+    const ribs = smoothstep(0.34, 0.62, p);
+    const heart = smoothstep(0.52, 0.82, p);
 
     setProgress(outline, skeleton, ribs, heart);
   };

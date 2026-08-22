@@ -268,6 +268,7 @@ body.sama-eyes-live .sama-pupil {
   --ribs-opacity: 0;
   --heart-opacity: 0;
   --halo-opacity: 0.22;
+  --hospital-opacity: 0.82;
   --outline-y: 14px;
   --skeleton-y: 22px;
   --ribs-y: 12px;
@@ -278,17 +279,19 @@ body.sama-eyes-live .sama-pupil {
   --heart-scale: 0.72;
   --halo-scale: 0.96;
 
-  min-height: 155vh;
-  padding: 8vh 0 10vh;
+  min-height: 118vh;
+  padding: 5vh 0 6vh;
   background:
-    linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(237, 253, 246, 0.88) 16%, rgba(240, 253, 250, 0.94) 74%, rgba(248, 250, 252, 0) 100%);
+    radial-gradient(circle at 25% 18%, rgba(20, 184, 166, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 76%, rgba(16, 185, 129, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(232, 250, 247, 0.96) 18%, rgba(243, 255, 250, 0.98) 78%, rgba(248, 250, 252, 0) 100%);
   overflow: clip;
 }
 
 .anatomy-scroll__sticky {
   position: sticky;
-  top: 7rem;
-  min-height: min(78vh, 720px);
+  top: 5.5rem;
+  min-height: min(72vh, 650px);
   display: grid;
   place-items: center;
   padding: 0 1.5rem;
@@ -296,7 +299,7 @@ body.sama-eyes-live .sama-pupil {
 
 .anatomy-scroll__stage {
   position: relative;
-  width: min(84vw, 430px);
+  width: min(88vw, 500px);
   aspect-ratio: 360 / 620;
   display: grid;
   place-items: center;
@@ -305,16 +308,18 @@ body.sama-eyes-live .sama-pupil {
 
 .anatomy-scroll__halo {
   position: absolute;
-  inset: 7% 8%;
+  inset: 2% 0;
   z-index: -1;
-  border: 1px solid rgba(15, 76, 58, 0.11);
+  border: 1px solid rgba(15, 76, 58, 0.14);
   background:
-    linear-gradient(rgba(15, 76, 58, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 76, 58, 0.045) 1px, transparent 1px);
-  background-size: 34px 34px;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(225, 250, 244, 0.8)),
+    linear-gradient(rgba(15, 76, 58, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 76, 58, 0.04) 1px, transparent 1px);
+  background-size: auto, 34px 34px, 34px 34px;
   border-radius: 8px;
   opacity: var(--halo-opacity);
   transform: scale(var(--halo-scale));
+  box-shadow: 0 26px 70px rgba(9, 51, 39, 0.14);
   will-change: opacity, transform;
 }
 
@@ -324,6 +329,63 @@ body.sama-eyes-live .sama-pupil {
   display: block;
   filter: drop-shadow(0 28px 52px rgba(9, 51, 39, 0.12));
   overflow: visible;
+}
+
+.anatomy-hospital {
+  opacity: var(--hospital-opacity);
+}
+
+.anatomy-room-wall {
+  fill: rgba(255, 255, 255, 0.76);
+  stroke: rgba(15, 76, 58, 0.12);
+  stroke-width: 2;
+}
+
+.anatomy-room-window {
+  fill: rgba(20, 184, 166, 0.14);
+  stroke: rgba(20, 184, 166, 0.32);
+  stroke-width: 2;
+}
+
+.anatomy-room-window-line,
+.anatomy-room-rail,
+.anatomy-room-bed-leg {
+  fill: none;
+  stroke: rgba(15, 76, 58, 0.16);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.anatomy-room-chart,
+.anatomy-room-monitor {
+  fill: #fff;
+  stroke: rgba(15, 76, 58, 0.14);
+  stroke-width: 2;
+}
+
+.anatomy-room-cross {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.anatomy-room-pulse {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.anatomy-room-floor {
+  fill: rgba(20, 184, 166, 0.11);
+}
+
+.anatomy-room-bed {
+  fill: rgba(20, 184, 166, 0.2);
+  stroke: rgba(15, 76, 58, 0.16);
+  stroke-width: 2;
 }
 
 .anatomy-layer {
@@ -338,13 +400,20 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-outline-fill {
-  fill: rgba(20, 184, 166, 0.1);
+  fill: rgba(20, 184, 166, 0.22);
 }
 
 .anatomy-outline-stroke {
   fill: none;
-  stroke: rgba(15, 76, 58, 0.68);
-  stroke-width: 7;
+  stroke: rgba(15, 76, 58, 0.52);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.anatomy-lung {
+  fill: rgba(6, 182, 212, 0.2);
+  stroke: rgba(6, 182, 212, 0.32);
+  stroke-width: 3;
   stroke-linejoin: round;
 }
 
@@ -354,25 +423,25 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-bone {
-  stroke: var(--color-primary);
+  stroke: rgba(15, 76, 58, 0.82);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .anatomy-bone--filled {
-  fill: rgba(255, 255, 255, 0.72);
-  stroke-width: 6;
+  fill: rgba(255, 255, 255, 0.86);
+  stroke-width: 5;
 }
 
 .anatomy-bone--line {
   fill: none;
-  stroke-width: 7;
+  stroke-width: 5.5;
 }
 
 .anatomy-joint {
   fill: #fff;
-  stroke: var(--color-accent-blue);
-  stroke-width: 5;
+  stroke: rgba(20, 184, 166, 0.9);
+  stroke-width: 4;
 }
 
 .anatomy-layer--ribs {
@@ -382,15 +451,15 @@ body.sama-eyes-live .sama-pupil {
 
 .anatomy-rib {
   fill: none;
-  stroke: var(--color-accent-blue);
-  stroke-width: 8;
+  stroke: rgba(20, 184, 166, 0.95);
+  stroke-width: 6.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .anatomy-rib--sternum {
   stroke: var(--color-accent);
-  stroke-width: 9;
+  stroke-width: 7.5;
 }
 
 .anatomy-layer--heart {
@@ -499,8 +568,8 @@ body.sama-eyes-live .sama-pupil {
 
 @media (max-width: 600px) {
   .anatomy-scroll {
-    min-height: 118vh;
-    padding: 5vh 0 7vh;
+    min-height: 104vh;
+    padding: 4vh 0 5vh;
   }
 
   .anatomy-scroll__sticky {
@@ -531,6 +600,7 @@ body.sama-eyes-live .sama-pupil {
     --ribs-opacity: 0.94;
     --heart-opacity: 1;
     --halo-opacity: 0.4;
+    --hospital-opacity: 1;
     --outline-y: 0px;
     --skeleton-y: 0px;
     --ribs-y: 0px;
