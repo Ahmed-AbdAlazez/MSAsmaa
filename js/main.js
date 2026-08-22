@@ -1405,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formData.append('title', (titleInput?.value || pdfFile.name).trim());
 
     // XMLHttpRequest (not fetch) because only XHR reports upload progress.
-    await new Promise((resolve, reject) => {
+    const data = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${API_BASE}/api/lessons/${lessonId}/materials`);
       xhr.setRequestHeader('x-user-id', localStorage.getItem('userId') || 'dev-teacher');
