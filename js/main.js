@@ -1168,9 +1168,68 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load the lesson's videos once on page open.
     const userId = localStorage.getItem('userId') || 'dev-student';
     const userRole = localStorage.getItem('userRole') || 'student';
+    const authHeaders = { 'x-user-id': userId, 'x-user-role': userRole };
+
+    const renderLessonMaterials = (materials) => {
+      const materialsBox = document.querySelector('#lesson-materials-list');
+      if (!materialsBox) return;
+
+      if (!materials.length) {
+        materialsBox.innerHTML =
+          '<p class="text-muted" style="font-size:0.9rem; margin:0;">لا توجد ملفات PDF لهذا الدرس بعد.</p>';
+        return;
+      }
+
+      materialsBox.innerHTML = '';
+      materials.forEach((material) => {
+        const row = document.createElement('div');
+        row.className = 'lesson-material-item';
+
+        const title = document.createElement('div');
+        title.className = 'lesson-material-title';
+        title.textContent = material.title || 'ملف PDF';
+
+        const button = document.createElement('button');
+        button.className = 'btn btn-secondary lesson-material-download';
+        button.type = 'button';
+        button.textContent = 'تحميل';
+        button.addEventListener('click', async () => {
+          try {
+            button.disabled = true;
+            button.textContent = 'جاري...';
+            const data = await fetchJson(
+              `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download`,
+              { headers: authHeaders }
+            );
+            window.open(data.downloadUrl, '_blank', 'noopener');
+          } catch (error) {
+            showToast(error.message, 'danger');
+          } finally {
+            button.disabled = false;
+            button.textContent = 'تحميل';
+          }
+        });
+
+        row.append(title, button);
+        materialsBox.appendChild(row);
+      });
+    };
+
+    fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
+      headers: authHeaders,
+    })
+      .then((data) => renderLessonMaterials(data.materials || []))
+      .catch((error) => {
+        const materialsBox = document.querySelector('#lesson-materials-list');
+        if (materialsBox) {
+          materialsBox.innerHTML =
+            '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
+        }
+        console.warn('[materials] list failed:', error);
+      });
 
     fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
-      headers: { 'x-user-id': userId, 'x-user-role': userRole },
+      headers: authHeaders,
     })
       .then((data) => {
         lessonVideos = data.videos || [];
@@ -1252,12 +1311,71 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const uploadBtn = document.querySelector('#btn-upload-video');
+  const uploadMaterialBtn = document.querySelector('#btn-upload-material');
+  const uploadSelectedMaterial = async () => {
+    const titleInput = document.querySelector('#upload-title');
+    const pdfInput = document.querySelector('#upload-pdf-file');
+    const lessonId = lessonSelect ? lessonSelect.value : '';
+    const pdfFile = pdfInput?.files[0];
+
+    if (!lessonId) {
+      showToast('اختاري الفصل والدرس أولاً.', 'warning');
+      return null;
+    }
+
+    if (!pdfFile) {
+      showToast('اختاري ملف PDF أولاً.', 'warning');
+      return null;
+    }
+
+    if (pdfFile.type !== 'application/pdf' && !/\.pdf$/i.test(pdfFile.name)) {
+      showToast('ملفات PDF فقط مسموح بها.', 'warning');
+      return null;
+    }
+
+    if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
+      showToast('رفع ملفات PDF متاح لحساب المعلمة فقط.', 'danger');
+      return null;
+    }
+
+    const formData = new FormData();
+    formData.append('file', pdfFile);
+    formData.append('title', (titleInput?.value || pdfFile.name).trim());
+
+    const data = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
+      method: 'POST',
+      headers: {
+        'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+        'x-user-role': 'teacher',
+      },
+      body: formData,
+    });
+
+    pdfInput.value = '';
+    showToast('تم رفع ملف PDF للدرس بنجاح.', 'success');
+    return data;
+  };
+
+  if (uploadMaterialBtn) {
+    uploadMaterialBtn.addEventListener('click', async () => {
+      try {
+        uploadMaterialBtn.disabled = true;
+        await uploadSelectedMaterial();
+      } catch (error) {
+        showToast(error.message, 'danger');
+      } finally {
+        uploadMaterialBtn.disabled = false;
+      }
+    });
+  }
+
   if (uploadBtn) {
     uploadBtn.addEventListener('click', async () => {
       const titleInput = document.querySelector('#upload-title');
       const attachmentInput = document.querySelector('#upload-attachment');
       const descriptionInput = document.querySelector('#upload-description');
       const fileInput = document.querySelector('#upload-file');
+      const pdfInput = document.querySelector('#upload-pdf-file');
       const progressArea = document.querySelector('#upload-progress-area');
       const progressBar = document.querySelector('#upload-progress-bar');
       const statusText = document.querySelector('#upload-status-text');
@@ -1267,6 +1385,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const attachmentUrl = (attachmentInput?.value || '').trim();
       const description = (descriptionInput?.value || '').trim();
       const file = fileInput?.files[0];
+      const pdfFile = pdfInput?.files[0];
 
       if (!lessonId) {
         showToast('اختاري الفصل والدرس أولاً.', 'warning');
@@ -1310,6 +1429,11 @@ document.addEventListener('DOMContentLoaded', () => {
             description,
           }),
         });
+
+        if (pdfFile) {
+          statusText.textContent = 'جاري رفع ملف PDF الخاص بالدرس...';
+          await uploadSelectedMaterial();
+        }
 
         // Step 2: PUT the raw file straight to Bunny with upload progress.
         await new Promise((resolve, reject) => {

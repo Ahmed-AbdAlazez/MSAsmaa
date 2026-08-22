@@ -20,6 +20,7 @@ const path = require("path");
 const express = require("express");
 
 const videoRoutes = require("./src/routes/video.routes.js");
+const materialsRoutes = require("./src/routes/materials.routes.js");
 const {
   saveLessonVideoId,
 } = require("./src/services/lesson.stub.service.js");
@@ -52,6 +53,9 @@ app.use("/api/lessons", videoRoutes);
 
 // Teacher-only video management (edit metadata / delete).
 app.use("/api/videos", require("./src/routes/video-manage.routes.js"));
+
+// PDF lesson materials API (teacher upload + enrolled student download).
+app.use("/api", materialsRoutes);
 
 /* ==========================================================================
  * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a

@@ -136,7 +136,8 @@ router.post(
     try {
       const filePath = await uploadPdf(
         request.file.buffer,
-        request.file.originalname
+        request.file.originalname,
+        request.params.lessonId
       );
       const materialRecord = await saveMaterialRecord(
         request.params.lessonId,
@@ -171,26 +172,36 @@ router.post(
  * playback. Download URLs are intentionally not returned from this list route.
  */
 router.get("/lessons/:lessonId/materials", requireAuth, async (request, response) => {
-  const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
-    request.user.id,
-    request.params.lessonId
-  );
+  try {
+    const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
+      request.user.id,
+      request.params.lessonId
+    );
 
-  if (!studentIsEnrolled) {
-    return response.status(403).json({
-      error: "You are not enrolled in the course this lesson belongs to.",
+    if (!studentIsEnrolled) {
+      return response.status(403).json({
+        error: "You are not enrolled in the course this lesson belongs to.",
+      });
+    }
+
+    const materialRecords = await getMaterialsForLesson(request.params.lessonId);
+
+    return response.json({
+      lessonId: request.params.lessonId,
+      materials: materialRecords.map((materialRecord) => ({
+        id: materialRecord.id,
+        title: materialRecord.title,
+      })),
+    });
+  } catch (error) {
+    console.error(
+      `[materials.routes] Material list failed for lesson ${request.params.lessonId}:`,
+      error
+    );
+    return response.status(500).json({
+      error: "Failed to load the PDF materials. Please try again later.",
     });
   }
-
-  const materialRecords = await getMaterialsForLesson(request.params.lessonId);
-
-  return response.json({
-    lessonId: request.params.lessonId,
-    materials: materialRecords.map((materialRecord) => ({
-      id: materialRecord.id,
-      title: materialRecord.title,
-    })),
-  });
 });
 
 /**

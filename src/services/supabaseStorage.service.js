@@ -61,18 +61,37 @@ function buildSafePdfFileName(fileName) {
 }
 
 /**
+ * Converts a lesson ID into a safe folder name.
+ * Lesson IDs already follow a simple "lesson-N" pattern, but this guard keeps
+ * storage paths predictable if a caller sends unexpected characters.
+ *
+ * @param {string} lessonId - The lesson the uploaded PDF belongs to.
+ * @returns {string} A safe storage folder name.
+ */
+function buildSafeLessonFolderName(lessonId) {
+  return (
+    String(lessonId || "standalone")
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "standalone"
+  );
+}
+
+/**
  * Builds a unique object path for a PDF before it is uploaded.
  * The timestamp and random suffix prevent two teachers from overwriting each
  * other when they upload files with the same original name.
  *
  * @param {string} fileName - The original uploaded filename.
+ * @param {string} lessonId - The lesson folder to store this PDF under.
  * @returns {string} The object path to store inside Supabase Storage.
  */
-function buildStorageFilePath(fileName) {
+function buildStorageFilePath(fileName, lessonId) {
+  const lessonFolderName = buildSafeLessonFolderName(lessonId);
   const safeFileName = buildSafePdfFileName(fileName);
   const randomSuffix = Math.random().toString(36).slice(2, 10);
 
-  return `materials/${Date.now()}-${randomSuffix}-${safeFileName}`;
+  return `lessons/${lessonFolderName}/${Date.now()}-${randomSuffix}-${safeFileName}`;
 }
 
 /**
@@ -82,10 +101,11 @@ function buildStorageFilePath(fileName) {
  *
  * @param {Buffer} fileBuffer - The uploaded PDF bytes from multer memory storage.
  * @param {string} fileName - The teacher's original filename.
+ * @param {string} lessonId - The lesson this PDF belongs to.
  * @returns {Promise<string>} The private Supabase Storage object path.
  */
-async function uploadPdf(fileBuffer, fileName) {
-  const filePath = buildStorageFilePath(fileName);
+async function uploadPdf(fileBuffer, fileName, lessonId) {
+  const filePath = buildStorageFilePath(fileName, lessonId);
 
   const { error } = await supabaseClient.storage
     .from(MATERIALS_BUCKET_NAME)
@@ -99,6 +119,37 @@ async function uploadPdf(fileBuffer, fileName) {
   }
 
   return filePath;
+}
+
+/**
+ * Lists PDF objects stored for one lesson.
+ * This gives the temporary material service a durable production-friendly
+ * source of truth without adding a Prisma table yet.
+ *
+ * @param {string} lessonId - The lesson whose PDF folder should be listed.
+ * @returns {Promise<object[]>} Supabase Storage file objects.
+ */
+async function listLessonPdfFiles(lessonId) {
+  const lessonFolderName = buildSafeLessonFolderName(lessonId);
+  const folderPath = `lessons/${lessonFolderName}`;
+
+  const { data, error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .list(folderPath, {
+      limit: 100,
+      sortBy: { column: "created_at", order: "desc" },
+    });
+
+  if (error) {
+    throw new Error(`Supabase PDF list failed: ${error.message}`);
+  }
+
+  return (data || [])
+    .filter((fileObject) => /\.pdf$/i.test(fileObject.name || ""))
+    .map((fileObject) => ({
+      ...fileObject,
+      filePath: `${folderPath}/${fileObject.name}`,
+    }));
 }
 
 /**
@@ -126,5 +177,6 @@ async function generateSignedDownloadUrl(filePath, expiresInSeconds) {
 
 module.exports = {
   uploadPdf,
+  listLessonPdfFiles,
   generateSignedDownloadUrl,
 };
