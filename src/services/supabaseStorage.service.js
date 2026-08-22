@@ -293,10 +293,80 @@ async function deleteFile(filePath) {
   return true;
 }
 
+/**
+ * Creates a short-lived signed UPLOAD URL so the browser can PUT the PDF
+ * bytes straight into Supabase Storage. Vercel caps function request bodies
+ * at ~4.5MB (413 errors on large uploads) — with this flow the file never
+ * passes through a serverless function at all, so any size works.
+ *
+ * @param {string} fileName - The teacher's original filename.
+ * @param {string} lessonId - The lesson folder to store this PDF under.
+ * @returns {Promise<object>} { signedUrl, token, filePath }
+ */
+async function createSignedUploadForLesson(fileName, lessonId) {
+  await ensureMaterialsBucket();
+  const filePath = buildStorageFilePath(fileName, lessonId);
+
+  const { data, error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .createSignedUploadUrl(filePath);
+
+  if (error || !data) {
+    throw new Error(
+      `Supabase signed upload URL failed: ${error ? error.message : "empty response"}`
+    );
+  }
+
+  return { signedUrl: data.signedUrl, token: data.token, filePath };
+}
+
+/**
+ * Overwrites an existing object's bytes in place (used after server-side
+ * normalization of a directly-uploaded PDF).
+ */
+async function overwritePdf(filePath, fileBuffer) {
+  await ensureMaterialsBucket();
+  const { error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .upload(filePath, fileBuffer, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Supabase PDF overwrite failed: ${error.message}`);
+  }
+
+  return true;
+}
+
+/**
+ * Downloads a stored object as raw bytes using the SDK (server-side only).
+ * Used by the finalize step to normalize directly-uploaded PDFs; the bytes
+ * travel Supabase->function->Supabase, never through a Vercel HTTP body.
+ */
+async function downloadPdfBytes(filePath) {
+  await ensureMaterialsBucket();
+  const { data, error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .download(filePath);
+
+  if (error || !data) {
+    throw new Error(
+      `Supabase file download failed: ${error ? error.message : "empty response"}`
+    );
+  }
+
+  return Buffer.from(await data.arrayBuffer());
+}
+
 module.exports = {
   uploadPdf,
   listLessonPdfFiles,
   generateSignedDownloadUrl,
   moveFile,
   deleteFile,
+  createSignedUploadForLesson,
+  overwritePdf,
+  downloadPdfBytes,
 };

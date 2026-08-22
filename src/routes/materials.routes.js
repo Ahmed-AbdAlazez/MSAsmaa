@@ -29,6 +29,9 @@ const {
   uploadPdf,
   generateSignedDownloadUrl,
   deleteFile,
+  createSignedUploadForLesson,
+  overwritePdf,
+  downloadPdfBytes,
 } = require("../services/supabaseStorage.service.js");
 const { normalizePdf } = require("../services/pdfNormalize.service.js");
 
@@ -286,6 +289,121 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
     );
     return response.status(500).json({
       error: "Failed to create the PDF download URL. Please try again later.",
+    });
+  }
+});
+
+/**
+ * POST /api/lessons/:lessonId/materials/upload-url
+ *
+ * Step 1 of DIRECT UPLOAD: hands the teacher a short-lived signed Supabase
+ * upload URL. The browser PUTs the PDF bytes straight to storage, so the
+ * file never travels through a Vercel function — this is what removes the
+ * ~4.5MB request-body cap (413 errors) for large PDFs.
+ */
+router.post(
+  "/lessons/:lessonId/materials/upload-url",
+  requireAuth,
+  requireTeacher,
+  async (request, response) => {
+    const lessonId = request.params.lessonId;
+    const fileName =
+      String((request.body && request.body.fileName) || "").trim() ||
+      "lesson-material.pdf";
+
+    try {
+      const prepared = await createSignedUploadForLesson(fileName, lessonId);
+      return response.json({
+        lessonId,
+        ...prepared,
+        expiresInSeconds: DOWNLOAD_URL_LIFETIME_SECONDS,
+      });
+    } catch (error) {
+      console.error(
+        `[materials.routes] Signed upload URL failed for lesson ${lessonId}:`,
+        error
+      );
+      return response.status(500).json({
+        error: "Failed to prepare the direct upload. Please try again later.",
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/materials/finalize
+ *
+ * Step 2 of DIRECT UPLOAD: after the browser PUT the bytes to storage, this
+ * registers the material record and runs best-effort server-side
+ * normalization (download -> rasterize -> overwrite) so Word/AI-generated
+ * files render correctly everywhere.
+ */
+router.post("/materials/finalize", requireAuth, requireTeacher, async (request, response) => {
+  const lessonId = String((request.body && request.body.lessonId) || "").trim();
+  const filePath = String((request.body && request.body.filePath) || "").trim();
+  const title = String((request.body && request.body.title) || "").trim();
+
+  if (!lessonId || !filePath) {
+    return response.status(400).json({
+      error: "lessonId and filePath are required.",
+    });
+  }
+
+  // Guard: only accept paths inside this lesson's own folder, no traversal.
+  const expectedPrefix = `lessons/${String(lessonId)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")}/`;
+  if (!filePath.startsWith(expectedPrefix) || filePath.includes("..")) {
+    return response.status(400).json({
+      error: "filePath does not belong to this lesson.",
+    });
+  }
+
+  try {
+    let normalized = false;
+    try {
+      const originalBytes = await downloadPdfBytes(filePath);
+      // Normalize ONLY reasonably-sized files: broken-font problems come from
+      // text documents (typically small). Big image-based/scanned PDFs already
+      // render correctly everywhere, and rasterizing them costs minutes and
+      // produces enormous outputs — skip them.
+      const MAX_NORMALIZE_INPUT_BYTES = 4 * 1024 * 1024;
+      if (
+        originalBytes.length > 100 &&
+        originalBytes.length <= MAX_NORMALIZE_INPUT_BYTES
+      ) {
+        const result = await normalizePdf(originalBytes, filePath);
+        if (result.normalized) {
+          await overwritePdf(filePath, result.buffer);
+          normalized = true;
+        }
+      }
+    } catch (normalizationError) {
+      // Non-fatal: keep the original bytes rather than failing the upload.
+      console.error(
+        `[materials.routes] Normalization skipped for ${filePath}:`,
+        normalizationError
+      );
+    }
+
+    const materialRecord = await saveMaterialRecord(lessonId, title, filePath);
+
+    return response.json({
+      material: {
+        id: materialRecord.id,
+        lessonId,
+        title: materialRecord.title,
+        createdAt: materialRecord.createdAt,
+      },
+      normalized,
+    });
+  } catch (error) {
+    console.error(
+      `[materials.routes] Finalize failed for ${filePath}:`,
+      error
+    );
+    return response.status(500).json({
+      error: "Failed to register the uploaded PDF. Please try again later.",
     });
   }
 });

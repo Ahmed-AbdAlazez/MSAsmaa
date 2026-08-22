@@ -1399,37 +1399,42 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     }
 
-    const formData = new FormData();
-    formData.append('file', pdfFile);
-    formData.append('title', (titleInput?.value || pdfFile.name).trim());
+    const formDataTitle = (titleInput?.value || pdfFile.name).trim();
 
-    // XMLHttpRequest (not fetch) because only XHR reports upload progress.
-    const data = await new Promise((resolve, reject) => {
+    // ------------------------------------------------------------------
+    // DIRECT UPLOAD (3 phases). Vercel caps function request bodies at
+    // ~4.5MB, so the PDF bytes must never pass through our API:
+    //   1. ask our API for a short-lived signed Supabase upload URL
+    //   2. PUT the file straight to Supabase (progress reported here)
+    //   3. tell our API to register the material (+ normalize server-side)
+    // ------------------------------------------------------------------
+    const prepared = await fetchJson(
+      `${API_BASE}/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ fileName: pdfFile.name }),
+      }
+    );
+
+    await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE}/api/lessons/${lessonId}/materials`);
-      xhr.setRequestHeader('x-user-id', localStorage.getItem('userId') || 'dev-teacher');
-      xhr.setRequestHeader('x-user-role', 'teacher');
+      xhr.open('PUT', prepared.signedUrl);
+      xhr.setRequestHeader('Content-Type', 'application/pdf');
 
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable && typeof onProgress === 'function') {
-          onProgress(Math.round((e.loaded / e.total) * 100));
-        }
-      });
+      if (typeof onProgress === 'function') {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            onProgress(Math.round((e.loaded / e.total) * 100), null);
+          }
+        });
+      }
 
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {});
-          } catch (parseError) {
-            resolve({});
-          }
+          resolve();
         } else {
-          let message = `فشل رفع ملف PDF (${xhr.status}).`;
-          try {
-            const serverError = JSON.parse(xhr.responseText);
-            if (serverError && serverError.error) message = serverError.error;
-          } catch (_) { /* response was not JSON */ }
-          reject(new Error(message));
+          reject(new Error(`فشل رفع الملف (${xhr.status}).`));
         }
       });
 
@@ -1437,12 +1442,24 @@ document.addEventListener('DOMContentLoaded', () => {
         reject(new Error('انقطع الاتصال أثناء رفع ملف PDF.'))
       );
 
-      xhr.send(formData);
+      xhr.send(pdfFile);
+    });
+
+    if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
+
+    const result = await fetchJson(`${API_BASE}/api/materials/finalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({
+        lessonId,
+        filePath: prepared.filePath,
+        title: formDataTitle,
+      }),
     });
 
     pdfInput.value = '';
     showToast('تم رفع ملف PDF للدرس بنجاح.', 'success');
-    return data;
+    return result;
   };
 
   if (uploadMaterialBtn) {
@@ -1460,10 +1477,10 @@ document.addEventListener('DOMContentLoaded', () => {
           statusText.textContent = 'جاري تجهيز الملف...';
         }
 
-        await uploadSelectedMaterial((pct) => {
+        await uploadSelectedMaterial((pct, statusMsg) => {
           if (progressBar && statusText) {
             progressBar.style.width = pct + '%';
-            statusText.textContent = `جاري رفع ملف الـ PDF... ${pct}%`;
+            statusText.textContent = statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`;
           }
         });
 
@@ -1542,9 +1559,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (pdfFile) {
-          await uploadSelectedMaterial((pct) => {
+          await uploadSelectedMaterial((pct, statusMsg) => {
             progressBar.style.width = pct + '%';
-            statusText.textContent = `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
+            statusText.textContent =
+              statusMsg || `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
           });
           statusText.textContent = 'تم رفع الـ PDF ✔ — جاري رفع الفيديو...';
           progressBar.style.width = '0%';

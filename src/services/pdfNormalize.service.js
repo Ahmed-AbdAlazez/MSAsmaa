@@ -24,10 +24,36 @@
  */
 
 const MAX_NORMALIZED_PAGES = 30;
-const NORMALIZE_TIMEOUT_MS = 25000;
+const NORMALIZE_TIMEOUT_MS = 50000;
 
 /** Lazily resolved heavy dependencies (keeps cold starts fast). */
 let lazyModules = null;
+let requireHookInstalled = false;
+
+/**
+ * pdfjs-dist internally calls require('canvas') when it needs to create its
+ * own intermediate canvases (patterns, masks, image-heavy pages). The native
+ * 'canvas' package cannot be installed on Vercel, but @napi-rs/canvas is
+ * API-compatible for these calls — so we alias the module name globally.
+ */
+function ensureCanvasRequireHook() {
+  if (requireHookInstalled) return;
+  requireHookInstalled = true;
+  try {
+    const Module = require("module");
+    const originalResolve = Module._resolveFilename;
+    Module._resolveFilename = function resolveWithCanvasAlias(request, ...rest) {
+      if (request === "canvas") {
+        return originalResolve.call(this, "@napi-rs/canvas", ...rest);
+      }
+      return originalResolve.call(this, request, ...rest);
+    };
+  } catch (hookError) {
+    console.error(
+      `[pdfNormalize] Could not install canvas alias: ${hookError.message}`
+    );
+  }
+}
 
 async function getModules() {
   if (!lazyModules) {
@@ -40,6 +66,8 @@ async function getModules() {
     globalThis.DOMMatrix = globalThis.DOMMatrix || DOMMatrix;
     globalThis.Path2D = globalThis.Path2D || Path2D;
     globalThis.ImageData = globalThis.ImageData || ImageData;
+
+    ensureCanvasRequireHook();
 
     // pdfjs-dist v3 ships a CommonJS legacy build for Node usage.
     lazyModules = {
