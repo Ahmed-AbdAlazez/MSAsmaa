@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- Real backend authentication (hardcoded dev accounts on server) ---
       if (authMode === 'signin') {
         try {
-          const data = await fetchJson(`${API_BASE}/api/auth/login`, {
+          const data = await fetchJson(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
@@ -1064,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Auth headers from the signed-in account (dev scheme until real JWT).
           const userId = localStorage.getItem('userId') || 'dev-student';
           const userRole = localStorage.getItem('userRole') || 'student';
-          const data = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video-url`, {
+          const data = await fetchJson(`${API_BASE}/lessons/${lessonId}/video-url`, {
             headers: { 'x-user-id': userId, 'x-user-role': userRole },
           });
 
@@ -1123,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
 
         // Step 1: reserve a slot on Bunny (title follows the lesson convention).
-        const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
+        const prepared = await fetchJson(`${API_BASE}/lessons/${lessonId}/video`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({ title: titleInput?.value.trim() || undefined }),
@@ -1158,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const poll = setInterval(async () => {
           try {
             const st = await fetchJson(
-              `${API_BASE}/api/lessons/${lessonId}/video-status`,
+              `${API_BASE}/lessons/${lessonId}/video-status`,
               { headers: authHeaders }
             );
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
