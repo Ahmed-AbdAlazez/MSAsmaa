@@ -293,6 +293,30 @@ async function getFileBytes(filePath) {
   return Buffer.from(await data.arrayBuffer());
 }
 
+/**
+ * Opens a raw HTTP stream to the stored object in Supabase Storage so the
+ * API can pipe bytes straight through to the client without ever holding
+ * the whole file in memory. Vercel caps buffered function responses at
+ * ~4.5MB, so larger PDFs MUST be streamed chunk-by-chunk instead of being
+ * downloaded as one Buffer first.
+ *
+ * @param {string} filePath - The private object path inside the bucket.
+ * @returns {Promise<Response>} The fetch Response; `.body` is a web stream.
+ */
+async function getUpstreamFileStream(filePath) {
+  const encodedPath = filePath
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  const objectUrl = `${process.env.SUPABASE_URL.trim()}/storage/v1/object/${MATERIALS_BUCKET_NAME}/${encodedPath}`;
+
+  return fetch(objectUrl, {
+    headers: {
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY.trim()}`,
+    },
+  });
+}
+
 module.exports = {
   uploadPdf,
   listLessonPdfFiles,
@@ -300,4 +324,5 @@ module.exports = {
   moveFile,
   deleteFile,
   getFileBytes,
+  getUpstreamFileStream,
 };

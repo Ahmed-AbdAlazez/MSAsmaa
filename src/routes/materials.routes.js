@@ -12,6 +12,7 @@
 
 const express = require("express");
 const multer = require("multer");
+const { Readable } = require("stream");
 
 const { requireAuth } = require("../middleware/auth.middleware.js");
 const {
@@ -29,7 +30,7 @@ const {
   uploadPdf,
   generateSignedDownloadUrl,
   deleteFile,
-  getFileBytes,
+  getUpstreamFileStream,
 } = require("../services/supabaseStorage.service.js");
 const { normalizePdf } = require("../services/pdfNormalize.service.js");
 
@@ -336,22 +337,47 @@ router.get("/materials/:materialId/view", async (request, response) => {
   }
 
   try {
-    const pdfBytes = await getFileBytes(materialRecord.filePath);
+    // STREAMING PROXY: pipe Supabase's byte stream straight into the HTTP
+    // response instead of buffering the whole file. Vercel caps buffered
+    // function responses at ~4.5MB; streaming keeps any reasonable PDF
+    // size working and keeps memory flat.
+    const upstream = await getUpstreamFileStream(materialRecord.filePath);
 
-    response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", 'inline; filename="material.pdf"');
-    response.setHeader("Cache-Control", "private, max-age=300");
-    return response.send(pdfBytes);
+    if (!upstream.ok || !upstream.body) {
+      console.error(
+        `[materials.routes] Storage stream failed for material ${request.params.materialId}: HTTP ${upstream.status}`
+      );
+      return response
+        .status(502)
+        .type("text/plain")
+        .send("Failed to load the PDF from storage. Please try again later.");
+    }
+
+    const responseHeaders = {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": 'inline; filename="material.pdf"',
+      "Cache-Control": "private, max-age=300",
+    };
+    const upstreamLength = upstream.headers.get("content-length");
+    if (upstreamLength) {
+      responseHeaders["Content-Length"] = upstreamLength;
+    }
+    response.set(responseHeaders);
+
+    Readable.fromWeb(upstream.body).pipe(response);
   } catch (error) {
     console.error(
       `[materials.routes] Inline view failed for material ${request.params.materialId}:`,
       error
     );
     // Plain text (not JSON): this page can render inside a student iframe.
-    return response
-      .status(502)
-      .type("text/plain")
-      .send("Failed to load the PDF from storage. Please try again later.");
+    if (!response.headersSent) {
+      return response
+        .status(502)
+        .type("text/plain")
+        .send("Failed to load the PDF from storage. Please try again later.");
+    }
+    response.end();
   }
 });
 
