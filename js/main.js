@@ -1755,5 +1755,173 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // --- Teacher dashboard: manage lesson PDF materials (rename / delete) ---
+  // Mirrors the video management block above: same selects pattern, same
+  // inline edit form, same native confirm() before deleting.
+  const materialsManageChapter = document.querySelector('#materials-manage-chapter');
+  const materialsManageLesson = document.querySelector('#materials-manage-lesson');
+
+  if (materialsManageChapter && materialsManageLesson && window.CURRICULUM) {
+    // Same dev-auth header convention as every other teacher call in this file.
+    const teacherAuthHeaders = {
+      'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+      'x-user-role': 'teacher',
+    };
+
+    /** Fills the lesson dropdown for the chosen chapter. */
+    const fillMaterialsManageLessons = (chapterIdx) => {
+      const chapter = window.CURRICULUM.biology[chapterIdx];
+      materialsManageLesson.innerHTML = '';
+      chapter.lessons.forEach((lesson) => {
+        const opt = document.createElement('option');
+        opt.value = lesson.id;
+        opt.textContent = `${lesson.name} (${lesson.id})`;
+        materialsManageLesson.appendChild(opt);
+      });
+    };
+
+    window.CURRICULUM.biology.forEach((chapter, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      materialsManageChapter.appendChild(opt);
+    });
+    materialsManageChapter.addEventListener('change', () =>
+      fillMaterialsManageLessons(Number(materialsManageChapter.value))
+    );
+    fillMaterialsManageLessons(0);
+
+    const materialEditForm = document.querySelector('#material-edit-form');
+    const materialsListBox = document.querySelector('#manage-materials-list');
+    let loadedMaterials = [];
+
+    /** Formats a byte count for the management list ("812 KB" / "1.4 MB"). */
+    const formatMaterialSize = (sizeBytes) => {
+      if (!sizeBytes) return '';
+      if (sizeBytes < 1024 * 1024) return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
+      return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    /** Formats an ISO date as a short readable date for the list rows. */
+    const formatMaterialDate = (isoDate) => {
+      if (!isoDate) return '';
+      try {
+        return new Date(isoDate).toLocaleDateString('ar-EG');
+      } catch (error) {
+        return '';
+      }
+    };
+
+    const renderMaterialsManageList = () => {
+      materialsListBox.innerHTML = '';
+
+      if (!loadedMaterials.length) {
+        materialsListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">لا توجد ملفات PDF مرفوعة لهذا الدرس بعد.</p>';
+        return;
+      }
+
+      loadedMaterials.forEach((material, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText =
+          'display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;';
+
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1; min-width:200px;';
+        const metaParts = [
+          formatMaterialDate(material.createdAt),
+          formatMaterialSize(material.sizeBytes),
+        ].filter(Boolean).join(' • ');
+        info.innerHTML =
+          `<div style="font-weight:700;">${idx + 1}. ${material.title || '(بدون اسم)'}</div>` +
+          `<div class="text-muted" style="font-size:0.8rem;">📄 PDF${metaParts ? ` • ${metaParts}` : ''}</div>`;
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex; gap:0.5rem;';
+        actions.innerHTML =
+          '<button class="btn btn-light js-edit-material" style="font-size:0.8rem;">✏️ تعديل</button>' +
+          '<button class="btn btn-light js-delete-material" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
+
+        row.append(info, actions);
+
+        row.querySelector('.js-edit-material').addEventListener('click', () => {
+          document.querySelector('#edit-material-id').value = material.id;
+          document.querySelector('#edit-material-title').value = material.title || '';
+          materialEditForm.style.display = 'block';
+          materialEditForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        row.querySelector('.js-delete-material').addEventListener('click', async () => {
+          if (!confirm(`حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`)) return;
+          try {
+            await fetchJson(`${API_BASE}/api/materials/${encodeURIComponent(material.id)}`, {
+              method: 'DELETE',
+              headers: teacherAuthHeaders,
+            });
+            showToast('تم حذف المادة بنجاح.', 'success');
+            loadMaterialsManageList();
+          } catch (error) {
+            showToast(error.message, 'danger');
+          }
+        });
+
+        materialsListBox.appendChild(row);
+      });
+    };
+
+    const loadMaterialsManageList = async () => {
+      const lessonId = materialsManageLesson.value;
+      if (!lessonId) return;
+      try {
+        materialsListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
+        const data = await fetchJson(
+          `${API_BASE}/api/lessons/${lessonId}/materials/manage`,
+          { headers: teacherAuthHeaders }
+        );
+        loadedMaterials = data.materials || [];
+        renderMaterialsManageList();
+      } catch (error) {
+        loadedMaterials = [];
+        materialsListBox.innerHTML = '';
+        showToast(error.message, 'danger');
+      }
+    };
+
+    document
+      .querySelector('#btn-load-materials')
+      .addEventListener('click', loadMaterialsManageList);
+
+    document.querySelector('#btn-cancel-material-edit').addEventListener('click', () => {
+      materialEditForm.style.display = 'none';
+    });
+
+    document.querySelector('#btn-save-material-edit').addEventListener('click', async () => {
+      const materialId = document.querySelector('#edit-material-id').value;
+      const newTitle = document.querySelector('#edit-material-title').value;
+
+      if (!newTitle.trim()) {
+        showToast('اكتبي اسم المادة أولاً.', 'warning');
+        return;
+      }
+
+      try {
+        await fetchJson(`${API_BASE}/api/materials/${encodeURIComponent(materialId)}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...teacherAuthHeaders,
+          },
+          body: JSON.stringify({ title: newTitle }),
+        });
+        showToast('تم حفظ التعديلات بنجاح.', 'success');
+        materialEditForm.style.display = 'none';
+        loadMaterialsManageList();
+      } catch (error) {
+        showToast(error.message, 'danger');
+      }
+    });
+  }
 });
 

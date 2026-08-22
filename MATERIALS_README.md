@@ -23,6 +23,36 @@ Student download:
 
 Materials are independent of videos. A lesson can have a video only, a PDF only, both a video and PDFs, or neither. The materials route never checks whether a Bunny video exists.
 
+## Teacher Management (List / Rename / Delete)
+
+Teacher-only endpoints, following the same conventions as `video-manage.routes.js`
+(role gate via `requireAuth` + `req.user.role === "teacher"`, Arabic success/error messages):
+
+```text
+GET    /api/lessons/:lessonId/materials/manage   full list incl. title, upload date, size (teacher-only)
+PATCH  /api/materials/:materialId                rename — body { "title": "new name" }
+DELETE /api/materials/:materialId                permanent delete (storage file + record)
+```
+
+### End-to-end flow
+
+- **Manage list:** the teacher dashboard ("إدارة مواد الدرس PDF") loads the manage route and renders each PDF with its title, upload date and file size. The student-facing list endpoint stays unchanged and keeps returning IDs/titles only.
+- **Rename:** `PATCH` calls `updateMaterialTitle()`, which MOVES the Supabase object to a new name that percent-encodes the custom title (`ttl_<encoded-title>--<base>.pdf`). Every later list/download call decodes it back automatically, so renames survive serverless restarts without a database. Any language works (Arabic titles included).
+- **Delete:** see the safeguard below.
+
+### Delete-order safeguard
+
+The DELETE route performs two steps strictly in order:
+
+1. `deleteFile(materialRecord.filePath)` removes the actual object from Supabase Storage.
+2. ONLY if step 1 succeeded, `deleteMaterialRecord()` removes the record reference.
+
+If storage deletion fails, the route stops and returns an error WITHOUT deleting the record — so there is never a record pointing at an existing file, and never a file left behind whose record was already removed.
+
+### Ownership check status
+
+There is no course-ownership model in this project yet (video management has none either — single-teacher platform). Both PATCH and DELETE therefore call `isTeacherOwnerOfLesson(teacherUserId, lessonId)`, which currently always returns `true`. This is a flagged stub in `material.stub.service.js`; when courses gain real owner data it must return `false` unless `teacherUserId` owns the course containing `lessonId`.
+
 ## Environment Variables
 
 These are read from `process.env` and are never hardcoded:
@@ -52,6 +82,9 @@ These functions are fake placeholders and must be connected to real database tab
 | `saveMaterialRecord(lessonId, title, filePath)` | `src/services/material.stub.service.js` | Insert into a real `materials` table with columns like `id`, `lessonId`, `title`, `filePath`, and `createdAt`. |
 | `getMaterialsForLesson(lessonId)` | `src/services/material.stub.service.js` | Query the real `materials` table by `lessonId`, ordered by creation time or lesson display order. |
 | `getMaterialById(materialId)` | `src/services/material.stub.service.js` | Query the real `materials` table by primary key and return the associated lesson ID and storage path. |
+| `updateMaterialTitle(materialId, newTitle)` | `src/services/material.stub.service.js` | UPDATE the title column. The current implementation encodes the title into the storage object name (via a move) so it persists without a database. |
+| `deleteMaterialRecord(materialId)` | `src/services/material.stub.service.js` | DELETE the row by primary key (called only after storage deletion succeeds). |
+| `isTeacherOwnerOfLesson(teacherUserId, lessonId)` | `src/services/material.stub.service.js` | Real course-ownership check: return false unless the teacher owns the course containing the lesson. Currently always returns true. |
 | `isStudentEnrolledInLessonCourse(studentId, lessonId)` | `src/services/enrollment.stub.service.js` | Query the real enrollment data so only students enrolled in the course containing the lesson pass. |
 
 A real `materials` table should store at least:
@@ -178,3 +211,45 @@ curl.exe -X POST "http://localhost:3000/api/lessons/lesson-1/materials" `
 Expected: `400` with `Only PDF files are allowed for lesson materials.`
 
 Uploading a PDF larger than 20MB should return `400` with `PDF upload failed. Files must be 20MB or smaller.`
+
+### How To Test The Management Flow (teacher)
+
+All examples use `x-user-id: teacher-1` + `x-user-role: teacher`. The UI equivalent lives on `dashboard-teacher.html` under "إدارة مواد الدرس PDF": pick chapter + lesson, press the load button, then use the edit/delete buttons per row.
+
+**1. Teacher sees all PDFs for a lesson**
+
+```powershell
+curl.exe "http://localhost:3000/api/lessons/lesson-1/materials/manage" `
+  -H "x-user-id: teacher-1" -H "x-user-role: teacher"
+```
+
+Expected: `200` with `{ materials: [ { id, title, createdAt, sizeBytes } ] }`. A student calling this gets `403 Only teachers can manage lesson materials.`
+
+**2. Teacher renames a PDF and the new title shows**
+
+```powershell
+curl.exe -X PATCH "http://localhost:3000/api/materials/<MATERIAL_ID>" `
+  -H "x-user-id: teacher-1" -H "x-user-role: teacher" `
+  -H "Content-Type: application/json" `
+  -d "{\"title\":\"ملف الحل الجديد\"}"
+```
+
+Expected: `200 { message: "تم حفظ التعديلات بنجاح." }`. Re-run test 1 (and the student list) — the new title appears. Empty title → `400 A non-empty title is required.` Unknown ID → `404 المادة غير موجودة.`
+
+**3. Teacher deletes a PDF and it disappears everywhere**
+
+```powershell
+curl.exe -X DELETE "http://localhost:3000/api/materials/<MATERIAL_ID>" `
+  -H "x-user-id: teacher-1" -H "x-user-role: teacher"
+```
+
+Expected: `200 { message: "تم حذف المادة بنجاح." }`. Verify in the Supabase dashboard (Storage → `lesson-materials` → `lessons/<lessonId>/`) that the object is gone, then re-run tests 1 and the student list — the material must no longer appear.
+
+**4. Deleting a non-existent material fails clearly**
+
+```powershell
+curl.exe -X DELETE "http://localhost:3000/api/materials/bm90LWEtcmVhbC1wYXRoLnBkZg==" `
+  -H "x-user-id: teacher-1" -H "x-user-role: teacher"
+```
+
+Expected: `404 { error: "المادة غير موجودة." }` — a clean JSON error, not a crash. (The sample ID base64-decodes to `not-a-real-path.pdf`, which fails the path-shape check.)

@@ -212,6 +212,35 @@
         </div>
       </div>
 
+      <!-- Lesson PDF Materials Management Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">إدارة مواد الدرس PDF 📄</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="materials-manage-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="materials-manage-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="materials-manage-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="materials-manage-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-materials" class="btn btn-secondary" style="min-width:130px;">📋 عرض ملفات PDF</button>
+        </div>
+
+        <div id="manage-materials-list" style="margin-top:1.25rem;"></div>
+
+        <!-- Rename form (hidden until تعديل is clicked) -->
+        <div id="material-edit-form" style="display:none; margin-top:1.25rem; padding:1.25rem; background-color:var(--color-bg); border-radius:var(--radius-md);">
+          <input type="hidden" id="edit-material-id">
+          <label for="edit-material-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم المادة</label>
+          <input id="edit-material-title" type="text" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
+            <button id="btn-save-material-edit" class="btn btn-primary">💾 حفظ الاسم الجديد</button>
+            <button id="btn-cancel-material-edit" class="btn btn-light">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Student Records Section -->
       <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">قائمة أداء الطلاب وتتبع الحضور</h2>
 

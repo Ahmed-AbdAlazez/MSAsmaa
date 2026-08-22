@@ -21,13 +21,27 @@ const {
   saveMaterialRecord,
   getMaterialsForLesson,
   getMaterialById,
+  updateMaterialTitle,
+  deleteMaterialRecord,
+  isTeacherOwnerOfLesson,
 } = require("../services/material.stub.service.js");
 const {
   uploadPdf,
   generateSignedDownloadUrl,
+  deleteFile,
 } = require("../services/supabaseStorage.service.js");
 
 const router = express.Router();
+
+/** Teacher gate for the management routes, mirroring video-manage.routes.js. */
+function requireTeacher(request, response, next) {
+  if (request.user.role !== "teacher") {
+    return response.status(403).json({
+      error: "Only teachers can manage lesson materials.",
+    });
+  }
+  return next();
+}
 
 const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
 const DOWNLOAD_URL_LIFETIME_SECONDS = 60 * 60;
@@ -263,6 +277,164 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
     );
     return response.status(500).json({
       error: "Failed to create the PDF download URL. Please try again later.",
+    });
+  }
+});
+
+/**
+ * GET /api/lessons/:lessonId/materials/manage
+ *
+ * Teacher-only management listing: returns every PDF attached to the lesson
+ * with title, upload date and file size. Unlike the student list this is
+ * gated by role only (the teacher dashboard needs full visibility) and
+ * includes management-relevant fields students never receive.
+ */
+router.get(
+  "/lessons/:lessonId/materials/manage",
+  requireAuth,
+  requireTeacher,
+  async (request, response) => {
+    try {
+      const materialRecords = await getMaterialsForLesson(
+        request.params.lessonId
+      );
+
+      return response.json({
+        lessonId: request.params.lessonId,
+        materials: materialRecords.map((materialRecord) => ({
+          id: materialRecord.id,
+          title: materialRecord.title,
+          createdAt: materialRecord.createdAt,
+          sizeBytes: materialRecord.sizeBytes,
+        })),
+      });
+    } catch (error) {
+      console.error(
+        `[materials.routes] Manage list failed for lesson ${request.params.lessonId}:`,
+        error
+      );
+      return response.status(500).json({
+        error: "Failed to load the materials for management. Please try again later.",
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/materials/:materialId
+ *
+ * Renames one material. The new title must not be empty. After the basic
+ * role gate the route confirms the teacher owns the course owning this
+ * material before touching anything.
+ */
+router.patch("/materials/:materialId", requireAuth, requireTeacher, async (request, response) => {
+  const newTitle = String((request.body && request.body.title) || "").trim();
+
+  if (!newTitle) {
+    return response.status(400).json({
+      error: "A non-empty title is required.",
+    });
+  }
+
+  const materialRecord = await getMaterialById(request.params.materialId);
+
+  if (!materialRecord) {
+    return response.status(404).json({
+      error: "المادة غير موجودة.",
+    });
+  }
+
+  // STUB OWNERSHIP CHECK - see isTeacherOwnerOfLesson in
+  // material.stub.service.js. Video management has no ownership model yet;
+  // until real course-ownership data exists every teacher passes.
+  const teacherOwnsCourse = await isTeacherOwnerOfLesson(
+    request.user.id,
+    materialRecord.lessonId
+  );
+
+  if (!teacherOwnsCourse) {
+    return response.status(403).json({
+      error: "You do not own the course this material belongs to.",
+    });
+  }
+
+  try {
+    await updateMaterialTitle(request.params.materialId, newTitle);
+
+    return response.json({
+      message: "تم حفظ التعديلات بنجاح.",
+      materialId: request.params.materialId,
+      title: newTitle,
+    });
+  } catch (error) {
+    console.error(
+      `[materials.routes] Rename failed for material ${request.params.materialId}:`,
+      error
+    );
+    return response.status(500).json({
+      error: "فشل حفظ التعديلات.",
+    });
+  }
+});
+
+/**
+ * DELETE /api/materials/:materialId
+ *
+ * Permanently removes a material in TWO ordered steps:
+ *   (a) delete the stored file from Supabase Storage via deleteFile();
+ *   (b) ONLY if (a) succeeded, remove the record reference via
+ *       deleteMaterialRecord().
+ * This order prevents both mismatch states: a record pointing at an
+ * existing file, or a file left behind with its record already gone.
+ */
+router.delete("/materials/:materialId", requireAuth, requireTeacher, async (request, response) => {
+  const materialRecord = await getMaterialById(request.params.materialId);
+
+  if (!materialRecord) {
+    return response.status(404).json({
+      error: "المادة غير موجودة.",
+    });
+  }
+
+  // STUB OWNERSHIP CHECK - same caveat as the PATCH route above.
+  const teacherOwnsCourse = await isTeacherOwnerOfLesson(
+    request.user.id,
+    materialRecord.lessonId
+  );
+
+  if (!teacherOwnsCourse) {
+    return response.status(403).json({
+      error: "You do not own the course this material belongs to.",
+    });
+  }
+
+  try {
+    // Step (a): storage first. If this throws we stop WITHOUT deleting the
+    // record, so no orphaned reference to a still-existing file can appear.
+    await deleteFile(materialRecord.filePath);
+  } catch (error) {
+    console.error(
+      `[materials.routes] Storage delete failed for material ${request.params.materialId}:`,
+      error
+    );
+    return response.status(500).json({
+      error:
+        "تعذر حذف الملف من التخزين، لذلك لم يتم حذف سجل المادة. حاولي مرة أخرى.",
+    });
+  }
+
+  try {
+    // Step (b): record cleanup only after storage deletion succeeded.
+    await deleteMaterialRecord(request.params.materialId);
+
+    return response.json({ message: "تم حذف المادة بنجاح." });
+  } catch (error) {
+    console.error(
+      `[materials.routes] Record delete failed for material ${request.params.materialId}:`,
+      error
+    );
+    return response.status(500).json({
+      error: "تم حذف الملف من التخزين لكن تعذر تحديث السجل.",
     });
   }
 });
