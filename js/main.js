@@ -1533,6 +1533,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
 
+    // Invalidate the lesson-view cache for this lesson so the next visit
+    // fetches a fresh list that includes the new PDF (otherwise the cached
+    // pre-upload list would keep hiding it for up to 7 minutes).
+    try {
+      sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
+    } catch (_) { /* best-effort */ }
+
     const result = await fetchJson(`${API_BASE}/api/materials/finalize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
