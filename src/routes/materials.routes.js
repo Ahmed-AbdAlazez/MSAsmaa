@@ -29,6 +29,7 @@ const {
   uploadPdf,
   generateSignedDownloadUrl,
   deleteFile,
+  getFileBytes,
 } = require("../services/supabaseStorage.service.js");
 const { normalizePdf } = require("../services/pdfNormalize.service.js");
 
@@ -287,6 +288,70 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
     return response.status(500).json({
       error: "Failed to create the PDF download URL. Please try again later.",
     });
+  }
+});
+
+/**
+ * GET /api/materials/:materialId/view
+ *
+ * Same-origin PDF proxy for the inline lesson viewer. Mobile browsers —
+ * Safari especially — refuse to render cross-origin URLs inside an iframe
+ * and navigate away to the storage domain instead, so this route fetches
+ * the private Supabase object itself and streams the bytes back as
+ * application/pdf with Content-Disposition: inline. The client never sees
+ * the storage URL.
+ *
+ * AUTH NOTE: an <iframe> request cannot carry custom auth headers, so the
+ * identity may arrive via userId/role query params — mirroring exactly what
+ * auth.middleware reads from headers. The enrollment gate below is the SAME
+ * check used by GET /materials/:materialId/download.
+ */
+router.get("/materials/:materialId/view", async (request, response) => {
+  const userId =
+    request.headers["x-user-id"] || request.query.userId || null;
+  const userRole =
+    request.headers["x-user-role"] || request.query.role || null;
+
+  if (!userId || !["student", "teacher"].includes(userRole)) {
+    return response.status(401).json({ error: "Authentication required." });
+  }
+
+  const materialRecord = await getMaterialById(request.params.materialId);
+
+  if (!materialRecord) {
+    return response.status(404).json({ error: "Material not found." });
+  }
+
+  /* MAIN ACCESS CONTROL POINT FOR INLINE PDF VIEWING - DO NOT BYPASS.
+   * Identical enrollment check to the download route above. */
+  const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
+    userId,
+    materialRecord.lessonId
+  );
+
+  if (!studentIsEnrolled) {
+    return response.status(403).json({
+      error: "You are not enrolled in the course this material belongs to.",
+    });
+  }
+
+  try {
+    const pdfBytes = await getFileBytes(materialRecord.filePath);
+
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", 'inline; filename="material.pdf"');
+    response.setHeader("Cache-Control", "private, max-age=300");
+    return response.send(pdfBytes);
+  } catch (error) {
+    console.error(
+      `[materials.routes] Inline view failed for material ${request.params.materialId}:`,
+      error
+    );
+    // Plain text (not JSON): this page can render inside a student iframe.
+    return response
+      .status(502)
+      .type("text/plain")
+      .send("Failed to load the PDF from storage. Please try again later.");
   }
 });
 

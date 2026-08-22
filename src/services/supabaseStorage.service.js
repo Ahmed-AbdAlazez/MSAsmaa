@@ -270,10 +270,34 @@ async function deleteFile(filePath) {
   return true;
 }
 
+/**
+ * Downloads a stored file from Supabase Storage as raw bytes so the API can
+ * proxy it to the client (same-origin inline PDF viewing — mobile browsers
+ * refuse cross-origin iframes).
+ *
+ * @param {string} filePath - The private object path inside the bucket.
+ * @returns {Promise<Buffer>} The file bytes.
+ */
+async function getFileBytes(filePath) {
+  await ensureMaterialsBucket();
+  const { data, error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .download(filePath);
+
+  if (error || !data) {
+    throw new Error(
+      `Supabase file download failed: ${error ? error.message : "empty response"}`
+    );
+  }
+
+  return Buffer.from(await data.arrayBuffer());
+}
+
 module.exports = {
   uploadPdf,
   listLessonPdfFiles,
   generateSignedDownloadUrl,
   moveFile,
   deleteFile,
+  getFileBytes,
 };

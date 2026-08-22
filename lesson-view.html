@@ -85,21 +85,15 @@
           </div>
         </div>
 
-        <!-- Inline PDF Viewer: PDF.js canvas rendering (works on mobile too,
-             where iframes cannot reliably display PDFs). -->
+        <!-- Inline PDF Viewer: same-origin backend proxy + native browser
+             PDF renderer, identical behaviour on desktop and mobile. -->
         <div class="lesson-pdf-viewer" id="lesson-pdf-viewer" hidden>
           <div class="lesson-pdf-viewer-header">
             <span class="lesson-pdf-viewer-title" id="lesson-pdf-viewer-title"></span>
             <button type="button" class="btn btn-secondary lesson-pdf-viewer-close" id="lesson-pdf-viewer-close">إغلاق ✕</button>
           </div>
           <div class="lesson-pdf-canvas-wrap">
-            <canvas id="lesson-pdf-canvas"></canvas>
-            <p class="lesson-pdf-status" id="lesson-pdf-status">جاري تحميل الملف...</p>
-          </div>
-          <div class="lesson-pdf-toolbar" id="lesson-pdf-toolbar" hidden>
-            <button type="button" class="btn btn-light lesson-pdf-nav" id="lesson-pdf-prev">الصفحة السابقة</button>
-            <span class="lesson-pdf-page-label" id="lesson-pdf-page-label"></span>
-            <button type="button" class="btn btn-light lesson-pdf-nav" id="lesson-pdf-next">الصفحة التالية</button>
+            <iframe id="lesson-pdf-frame" title="عرض الملف PDF" src="about:blank"></iframe>
           </div>
         </div>
 
@@ -234,9 +228,9 @@
   </footer>
 
   <script src="js/curriculum.js"></script>
-  <!-- PDF.js (pdfjs-dist legacy UMD build) renders PDFs to a canvas so the
-       inline viewer behaves identically on desktop and mobile browsers. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PDFs stream through the same-origin backend proxy
+       (GET /api/materials/:id/view) into a plain <iframe>, so the native
+       browser/OS PDF renderer handles display on every platform. -->
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -1182,165 +1182,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
       materialsBox.innerHTML = '';
       const viewerPanel = document.querySelector('#lesson-pdf-viewer');
-      const viewerCanvas = document.querySelector('#lesson-pdf-canvas');
-      const viewerStatus = document.querySelector('#lesson-pdf-status');
-      const viewerToolbar = document.querySelector('#lesson-pdf-toolbar');
-      const viewerPageLabel = document.querySelector('#lesson-pdf-page-label');
-      const viewerPrevBtn = document.querySelector('#lesson-pdf-prev');
-      const viewerNextBtn = document.querySelector('#lesson-pdf-next');
+      const viewerFrame = document.querySelector('#lesson-pdf-frame');
       const viewerTitle = document.querySelector('#lesson-pdf-viewer-title');
       const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
 
       // ------------------------------------------------------------------
-      // PDF.js canvas rendering state. Mobile browsers cannot reliably show
-      // PDFs inside iframes, so the file is fetched as bytes and drawn onto
-      // a <canvas> instead — identical behaviour on desktop and mobile, with
-      // no possible "open raw URL in a new tab" fallback.
+      // Native PDF rendering via the same-origin backend proxy. The <iframe>
+      // points at GET /api/materials/:id/view, which runs the enrollment
+      // check and streams the bytes itself — the browser never touches the
+      // Supabase domain, so mobile Safari cannot navigate away, and every
+      // platform uses its own native PDF renderer (more forgiving of odd
+      // PDF files than PDF.js was).
       // ------------------------------------------------------------------
-      let pdfDoc = null;          // loaded PDFDocumentProxy
-      let pdfPageNum = 1;         // currently displayed page
-      let pdfPageCount = 1;
-      let pdfRenderTask = null;   // in-flight render, cancellable
-      let pdfLoadToken = 0;       // invalidates stale loads when switching files
-
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      }
-
-      /** Shows or hides the status line under the canvas. */
-      const setPdfStatus = (text) => {
-        if (viewerStatus) {
-          viewerStatus.textContent = text || '';
-          viewerStatus.hidden = !text;
-        }
+      const closePdfViewer = () => {
+        if (!viewerPanel) return;
+        viewerPanel.hidden = true;
+        if (viewerFrame) viewerFrame.src = 'about:blank';
       };
 
-      /**
-       * Renders the current page fit-to-panel-width ("reasonable default
-       * zoom" on mobile: the whole page width is always visible).
-       * Rendering happens at devicePixelRatio for crisp text, then the CSS
-       * width scales it back to the panel size.
-       */
-      const renderPdfPage = async () => {
-        if (!pdfDoc || !viewerCanvas) return;
-
-        if (pdfRenderTask) {
-          pdfRenderTask.cancel();
-          pdfRenderTask = null;
-        }
-
-        const page = await pdfDoc.getPage(pdfPageNum);
-        const wrap = viewerCanvas.parentElement;
-        const availableWidth = Math.max(240, (wrap ? wrap.clientWidth : 320) - 24);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const fitScale = availableWidth / baseViewport.width;
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-        const viewport = page.getViewport({ scale: fitScale * pixelRatio });
-
-        const context = viewerCanvas.getContext('2d');
-        viewerCanvas.width = viewport.width;
-        viewerCanvas.height = viewport.height;
-        viewerCanvas.style.width = `${Math.round(baseViewport.width * fitScale)}px`;
-
-        setPdfStatus('');
-        pdfRenderTask = page.render({ canvasContext: context, viewport });
+      // Opens one material inside the inline panel by pointing the iframe at
+      // the same-origin proxy. Identity travels as query params because an
+      // <iframe> request cannot carry custom auth headers; the backend still
+      // performs the full enrollment check before serving any bytes.
+      const openMaterialInViewer = (material, button) => {
         try {
-          await pdfRenderTask.promise;
-        } catch (renderError) {
-          // Cancelled renders are normal while paging/switching files fast.
-          if ((renderError && renderError.name) !== 'RenderingCancelledException') {
-            throw renderError;
-          }
-        } finally {
-          pdfRenderTask = null;
-        }
-
-        if (viewerPageLabel) {
-          viewerPageLabel.textContent = `صفحة ${pdfPageNum} من ${pdfPageCount}`;
-        }
-        if (viewerPrevBtn) viewerPrevBtn.disabled = pdfPageNum <= 1;
-        if (viewerNextBtn) viewerNextBtn.disabled = pdfPageNum >= pdfPageCount;
-      };
-
-      /** Frees the previous document before loading another one or closing. */
-      const destroyPdfDoc = () => {
-        pdfLoadToken += 1;
-        if (pdfRenderTask) {
-          pdfRenderTask.cancel();
-          pdfRenderTask = null;
-        }
-        if (pdfDoc) {
-          pdfDoc.destroy();
-          pdfDoc = null;
-        }
-        pdfPageNum = 1;
-        pdfPageCount = 1;
-        if (viewerCanvas) {
-          const context = viewerCanvas.getContext('2d');
-          context && context.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
-        }
-      };
-
-      /** Re-renders on resize/rotation so the page keeps fitting the width. */
-      let pdfResizeRaf = null;
-      window.addEventListener('resize', () => {
-        if (!pdfDoc || !viewerPanel || viewerPanel.hidden) return;
-        if (pdfResizeRaf) cancelAnimationFrame(pdfResizeRaf);
-        pdfResizeRaf = requestAnimationFrame(() => {
-          pdfResizeRaf = null;
-          renderPdfPage().catch(() => {});
-        });
-      });
-
-      // Opens one material inside the inline panel and draws it via PDF.js.
-      const openMaterialInViewer = async (material, button) => {
-        if (!window.pdfjsLib) {
-          showToast('تعذر تحميل عارض PDF، تحققي من الاتصال بالإنترنت.', 'danger');
-          return;
-        }
-
-        try {
-          button.disabled = true;
-          const previousLabel = button.textContent;
-          button.textContent = 'جاري...';
-
-          // Same signed-URL endpoint and access control as before — only the
-          // rendering side changed.
-          const data = await fetchJson(
-            `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
-            { headers: authHeaders }
-          );
-
-          destroyPdfDoc();
-          const loadToken = pdfLoadToken;
-
           if (viewerTitle) {
             viewerTitle.textContent = `📄 ${material.title || 'ملف PDF'}`;
+          }
+          if (viewerFrame) {
+            const identity =
+              `userId=${encodeURIComponent(authHeaders['x-user-id'] || '')}` +
+              `&role=${encodeURIComponent(authHeaders['x-user-role'] || '')}`;
+            viewerFrame.src =
+              `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/view?${identity}`;
           }
           if (viewerPanel) {
             viewerPanel.hidden = false;
             viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
-          setPdfStatus('جاري تحميل الملف...');
-          if (viewerToolbar) viewerToolbar.hidden = true;
-
-          const loadedDoc = await window.pdfjsLib.getDocument({ url: data.downloadUrl }).promise;
-          if (loadToken !== pdfLoadToken) {
-            // Another file was opened meanwhile — drop this one silently.
-            loadedDoc.destroy();
-            return;
-          }
-
-          pdfDoc = loadedDoc;
-          pdfPageCount = pdfDoc.numPages;
-          pdfPageNum = 1;
-
-          if (viewerToolbar) viewerToolbar.hidden = pdfPageCount <= 1;
-          await renderPdfPage();
         } catch (error) {
           showToast(error.message, 'danger');
-          setPdfStatus('تعذر عرض الملف.');
         } finally {
           button.disabled = false;
           button.textContent = 'عرض';
@@ -1348,29 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       if (viewerClose && viewerPanel) {
-        viewerClose.addEventListener('click', () => {
-          viewerPanel.hidden = true;
-          destroyPdfDoc();
-          setPdfStatus('');
-        });
-      }
-
-      if (viewerPrevBtn) {
-        viewerPrevBtn.addEventListener('click', () => {
-          if (pdfDoc && pdfPageNum > 1) {
-            pdfPageNum -= 1;
-            renderPdfPage().catch((error) => showToast(error.message, 'danger'));
-          }
-        });
-      }
-
-      if (viewerNextBtn) {
-        viewerNextBtn.addEventListener('click', () => {
-          if (pdfDoc && pdfPageNum < pdfPageCount) {
-            pdfPageNum += 1;
-            renderPdfPage().catch((error) => showToast(error.message, 'danger'));
-          }
-        });
+        viewerClose.addEventListener('click', closePdfViewer);
       }
 
       materials.forEach((material) => {
