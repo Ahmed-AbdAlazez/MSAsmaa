@@ -1401,6 +1401,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
 
+    // Self-contained auth headers (this function runs on the dashboard page,
+    // outside the lesson-view block where its own authHeaders is defined).
+    const authHeaders = {
+      'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+      'x-user-role': localStorage.getItem('userRole') || 'teacher',
+    };
+
     // ------------------------------------------------------------------
     // DIRECT UPLOAD (3 phases). Vercel caps function request bodies at
     // ~4.5MB, so the PDF bytes must never pass through our API:
