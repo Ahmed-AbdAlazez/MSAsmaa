@@ -51,59 +51,9 @@ app.use(express.static(path.join(__dirname)));
 app.use("/api/lessons", videoRoutes);
 
 /* ==========================================================================
- * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a
- * real database + hashed passwords later).
- *
- *   Student:  student@gmail.com  /  Student@123
- *   Teacher:  teacher@gmail.com  /  Teacher@123
- * ========================================================================== */
-const DEV_ACCOUNTS = [
-  {
-    id: "student-1",
-    email: "student@gmail.com",
-    password: "Student@123",
-    name: "طالب تجريبي",
-    role: "student",
-  },
-  {
-    id: "teacher-1",
-    email: "teacher@gmail.com",
-    password: "Teacher@123",
-    name: "أ. أسماء مرسال",
-    role: "teacher",
-  },
-];
-
-/**
- * POST /api/auth/login
- * Body: { email, password }
- * Returns the user profile when the credentials match one of the hardcoded
- * dev accounts, otherwise 401.
- */
-app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body || {};
-
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required." });
-  }
-
-  const account = DEV_ACCOUNTS.find(
-    (a) => a.email === String(email).trim().toLowerCase() && a.password === password
-  );
-
-  if (!account) {
-    return res.status(401).json({
-      error: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
-    });
-  }
-
-  return res.json({
-    id: account.id,
-    name: account.name,
-    role: account.role,
-    email: account.email,
-  });
-});
+ * DEV TEST ACCOUNTS and EMAIL‑BASED LOGIN removed.
+ * Authentication now uses studentCode + password as per requirements.
+ * ========================================================================= */
 
 /**
  * DEV ONLY — attach an existing Bunny video ID to a lesson.
