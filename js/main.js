@@ -1276,52 +1276,131 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     };
 
-    fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
-      headers: authHeaders,
-    })
-      .then((data) => renderLessonMaterials(data.materials || []))
-      .catch((error) => {
-        const materialsBox = document.querySelector('#lesson-materials-list');
-        if (materialsBox) {
-          materialsBox.innerHTML =
-            '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
-        }
-        console.warn('[materials] list failed:', error);
-      });
+    // ------------------------------------------------------------------
+    // Stale-while-revalidate cache for lesson content. The site is a
+    // multi-page app, so plain in-memory caches die on every navigation;
+    // sessionStorage survives in-app navigation within the same tab —
+    // exactly the "user came back moments ago" case. Within the TTL the
+    // UI renders instantly from cache while a quiet background refetch
+    // updates the cache (and UI only if something changed). Server-side
+    // enrollment checks are untouched: this only skips redundant loading
+    // spinners for already-fetched data.
+    // ------------------------------------------------------------------
+    const LESSON_CACHE_TTL_MS = 7 * 60 * 1000;
 
-    fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
-      headers: authHeaders,
-    })
-      .then((data) => {
-        lessonVideos = data.videos || [];
+    const lessonCacheRead = (kind, id) => {
+      try {
+        const raw = sessionStorage.getItem(`lessonCache:${kind}:${id}`);
+        if (!raw) return null;
+        const entry = JSON.parse(raw);
+        if (!entry || typeof entry.fetchedAt !== 'number') return null;
+        return {
+          data: entry.data,
+          fresh: Date.now() - entry.fetchedAt < LESSON_CACHE_TTL_MS,
+        };
+      } catch (_) {
+        return null;
+      }
+    };
 
-        if (!lessonVideos.length) {
-          if (durationEl) {
-            durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
-          }
-          return;
-        }
+    const lessonCacheWrite = (kind, id, data) => {
+      try {
+        sessionStorage.setItem(
+          `lessonCache:${kind}:${id}`,
+          JSON.stringify({ data, fetchedAt: Date.now() })
+        );
+      } catch (_) { /* storage full/unavailable — caching stays best-effort */ }
+    };
 
-        // Show the first ready video's real duration in the overlay.
-        const readyVideo = lessonVideos.find((v) => v.ready);
-        if (durationEl) {
-          if (!readyVideo) {
-            durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
-          } else if (readyVideo.lengthSeconds) {
-            durationEl.textContent =
-              `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
-          }
-        }
-
-        // Start from the first READY video (skip still-processing parts).
-        const readyIdx = lessonVideos.findIndex((v) => v.ready);
-        currentVideoIdx = readyIdx >= 0 ? readyIdx : 0;
-
-        renderVideoChooser();
+    const cachedMaterials = lessonCacheRead('materials', lessonId);
+    if (cachedMaterials && cachedMaterials.fresh) {
+      renderLessonMaterials(cachedMaterials.data || []);
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
+        headers: authHeaders,
       })
-      .catch(() => {
-        /* endpoint errors already surface when the user presses play */
-      });
+        .then((freshData) => {
+          const nextMaterials = freshData.materials || [];
+          lessonCacheWrite('materials', lessonId, nextMaterials);
+          if (
+            JSON.stringify(nextMaterials) !== JSON.stringify(cachedMaterials.data)
+          ) {
+            renderLessonMaterials(nextMaterials);
+          }
+        })
+        .catch(() => { /* keep showing cached list */ });
+    } else {
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
+        headers: authHeaders,
+      })
+        .then((data) => {
+          const materials = data.materials || [];
+          lessonCacheWrite('materials', lessonId, materials);
+          renderLessonMaterials(materials);
+        })
+        .catch((error) => {
+          const materialsBox = document.querySelector('#lesson-materials-list');
+          if (materialsBox) {
+            materialsBox.innerHTML =
+              '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
+          }
+          console.warn('[materials] list failed:', error);
+        });
+    }
+
+    const applyVideosData = (data) => {
+      lessonVideos = data.videos || [];
+
+      if (!lessonVideos.length) {
+        if (durationEl) {
+          durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
+        }
+        return;
+      }
+
+      // Show the first ready video's real duration in the overlay.
+      const readyVideo = lessonVideos.find((v) => v.ready);
+      if (durationEl) {
+        if (!readyVideo) {
+          durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
+        } else if (readyVideo.lengthSeconds) {
+          durationEl.textContent =
+            `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
+        }
+      }
+
+      // Start from the first READY video (skip still-processing parts).
+      const readyIdx = lessonVideos.findIndex((v) => v.ready);
+      currentVideoIdx = readyIdx >= 0 ? readyIdx : 0;
+
+      renderVideoChooser();
+    };
+
+    const cachedVideos = lessonCacheRead('videos', lessonId);
+    if (cachedVideos && cachedVideos.fresh) {
+      applyVideosData(cachedVideos.data);
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
+        headers: authHeaders,
+      })
+        .then((freshData) => {
+          const nextVideos = freshData.videos || [];
+          lessonCacheWrite('videos', lessonId, nextVideos);
+          if (JSON.stringify(nextVideos) !== JSON.stringify(cachedVideos.data)) {
+            applyVideosData(freshData);
+          }
+        })
+        .catch(() => { /* keep showing cached playlist */ });
+    } else {
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
+        headers: authHeaders,
+      })
+        .then((data) => {
+          lessonCacheWrite('videos', lessonId, data.videos || []);
+          applyVideosData(data);
+        })
+        .catch(() => {
+          /* endpoint errors already surface when the user presses play */
+        });
+    }
 
     if (playBtn && playerBox) {
       playBtn.addEventListener('click', async () => {
