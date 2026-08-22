@@ -29,6 +29,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@napi-rs/canvas": "0.1.80",
     "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.112.3",
     "bcryptjs": "^3.0.3",
@@ -37,7 +38,9 @@
     "express": "^4.21.2",
     "gsap": "^3.15.0",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "3.11.174"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",

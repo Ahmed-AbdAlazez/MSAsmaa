@@ -30,6 +30,7 @@ const {
   generateSignedDownloadUrl,
   deleteFile,
 } = require("../services/supabaseStorage.service.js");
+const { normalizePdf } = require("../services/pdfNormalize.service.js");
 
 const router = express.Router();
 
@@ -148,8 +149,16 @@ router.post(
     }
 
     try {
-      const filePath = await uploadPdf(
+      // Automatic normalization: re-render + rebuild the PDF so files from
+      // Word/AI tools (non-embedded fonts, odd structure) render correctly
+      // in the viewer. Best-effort — failures fall back to original bytes.
+      const normalization = await normalizePdf(
         request.file.buffer,
+        request.params.lessonId
+      );
+
+      const filePath = await uploadPdf(
+        normalization.buffer,
         request.file.originalname,
         request.params.lessonId
       );
