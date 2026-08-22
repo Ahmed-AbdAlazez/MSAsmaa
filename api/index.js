@@ -27,8 +27,10 @@ module.exports = async function handler(req, res) {
     console.error("[api/index] request failed:", err && err.message);
     if (!res.headersSent) {
       res.status(500).json({
-        error:
-          "وظيفة السيرفر فشلت على الاستضافة. الأسباب المحتملة: متغيرات البيئة BUNNY_API_KEY / BUNNY_LIBRARY_ID / BUNNY_SIGNING_KEY غير مضبوطة في إعدادات Vercel.",
+        // Include the underlying error message so the toast on screen names
+        // the REAL cause (missing env vars vs old Node without fetch, etc.)
+        // instead of a generic "check your variables" hint.
+        error: `وظيفة السيرفر فشلت على الاستضافة: ${err && err.message}`,
       });
     }
   }
