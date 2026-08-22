@@ -95,8 +95,95 @@ document.addEventListener('DOMContentLoaded', () => {
    * The error now names the exact URL + status so misrouted requests
    * (Live Server / GitHub Pages hitting a non-API origin) are obvious.
    */
-  const fetchJson = async (url, options = {}) => {
-    let response;
+  // ------------------------------------------------------------------
+  // Floating upload status card. Uploads must never lock the page: the
+  // teacher can keep scrolling/navigating WITHIN the page while the file
+  // uploads, and the card keeps showing live progress anywhere on screen.
+  // ------------------------------------------------------------------
+  const UploadFloat = (() => {
+    let el = null;
+    let bar = null;
+    let label = null;
+    let active = false;
+
+    const ensure = () => {
+      if (el) return;
+      el = document.createElement('div');
+      el.className = 'upload-floating-status';
+      el.innerHTML =
+        '<strong class="ufl-title"></strong>' +
+        '<div class="upload-progress-bar"><div></div></div>' +
+        '<small class="ufl-label"></small>';
+      document.body.appendChild(el);
+      bar = el.querySelector('.upload-progress-bar > div');
+      label = el.querySelector('.ufl-label');
+    };
+
+    return {
+      show(titleText) {
+        ensure();
+        el.style.display = 'block';
+        active = true;
+        bar.style.width = '0%';
+        el.querySelector('.ufl-title').textContent = titleText;
+        label.textContent = '0%';
+      },
+      update(pct, message) {
+        if (!el) return;
+        bar.style.width = pct + '%';
+        label.textContent = message || pct + '%';
+      },
+      done(message) {
+        if (!el) return;
+        bar.style.width = '100%';
+        label.textContent = message;
+        setTimeout(() => {
+          if (el) el.style.display = 'none';
+          active = false;
+        }, 4000);
+      },
+      fail(message) {
+        if (!el) return;
+        label.textContent = message;
+        setTimeout(() => {
+          if (el) el.style.display = 'none';
+          active = false;
+        }, 6000);
+      },
+      get isActive() {
+        return active;
+      },
+    };
+  })();
+
+  // Warn before closing/leaving the page mid-upload — an in-flight upload
+  // dies with the page, so the teacher should confirm first.
+  window.addEventListener('beforeunload', (event) => {
+    if (UploadFloat.isActive) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+
+  // Persist upload form fields so typed info (video name, links...) survives
+  // navigating between pages and back within the same tab.
+  const UPLOAD_PERSIST_FIELDS = ['upload-title', 'upload-attachment', 'upload-description'];
+  const restoreUploadFormFields = () => {
+    UPLOAD_PERSIST_FIELDS.forEach((fieldId) => {
+      const field = document.querySelector(`#${fieldId}`);
+      if (!field) return;
+      try {
+        const savedValue = sessionStorage.getItem(`uploadForm:${fieldId}`);
+        if (savedValue !== null && !field.value) field.value = savedValue;
+        field.addEventListener('input', () => {
+          sessionStorage.setItem(`uploadForm:${fieldId}`, field.value);
+        });
+      } catch (_) { /* best-effort */ }
+    });
+  };
+  restoreUploadFormFields();
+
+  const fetchJson = async (url, options = {}) => {    let response;
     try {
       response = await fetch(url, options);
     } catch (networkError) {
@@ -1564,6 +1651,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         uploadMaterialBtn.disabled = true;
+        UploadFloat.show('جاري رفع ملف PDF');
         if (progressArea && progressBar && statusText) {
           progressArea.style.display = 'block';
           progressBar.style.width = '0%';
@@ -1575,15 +1663,18 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.style.width = pct + '%';
             statusText.textContent = statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`;
           }
+          UploadFloat.update(pct, statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`);
         });
 
         if (progressBar && statusText) {
           progressBar.style.width = '100%';
           statusText.textContent = 'تم رفع ملف PDF للدرس بنجاح ✔';
         }
+        UploadFloat.done('تم رفع ملف PDF للدرس بنجاح ✔');
       } catch (error) {
         showToast(error.message, 'danger');
         if (statusText) statusText.textContent = 'فشل رفع ملف PDF.';
+        UploadFloat.fail('فشل رفع ملف PDF.');
       } finally {
         uploadMaterialBtn.disabled = false;
       }
@@ -1638,6 +1729,8 @@ document.addEventListener('DOMContentLoaded', () => {
         progressArea.style.display = 'block';
         progressBar.style.width = '0%';
         statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
+        UploadFloat.show('جاري رفع الفيديو');
+        UploadFloat.update(0, 'جاري تجهيز الفيديو على سيرفر البث...');
 
         // Step 1: reserve a slot on Bunny. Title follows the platform
         // convention: "lesson-N | name | attachment | description".
@@ -1656,6 +1749,7 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.style.width = pct + '%';
             statusText.textContent =
               statusMsg || `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
+            UploadFloat.update(pct, statusMsg || `جاري رفع ملف PDF... ${pct}%`);
           });
           statusText.textContent = 'تم رفع الـ PDF ✔ — جاري رفع الفيديو...';
           progressBar.style.width = '0%';
@@ -1671,6 +1765,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const pct = Math.round((e.loaded / e.total) * 100);
               progressBar.style.width = pct + '%';
               statusText.textContent = `جاري رفع الملف... ${pct}%`;
+              UploadFloat.update(pct, `جاري رفع الملف... ${pct}%`);
             }
           });
           xhr.addEventListener('load', () =>
@@ -1694,6 +1789,7 @@ document.addEventListener('DOMContentLoaded', () => {
               { headers: authHeaders }
             );
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
+            UploadFloat.update(Math.max(st.encodeProgress || 0, 5), 'جاري معالجة الفيديو على Bunny...');
 
             if (st.ready) {
               clearInterval(poll);
@@ -1701,22 +1797,26 @@ document.addEventListener('DOMContentLoaded', () => {
               statusText.textContent =
                 `الفيديو جاهز ✅ — يظهر الآن للطلاب في درس: ${st.lessonName}`;
               showToast(`تم رفع فيديو ${lessonId} بنجاح! الطلاب يستطيعون مشاهدته الآن.`, 'success');
+              UploadFloat.done('الفيديو جاهز ✅');
               uploadBtn.disabled = false;
             } else if ([5, 6].includes(st.status)) {
               clearInterval(poll);
               statusText.textContent = 'فشلت معالجة الفيديو على Bunny.';
               showToast('فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.', 'danger');
+              UploadFloat.fail('فشلت معالجة الفيديو.');
               uploadBtn.disabled = false;
             }
           } catch (pollError) {
             clearInterval(poll);
             statusText.textContent = pollError.message;
+            UploadFloat.fail(pollError.message);
             uploadBtn.disabled = false;
           }
         }, 5000);
       } catch (error) {
         showToast(error.message, 'danger');
         progressArea.style.display = 'none';
+        UploadFloat.fail(error.message);
         uploadBtn.disabled = false;
       }
     });
