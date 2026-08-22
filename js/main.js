@@ -1181,6 +1181,46 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       materialsBox.innerHTML = '';
+      const viewerPanel = document.querySelector('#lesson-pdf-viewer');
+      const viewerFrame = document.querySelector('#lesson-pdf-frame');
+      const viewerTitle = document.querySelector('#lesson-pdf-viewer-title');
+      const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
+
+      // Opens one material inside the inline panel under the video.
+      const openMaterialInViewer = async (material, button) => {
+        try {
+          button.disabled = true;
+          const previousLabel = button.textContent;
+          button.textContent = 'جاري...';
+          const data = await fetchJson(
+            `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
+            { headers: authHeaders }
+          );
+          if (viewerTitle) {
+            viewerTitle.textContent = `📄 ${material.title || 'ملف PDF'}`;
+          }
+          if (viewerFrame) {
+            viewerFrame.src = data.downloadUrl;
+          }
+          if (viewerPanel) {
+            viewerPanel.hidden = false;
+            viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          button.textContent = previousLabel;
+        } catch (error) {
+          showToast(error.message, 'danger');
+        } finally {
+          button.disabled = false;
+        }
+      };
+
+      if (viewerClose && viewerPanel) {
+        viewerClose.addEventListener('click', () => {
+          viewerPanel.hidden = true;
+          if (viewerFrame) viewerFrame.src = 'about:blank';
+        });
+      }
+
       materials.forEach((material) => {
         const row = document.createElement('div');
         row.className = 'lesson-material-item';
@@ -1189,14 +1229,24 @@ document.addEventListener('DOMContentLoaded', () => {
         title.className = 'lesson-material-title';
         title.textContent = material.title || 'ملف PDF';
 
-        const button = document.createElement('button');
-        button.className = 'btn btn-secondary lesson-material-download';
-        button.type = 'button';
-        button.textContent = 'تحميل';
-        button.addEventListener('click', async () => {
+        const actionsBox = document.createElement('div');
+        actionsBox.className = 'lesson-material-actions';
+
+        // عرض: renders the PDF inline beside/below the video player.
+        const viewButton = document.createElement('button');
+        viewButton.className = 'btn btn-secondary lesson-material-download';
+        viewButton.type = 'button';
+        viewButton.textContent = 'عرض';
+        viewButton.addEventListener('click', () => openMaterialInViewer(material, viewButton));
+
+        const downloadButton = document.createElement('button');
+        downloadButton.className = 'btn btn-secondary lesson-material-download';
+        downloadButton.type = 'button';
+        downloadButton.textContent = 'تحميل';
+        downloadButton.addEventListener('click', async () => {
           try {
-            button.disabled = true;
-            button.textContent = 'جاري...';
+            downloadButton.disabled = true;
+            downloadButton.textContent = 'جاري...';
             const data = await fetchJson(
               `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download`,
               { headers: authHeaders }
@@ -1205,12 +1255,13 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (error) {
             showToast(error.message, 'danger');
           } finally {
-            button.disabled = false;
-            button.textContent = 'تحميل';
+            downloadButton.disabled = false;
+            downloadButton.textContent = 'تحميل';
           }
         });
 
-        row.append(title, button);
+        actionsBox.append(viewButton, downloadButton);
+        row.append(title, actionsBox);
         materialsBox.appendChild(row);
       });
     };
