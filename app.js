@@ -54,6 +54,12 @@ app.use("/api/lessons", videoRoutes);
 // Teacher-only video management (edit metadata / delete).
 app.use("/api/videos", require("./src/routes/video-manage.routes.js"));
 
+// Lesson PDF materials stored on Supabase Storage:
+//   POST /api/lessons/:lessonId/materials          (teacher uploads a PDF)
+//   GET  /api/lessons/:lessonId/materials          (list for the lesson page)
+//   GET  /api/materials/:materialId/download       (signed, enrollment-gated)
+app.use("/api", require("./src/routes/materials.routes.js"));
+
 // PDF lesson materials API (teacher upload + enrolled student download).
 app.use("/api", materialsRoutes);
 

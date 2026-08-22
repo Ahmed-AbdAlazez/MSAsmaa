@@ -30,6 +30,19 @@ if (missingEnvironmentVariables.length > 0) {
   );
 }
 
+// The publishable/public key CANNOT write to Storage (it gets blocked by row
+// level security). Catching this here turns a confusing runtime RLS error
+// into an immediate message that names the correct key to copy.
+if (/^sb_publishable|^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJyb2xlIjoiYW5vbiI/i.test(
+  process.env.SUPABASE_SERVICE_ROLE_KEY.trim()
+)) {
+  throw new Error(
+    "[supabaseStorage.service] SUPABASE_SERVICE_ROLE_KEY holds a PUBLIC/publishable key. " +
+      "Copy the SECRET key instead: Supabase Dashboard -> Project Settings -> API Keys -> " +
+      "'sb_secret_...' (or legacy 'service_role' JWT)."
+  );
+}
+
 const supabaseClient = createClient(
   process.env.SUPABASE_URL.trim(),
   process.env.SUPABASE_SERVICE_ROLE_KEY.trim(),
@@ -40,6 +53,29 @@ const supabaseClient = createClient(
     },
   }
 );
+
+/**
+ * Makes sure the private materials bucket exists before any Storage call.
+ * The service role key is allowed to create buckets, so a fresh Supabase
+ * project works without any manual dashboard step. The check result is
+ * cached after the first success to avoid an extra round trip per request.
+ */
+let materialsBucketVerified = false;
+
+async function ensureMaterialsBucket() {
+  if (materialsBucketVerified) return;
+
+  const { error } = await supabaseClient.storage.createBucket(
+    MATERIALS_BUCKET_NAME,
+    { public: false }
+  );
+
+  if (error && !/already exists|409/i.test(error.message || "")) {
+    throw new Error(`Supabase bucket setup failed: ${error.message}`);
+  }
+
+  materialsBucketVerified = true;
+}
 
 /**
  * Converts a teacher-provided file name into a storage-safe name.
@@ -105,6 +141,7 @@ function buildStorageFilePath(fileName, lessonId) {
  * @returns {Promise<string>} The private Supabase Storage object path.
  */
 async function uploadPdf(fileBuffer, fileName, lessonId) {
+  await ensureMaterialsBucket();
   const filePath = buildStorageFilePath(fileName, lessonId);
 
   const { error } = await supabaseClient.storage
@@ -130,6 +167,7 @@ async function uploadPdf(fileBuffer, fileName, lessonId) {
  * @returns {Promise<object[]>} Supabase Storage file objects.
  */
 async function listLessonPdfFiles(lessonId) {
+  await ensureMaterialsBucket();
   const lessonFolderName = buildSafeLessonFolderName(lessonId);
   const folderPath = `lessons/${lessonFolderName}`;
 
@@ -162,6 +200,7 @@ async function listLessonPdfFiles(lessonId) {
  * @returns {Promise<string>} A temporary signed download URL.
  */
 async function generateSignedDownloadUrl(filePath, expiresInSeconds) {
+  await ensureMaterialsBucket();
   const { data, error } = await supabaseClient.storage
     .from(MATERIALS_BUCKET_NAME)
     .createSignedUrl(filePath, expiresInSeconds, {
