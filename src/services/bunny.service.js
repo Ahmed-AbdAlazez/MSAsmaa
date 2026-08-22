@@ -24,6 +24,17 @@
 
 const crypto = require("crypto");
 
+// The Bunny calls below use the global fetch() API, which only exists on
+// Node.js >= 18. On older runtimes (e.g. an old Vercel Node version) this
+// would crash deep inside a route with a confusing TypeError — fail fast
+// here instead, with a message that names the actual fix.
+if (typeof fetch !== "function") {
+  throw new Error(
+    "global fetch() is not available. Bunny integration requires Node.js 18+. " +
+      "On Vercel: Settings -> General -> Node.js Version must be 18 or higher."
+  );
+}
+
 // Requiring this runs the dotenv load + validation immediately. If anything
 // is missing, the server crashes at startup with a clear error — which is
 // exactly what we want (fail fast, fail loudly).
