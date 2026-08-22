@@ -187,6 +187,10 @@ async function listLessonPdfFiles(lessonId) {
     .map((fileObject) => ({
       ...fileObject,
       filePath: `${folderPath}/${fileObject.name}`,
+      // Management-relevant fields the student view does not need but the
+      // teacher "manage materials" screen displays (size + upload date).
+      sizeBytes: fileObject.metadata?.size ?? null,
+      createdAt: fileObject.created_at || fileObject.updated_at || null,
     }));
 }
 
@@ -221,8 +225,55 @@ async function generateSignedDownloadUrl(filePath, expiresInSeconds, options = {
   return data.signedUrl;
 }
 
+/**
+ * Renames (moves) a stored object inside the same private bucket.
+ * Used by the teacher "rename material" flow: because the stub keeps no
+ * separate database table yet, the custom title lives in the object name,
+ * so renaming = moving the object to a new marker-encoded name.
+ *
+ * @param {string} fromPath - The current private object path.
+ * @param {string} toPath - The new private object path.
+ * @returns {Promise<true>} Resolves when Supabase confirms the move.
+ */
+async function moveFile(fromPath, toPath) {
+  await ensureMaterialsBucket();
+  const { error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .move(fromPath, toPath);
+
+  if (error) {
+    throw new Error(`Supabase file move failed: ${error.message}`);
+  }
+
+  return true;
+}
+
+/**
+ * Permanently deletes one stored object from the private materials bucket.
+ * The DELETE route calls this BEFORE removing any record reference so a
+ * failed storage delete can never leave a database row pointing at an
+ * existing file.
+ *
+ * @param {string} filePath - The private object path to remove.
+ * @returns {Promise<true>} Resolves when Supabase accepts the deletion.
+ */
+async function deleteFile(filePath) {
+  await ensureMaterialsBucket();
+  const { error } = await supabaseClient.storage
+    .from(MATERIALS_BUCKET_NAME)
+    .remove([filePath]);
+
+  if (error) {
+    throw new Error(`Supabase file delete failed: ${error.message}`);
+  }
+
+  return true;
+}
+
 module.exports = {
   uploadPdf,
   listLessonPdfFiles,
   generateSignedDownloadUrl,
+  moveFile,
+  deleteFile,
 };
