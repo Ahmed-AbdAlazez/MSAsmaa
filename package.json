@@ -30,11 +30,13 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@supabase/supabase-js": "^2.112.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
