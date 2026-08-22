@@ -105,6 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let bar = null;
     let label = null;
     let active = false;
+    // When true, a service-worker job owns the card (it broadcasts progress
+    // from outside this page), so page-local calls must not fight it.
+    let swOwned = false;
 
     const ensure = () => {
       if (el) return;
@@ -120,7 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     return {
+      markSwOwned(value) {
+        swOwned = !!value;
+      },
       show(titleText) {
+        if (swOwned) return;
         ensure();
         el.style.display = 'block';
         active = true;
@@ -129,11 +136,12 @@ document.addEventListener('DOMContentLoaded', () => {
         label.textContent = '0%';
       },
       update(pct, message) {
-        if (!el) return;
+        if (!el || swOwned) return;
         bar.style.width = pct + '%';
         label.textContent = message || pct + '%';
       },
       done(message) {
+        swOwned = false;
         if (!el) return;
         bar.style.width = '100%';
         label.textContent = message;
@@ -143,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
       },
       fail(message) {
+        swOwned = false;
         if (!el) return;
         label.textContent = message;
         setTimeout(() => {
@@ -225,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     channel.onmessage = (event) => {
       const m = event.data || {};
       if (m.type === 'started') {
+        UploadFloat.markSwOwned(true);
         UploadFloat.show(m.label || 'جاري رفع ملف');
       } else if (m.type === 'progress') {
         UploadFloat.update(m.pct, m.stage === 'finalizing'
@@ -232,10 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
           : `جاري الرفع... ${m.pct}%`);
       } else if (m.type === 'done') {
         UploadFloat.done('تم الرفع بنجاح ✔');
-        showToast('اكتمل رفع الملف بنجاح.', 'success');
       } else if (m.type === 'failed') {
-        UploadFloat.fail('فشل الرفع.');
-        showToast(`فشل رفع الملف: ${m.error || ''}`, 'danger');
+        UploadFloat.fail(`فشل الرفع: ${m.error || ''}`);
       }
     };
 
@@ -276,10 +284,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return waitForUploadOutcome(job.id);
   }
 
-  // Warn before closing/leaving the page mid-upload — an in-flight upload
-  // dies with the page, so the teacher should confirm first.
+  // Warn before closing/leaving mid-upload ONLY in fallback mode — with the
+  // service worker active, uploads survive navigating to other pages, so
+  // warning on every click would just be annoying.
   window.addEventListener('beforeunload', (event) => {
-    if (UploadFloat.isActive) {
+    if (!swUploadAvailable && UploadFloat.isActive) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -1710,35 +1719,81 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     );
 
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', prepared.signedUrl);
-      xhr.setRequestHeader('Content-Type', 'application/pdf');
+    let result;
+    if (swUploadAvailable) {
+      // BACKGROUND PATH: hand the whole upload (bytes PUT + finalize) to the
+      // service worker so navigating to other pages cannot interrupt it.
+      const jobId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      if (typeof onProgress === 'function') {
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            onProgress(Math.round((e.loaded / e.total) * 100), null);
-          }
-        });
-      }
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(`فشل رفع الملف (${xhr.status}).`));
-        }
+      const outcome = await startSwUploadJob({
+        id: jobId,
+        kind: 'pdf',
+        url: prepared.signedUrl,
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        blob: pdfFile,
+        finalize: {
+          url: `${API_BASE}/api/materials/finalize`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            lessonId,
+            filePath: prepared.filePath,
+            title: formDataTitle,
+          }),
+        },
+        meta: { lessonId, label: `PDF: ${formDataTitle}` },
+        status: 'queued',
       });
 
-      xhr.addEventListener('error', () =>
-        reject(new Error('انقطع الاتصال أثناء رفع ملف PDF.'))
-      );
+      if (!outcome.ok) {
+        throw new Error(outcome.error || 'فشل رفع ملف PDF.');
+      }
+      result = {};
+    } else {
+      // INLINE FALLBACK (no service worker): classic in-page XHR upload.
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', prepared.signedUrl);
+        xhr.setRequestHeader('Content-Type', 'application/pdf');
 
-      xhr.send(pdfFile);
-    });
+        if (typeof onProgress === 'function') {
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              onProgress(Math.round((e.loaded / e.total) * 100), null);
+            }
+          });
+        }
 
-    if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`فشل رفع الملف (${xhr.status}).`));
+          }
+        });
+
+        xhr.addEventListener('error', () =>
+          reject(new Error('انقطع الاتصال أثناء رفع ملف PDF.'))
+        );
+
+        xhr.send(pdfFile);
+      });
+
+      if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
+
+      result = await fetchJson(`${API_BASE}/api/materials/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          lessonId,
+          filePath: prepared.filePath,
+          title: formDataTitle,
+        }),
+      });
+    }
 
     // Invalidate the lesson-view cache for this lesson so the next visit
     // fetches a fresh list that includes the new PDF (otherwise the cached
@@ -1746,16 +1801,6 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
     } catch (_) { /* best-effort */ }
-
-    const result = await fetchJson(`${API_BASE}/api/materials/finalize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({
-        lessonId,
-        filePath: prepared.filePath,
-        title: formDataTitle,
-      }),
-    });
 
     pdfInput.value = '';
     showToast('تم رفع ملف PDF للدرس بنجاح.', 'success');
@@ -1876,28 +1921,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Step 2: PUT the raw file straight to Bunny with upload progress.
-        await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', prepared.uploadUrl);
-          xhr.setRequestHeader('AccessKey', prepared.accessKey);
-          xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-              const pct = Math.round((e.loaded / e.total) * 100);
-              progressBar.style.width = pct + '%';
-              statusText.textContent = `جاري رفع الملف... ${pct}%`;
-              UploadFloat.update(pct, `جاري رفع الملف... ${pct}%`);
-            }
+        if (swUploadAvailable) {
+          // BACKGROUND PATH: the service worker owns the big video PUT, so
+          // the teacher can browse other pages while it runs. Bunny encodes
+          // server-side afterwards regardless of who is watching.
+          const jobId = typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+          const outcome = await startSwUploadJob({
+            id: jobId,
+            kind: 'video',
+            url: prepared.uploadUrl,
+            method: 'PUT',
+            headers: { AccessKey: prepared.accessKey },
+            blob: file,
+            meta: { lessonId, label: `فيديو: ${videoName}` },
+            status: 'queued',
           });
-          xhr.addEventListener('load', () =>
-            xhr.status >= 200 && xhr.status < 300
-              ? resolve()
-              : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
-          );
-          xhr.addEventListener('error', () =>
-            reject(new Error('انقطع الاتصال أثناء الرفع.'))
-          );
-          xhr.send(file);
-        });
+
+          if (!outcome.ok) {
+            throw new Error(outcome.error || 'فشل رفع الملف.');
+          }
+        } else {
+          // INLINE FALLBACK (no service worker).
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', prepared.uploadUrl);
+            xhr.setRequestHeader('AccessKey', prepared.accessKey);
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = pct + '%';
+                statusText.textContent = `جاري رفع الملف... ${pct}%`;
+                UploadFloat.update(pct, `جاري رفع الملف... ${pct}%`);
+              }
+            });
+            xhr.addEventListener('load', () =>
+              xhr.status >= 200 && xhr.status < 300
+                ? resolve()
+                : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
+            );
+            xhr.addEventListener('error', () =>
+              reject(new Error('انقطع الاتصال أثناء الرفع.'))
+            );
+            xhr.send(file);
+          });
+        }
 
         statusText.textContent = 'تم الرفع! جاري معالجة الفيديو على Bunny...';
 
