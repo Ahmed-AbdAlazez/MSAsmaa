@@ -12,7 +12,6 @@
 
 const express = require("express");
 const multer = require("multer");
-const { Readable, Transform } = require("stream");
 
 const { requireAuth } = require("../middleware/auth.middleware.js");
 const {
@@ -30,7 +29,6 @@ const {
   uploadPdf,
   generateSignedDownloadUrl,
   deleteFile,
-  getUpstreamFileStream,
 } = require("../services/supabaseStorage.service.js");
 const { normalizePdf } = require("../services/pdfNormalize.service.js");
 
@@ -289,128 +287,6 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
     return response.status(500).json({
       error: "Failed to create the PDF download URL. Please try again later.",
     });
-  }
-});
-
-/**
- * GET /api/materials/:materialId/view
- *
- * Same-origin PDF proxy for the inline lesson viewer. Mobile browsers —
- * Safari especially — refuse to render cross-origin URLs inside an iframe
- * and navigate away to the storage domain instead, so this route fetches
- * the private Supabase object itself and streams the bytes back as
- * application/pdf with Content-Disposition: inline. The client never sees
- * the storage URL.
- *
- * AUTH NOTE: an <iframe> request cannot carry custom auth headers, so the
- * identity may arrive via userId/role query params — mirroring exactly what
- * auth.middleware reads from headers. The enrollment gate below is the SAME
- * check used by GET /materials/:materialId/download.
- */
-router.get("/materials/:materialId/view", async (request, response) => {
-  const userId =
-    request.headers["x-user-id"] || request.query.userId || null;
-  const userRole =
-    request.headers["x-user-role"] || request.query.role || null;
-
-  if (!userId || !["student", "teacher"].includes(userRole)) {
-    return response.status(401).json({ error: "Authentication required." });
-  }
-
-  const materialRecord = await getMaterialById(request.params.materialId);
-
-  if (!materialRecord) {
-    return response.status(404).json({ error: "Material not found." });
-  }
-
-  /* MAIN ACCESS CONTROL POINT FOR INLINE PDF VIEWING - DO NOT BYPASS.
-   * Identical enrollment check to the download route above. */
-  const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
-    userId,
-    materialRecord.lessonId
-  );
-
-  if (!studentIsEnrolled) {
-    return response.status(403).json({
-      error: "You are not enrolled in the course this material belongs to.",
-    });
-  }
-
-  try {
-    // STREAMING PROXY: pipe Supabase's byte stream straight into the HTTP
-    // response instead of buffering the whole file. Vercel caps buffered
-    // function responses at ~4.5MB; streaming keeps any reasonable PDF
-    // size working and keeps memory flat.
-    const upstream = await getUpstreamFileStream(materialRecord.filePath);
-
-    if (!upstream.ok || !upstream.body) {
-      // TEMP DEBUG: include Supabase's own response text so the REAL
-      // storage-side failure is visible instead of a generic 502.
-      let upstreamDetail = "";
-      try {
-        upstreamDetail = (await upstream.text()).slice(0, 300);
-      } catch (_) { /* body unreadable */ }
-      console.error(
-        `[materials.routes] Storage stream failed for material ${request.params.materialId}: ` +
-          `HTTP ${upstream.status} ${upstream.statusText} :: ${upstreamDetail}`
-      );
-      return response
-        .status(502)
-        .type("text/plain")
-        .send(
-          `Failed to load the PDF from storage. [debug] HTTP ${upstream.status} ${upstreamDetail}`
-        );
-    }
-
-    // DEBUG: count the bytes actually piped to the client and compare with
-    // what Supabase declared. A mismatch here means corruption in the pipe.
-    const declaredLength = upstream.headers.get("content-length");
-    const wasEncoded = upstream.headers.get("content-encoding");
-    let pipedBytes = 0;
-    const byteCounter = new Transform({
-      transform(chunk, _encoding, callback) {
-        pipedBytes += chunk.length;
-        callback(null, chunk);
-      },
-      flush(callback) {
-        console.log(
-          `[materials.routes] view ${request.params.materialId}: ` +
-            `status=${upstream.status} declaredLength=${declaredLength || "none"} ` +
-            `contentEncoding=${wasEncoded || "identity"} pipedBytes=${pipedBytes}`
-        );
-        callback();
-      },
-    });
-
-    const responseHeaders = {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": 'inline; filename="material.pdf"',
-      "Cache-Control": "private, max-age=300",
-    };
-    // NOTE: Content-Length is deliberately NOT forwarded. Any declared
-    // length makes gateways (Vercel included) buffer the whole response to
-    // enforce it — which reintroduces the 4.5MB cap. Omitting it keeps the
-    // response chunked = genuinely streamed end to end.
-    response.set(responseHeaders);
-
-    Readable.fromWeb(upstream.body).pipe(byteCounter).pipe(response);
-  } catch (error) {
-    // TEMP DEBUG: full stack in the console AND the raw message in the
-    // response, so nothing hides behind a generic string. Remove before go-live.
-    console.error(
-      `[materials.routes] Inline view failed for material ${request.params.materialId}\n` +
-        `message: ${error && error.message}\nstack: ${error && error.stack}`
-    );
-    // Plain text (not JSON): this page can render inside a student iframe.
-    if (!response.headersSent) {
-      return response
-        .status(502)
-        .type("text/plain")
-        .send(
-          `Failed to load the PDF from storage. [debug] ${(error && error.message) || "unknown error"}`
-        );
-    }
-    response.end();
   }
 });
 

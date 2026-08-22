@@ -74,6 +74,29 @@ async function ensureMaterialsBucket() {
     throw new Error(`Supabase bucket setup failed: ${error.message}`);
   }
 
+  // Explicit CORS policy for the bucket. Signed-URL <iframe>/<img> loads are
+  // not CORS-gated, but any client-side fetch/XHR of storage URLs is — this
+  // keeps those working and documents exactly which origins may read.
+  // Override via env: MATERIALS_CORS_ORIGINS="https://app.tld,https://other.tld"
+  const allowedOrigins = (
+    process.env.MATERIALS_CORS_ORIGINS ||
+    "*"
+  )
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const { error: corsError } = await supabaseClient.storage.updateBucket(
+    MATERIALS_BUCKET_NAME,
+    { public: false, allowedOrigins }
+  );
+
+  if (corsError) {
+    console.error(
+      `[supabaseStorage.service] Bucket CORS update failed (non-fatal): ${corsError.message}`
+    );
+  }
+
   materialsBucketVerified = true;
 }
 
@@ -270,63 +293,10 @@ async function deleteFile(filePath) {
   return true;
 }
 
-/**
- * Downloads a stored file from Supabase Storage as raw bytes so the API can
- * proxy it to the client (same-origin inline PDF viewing — mobile browsers
- * refuse cross-origin iframes).
- *
- * @param {string} filePath - The private object path inside the bucket.
- * @returns {Promise<Buffer>} The file bytes.
- */
-async function getFileBytes(filePath) {
-  await ensureMaterialsBucket();
-  const { data, error } = await supabaseClient.storage
-    .from(MATERIALS_BUCKET_NAME)
-    .download(filePath);
-
-  if (error || !data) {
-    throw new Error(
-      `Supabase file download failed: ${error ? error.message : "empty response"}`
-    );
-  }
-
-  return Buffer.from(await data.arrayBuffer());
-}
-
-/**
- * Opens a raw HTTP stream to the stored object in Supabase Storage so the
- * API can pipe bytes straight through to the client without ever holding
- * the whole file in memory. Vercel caps buffered function responses at
- * ~4.5MB, so larger PDFs MUST be streamed chunk-by-chunk instead of being
- * downloaded as one Buffer first.
- *
- * @param {string} filePath - The private object path inside the bucket.
- * @returns {Promise<Response>} The fetch Response; `.body` is a web stream.
- */
-async function getUpstreamFileStream(filePath) {
-  const encodedPath = filePath
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/");
-  const objectUrl = `${process.env.SUPABASE_URL.trim()}/storage/v1/object/${MATERIALS_BUCKET_NAME}/${encodedPath}`;
-
-  return fetch(objectUrl, {
-    headers: {
-      // Supabase's gateway requires BOTH headers. With only Authorization it
-      // treats the call as anonymous and private buckets come back as
-      // "Bucket not found" (NoSuchBucket) instead of a clear auth error.
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY.trim()}`,
-      apikey: process.env.SUPABASE_SERVICE_ROLE_KEY.trim(),
-    },
-  });
-}
-
 module.exports = {
   uploadPdf,
   listLessonPdfFiles,
   generateSignedDownloadUrl,
   moveFile,
   deleteFile,
-  getFileBytes,
-  getUpstreamFileStream,
 };

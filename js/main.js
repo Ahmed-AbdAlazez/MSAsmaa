@@ -1187,12 +1187,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
 
       // ------------------------------------------------------------------
-      // Native PDF rendering via the same-origin backend proxy. The <iframe>
-      // points at GET /api/materials/:id/view, which runs the enrollment
-      // check and streams the bytes itself — the browser never touches the
-      // Supabase domain, so mobile Safari cannot navigate away, and every
-      // platform uses its own native PDF renderer (more forgiving of odd
-      // PDF files than PDF.js was).
+      // Inline PDF viewing via short-lived signed Supabase URLs. The backend
+      // runs the enrollment check, then hands back a signed URL created with
+      // download:false (inline). Bytes stream straight from Supabase's CDN,
+      // so Vercel's function response limit never applies — any file size
+      // works.
       // ------------------------------------------------------------------
       const closePdfViewer = () => {
         if (!viewerPanel) return;
@@ -1200,21 +1199,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (viewerFrame) viewerFrame.src = 'about:blank';
       };
 
-      // Opens one material inside the inline panel by pointing the iframe at
-      // the same-origin proxy. Identity travels as query params because an
-      // <iframe> request cannot carry custom auth headers; the backend still
-      // performs the full enrollment check before serving any bytes.
-      const openMaterialInViewer = (material, button) => {
+      const openMaterialInViewer = async (material, button) => {
         try {
+          button.disabled = true;
+          button.textContent = 'جاري...';
+
+          const data = await fetchJson(
+            `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
+            { headers: authHeaders }
+          );
+
           if (viewerTitle) {
             viewerTitle.textContent = `📄 ${material.title || 'ملف PDF'}`;
           }
           if (viewerFrame) {
-            const identity =
-              `userId=${encodeURIComponent(authHeaders['x-user-id'] || '')}` +
-              `&role=${encodeURIComponent(authHeaders['x-user-role'] || '')}`;
-            viewerFrame.src =
-              `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/view?${identity}`;
+            viewerFrame.src = data.downloadUrl;
           }
           if (viewerPanel) {
             viewerPanel.hidden = false;
