@@ -1,16 +1,13 @@
 /**
- * anatomyScrollSection.js - scroll-built human anatomy section.
+ * anatomyScrollSection.js - GSAP ScrollTrigger anatomy build.
  *
- * The component renders one SVG anatomy scene into [data-anatomy-scroll-section]
- * and maps section scroll progress to layer opacity/transform custom properties.
- * Scroll listeners only schedule rAF work; the observer keeps the loop dormant
- * while the section is off-screen.
+ * Renders a single SVG scene into [data-anatomy-scroll-section], then drives
+ * one scrubbed GSAP timeline with ScrollTrigger. No Intersection Observer or
+ * hand-built scroll percentage logic is used for the layer reveal.
  */
 (() => {
   const mount = document.querySelector('[data-anatomy-scroll-section]');
   if (!mount) return;
-
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   mount.innerHTML = `
     <section class="anatomy-scroll" aria-label="Scroll-driven layered anatomy illustration">
@@ -79,81 +76,91 @@
     </section>
   `;
 
-  const section = mount.querySelector('.anatomy-scroll');
-  if (!section) return;
-
-  const setProgress = (outline, skeleton, ribs, heart) => {
-    section.style.setProperty('--outline-p', outline.toFixed(4));
-    section.style.setProperty('--skeleton-p', skeleton.toFixed(4));
-    section.style.setProperty('--ribs-p', ribs.toFixed(4));
-    section.style.setProperty('--heart-p', heart.toFixed(4));
-    section.style.setProperty('--outline-opacity', (0.16 + outline * 0.42).toFixed(4));
-    section.style.setProperty('--skeleton-opacity', (skeleton * 0.82).toFixed(4));
-    section.style.setProperty('--ribs-opacity', (ribs * 0.94).toFixed(4));
-    section.style.setProperty('--heart-opacity', heart.toFixed(4));
-    section.style.setProperty('--halo-opacity', (0.22 + skeleton * 0.18).toFixed(4));
-    section.style.setProperty('--hospital-opacity', (0.82 + outline * 0.18).toFixed(4));
-    section.style.setProperty('--outline-y', `${((1 - outline) * 14).toFixed(2)}px`);
-    section.style.setProperty('--skeleton-y', `${((1 - skeleton) * 22).toFixed(2)}px`);
-    section.style.setProperty('--ribs-y', `${((1 - ribs) * 12).toFixed(2)}px`);
-    section.style.setProperty('--heart-y', `${((1 - heart) * 18).toFixed(2)}px`);
-    section.style.setProperty('--outline-scale', (0.985 + outline * 0.015).toFixed(4));
-    section.style.setProperty('--skeleton-scale', (0.97 + skeleton * 0.03).toFixed(4));
-    section.style.setProperty('--ribs-scale', (0.96 + ribs * 0.04).toFixed(4));
-    section.style.setProperty('--heart-scale', (0.72 + heart * 0.28).toFixed(4));
-    section.style.setProperty('--halo-scale', (0.96 + outline * 0.04).toFixed(4));
-    section.classList.toggle('is-complete', heart > 0.96);
-  };
-
-  if (prefersReducedMotion) {
-    setProgress(1, 1, 1, 1);
+  if (!window.gsap || !window.ScrollTrigger) {
+    mount.querySelector('.anatomy-scroll')?.classList.add('anatomy-scroll--static');
     return;
   }
 
-  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
-  const smoothstep = (edge0, edge1, value) => {
-    const t = clamp((value - edge0) / (edge1 - edge0));
-    return t * t * (3 - 2 * t);
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const gsap = window.gsap;
+  const ScrollTrigger = window.ScrollTrigger;
+  gsap.registerPlugin(ScrollTrigger);
+
+  const section = mount.querySelector('.anatomy-scroll');
+  const pinTarget = mount.querySelector('.anatomy-scroll__sticky');
+  const halo = mount.querySelector('.anatomy-scroll__halo');
+  const hospital = mount.querySelector('.anatomy-hospital');
+  const outline = mount.querySelector('.anatomy-layer--outline');
+  const skeleton = mount.querySelector('.anatomy-layer--skeleton');
+  const ribs = mount.querySelector('.anatomy-layer--ribs');
+  const heart = mount.querySelector('.anatomy-layer--heart');
+
+  if (!section || !pinTarget || !outline || !skeleton || !ribs || !heart) return;
+
+  if (prefersReducedMotion) {
+    section.classList.add('anatomy-scroll--static');
+    return;
+  }
+
+  gsap.set([outline, skeleton, ribs, heart, halo, hospital], {
+    transformOrigin: '50% 50%',
+    force3D: true,
+  });
+
+  gsap.set(outline, { autoAlpha: 0.16, y: 14, scale: 0.985 });
+  gsap.set(skeleton, { autoAlpha: 0, y: 22, scale: 0.97 });
+  gsap.set(ribs, { autoAlpha: 0, y: 12, scale: 0.96 });
+  gsap.set(heart, { autoAlpha: 0, y: 18, scale: 0.72 });
+  gsap.set(halo, { autoAlpha: 0.22, scale: 0.96 });
+  gsap.set(hospital, { autoAlpha: 0.82 });
+
+  const heartPulse = gsap.to(heart, {
+    scale: 1.045,
+    duration: 0.72,
+    repeat: -1,
+    yoyo: true,
+    ease: 'sine.inOut',
+    paused: true,
+    transformOrigin: '50% 50%',
+  });
+
+  const stopHeartPulse = () => {
+    heartPulse.pause(0);
+    gsap.set(heart, { scale: 1 });
   };
 
-  let isVisible = false;
-  let rafId = null;
+  const timeline = gsap.timeline({
+    defaults: { ease: 'power2.inOut' },
+    scrollTrigger: {
+      trigger: section,
+      pin: pinTarget,
+      pinSpacing: true,
+      start: 'top top',
+      end: () => (window.matchMedia('(max-width: 600px)').matches ? '+=85%' : '+=115%'),
+      scrub: 1,
+      invalidateOnRefresh: true,
+      anticipatePin: 1,
+      onLeave: () => heartPulse.play(),
+      onEnterBack: stopHeartPulse,
+      onLeaveBack: stopHeartPulse,
+    },
+  });
 
-  const computeProgress = () => {
-    const rect = section.getBoundingClientRect();
-    const vh = window.innerHeight || document.documentElement.clientHeight;
-    const travel = rect.height * 0.82;
-    const raw = (vh * 0.82 - rect.top) / travel;
-    return clamp(raw);
-  };
+  timeline
+    .addLabel('outline')
+    .to(halo, { autoAlpha: 0.4, scale: 1, duration: 0.9 }, 'outline')
+    .to(hospital, { autoAlpha: 1, duration: 0.8 }, 'outline')
+    .to(outline, { autoAlpha: 0.58, y: 0, scale: 1, duration: 1 }, 'outline')
+    .addLabel('skeleton', 0.72)
+    .to(skeleton, { autoAlpha: 0.82, y: 0, scale: 1, duration: 1.15 }, 'skeleton')
+    .to(outline, { autoAlpha: 0.44, duration: 0.75 }, 'skeleton+=0.35')
+    .addLabel('ribs', 1.45)
+    .to(ribs, { autoAlpha: 0.98, y: 0, scale: 1.025, duration: 0.8 }, 'ribs')
+    .to(ribs, { scale: 1, duration: 0.35 }, 'ribs+=0.8')
+    .addLabel('heart', 2.06)
+    .to(heart, { autoAlpha: 1, y: 0, scale: 1, duration: 1 }, 'heart')
+    .to(ribs, { autoAlpha: 0.9, duration: 0.45 }, 'heart+=0.2')
+    .addLabel('complete', 3.15);
 
-  const update = () => {
-    rafId = null;
-
-    const p = computeProgress();
-    const outline = smoothstep(0.00, 0.18, p);
-    const skeleton = smoothstep(0.15, 0.45, p);
-    const ribs = smoothstep(0.34, 0.62, p);
-    const heart = smoothstep(0.52, 0.82, p);
-
-    setProgress(outline, skeleton, ribs, heart);
-  };
-
-  const requestUpdate = () => {
-    if (!isVisible && rafId === null) return;
-    if (rafId !== null) return;
-    rafId = requestAnimationFrame(update);
-  };
-
-  const observer = new IntersectionObserver((entries) => {
-    isVisible = entries.some((entry) => entry.isIntersecting);
-    if (isVisible) requestUpdate();
-  }, { rootMargin: '18% 0px 18% 0px', threshold: 0 });
-
-  observer.observe(section);
-  window.addEventListener('scroll', requestUpdate, { passive: true });
-  window.addEventListener('resize', requestUpdate);
-
-  isVisible = true;
-  update();
+  window.addEventListener('load', () => ScrollTrigger.refresh(), { once: true });
 })();

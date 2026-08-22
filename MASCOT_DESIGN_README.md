@@ -169,52 +169,80 @@ This keeps the anatomy story independent from the footer element while still
 placing it at the end of the homepage, after the CTA banner and before the
 footer content.
 
-**How scroll maps to layers:** the component reads the section's
-`getBoundingClientRect()` inside `requestAnimationFrame` and converts it to a
-clamped progress value from `0..1`. Four overlapping smoothstep ranges then map
-that progress to CSS variables:
+**Technique:** this effect uses GSAP with the ScrollTrigger plugin from the
+installed `gsap` package. The homepage loads:
 
-```js
-outline  = smoothstep(0.00, 0.18, p)
-skeleton = smoothstep(0.15, 0.45, p)
-ribs     = smoothstep(0.34, 0.62, p)
-heart    = smoothstep(0.52, 0.82, p)
+```html
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<script src="node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script src="js/components/anatomyScrollSection.js"></script>
 ```
 
-Those ranges intentionally overlap, so the outline, skeleton, rib cage emphasis,
-and heart build continuously rather than snapping through four separate states.
-The same formula is used in both directions, so scrolling up reverses the entire
-sequence cleanly along the exact same progress curve.
+There is no Intersection Observer and no hand-built scroll percentage mapping
+for this effect. `anatomyScrollSection.js` creates one GSAP master timeline with
+`scrollTrigger: { pin: ..., scrub: 1 }`, following GSAP's documented scrubbed
+timeline pattern. ScrollTrigger pins the anatomy panel, ties timeline progress
+to native scroll, smooths it with `scrub: 1`, and automatically reverses the
+same timeline when scrolling back up.
 
-**How to tune pacing/overlap:** edit the four `smoothstep(start, end, p)` ranges
-near the bottom of `anatomyScrollSection.js`.
+**How the timeline is structured:** each layer is a separate tween inside the
+same timeline, with labels and overlapping starts:
+
+```js
+timeline
+  .addLabel('outline')
+  .to(outline, ...)
+  .addLabel('skeleton', 0.72)
+  .to(skeleton, ...)
+  .addLabel('ribs', 1.45)
+  .to(ribs, ...)
+  .addLabel('heart', 2.06)
+  .to(heart, ...)
+```
+
+The outline appears first, the skeleton fades/draws in over it, the rib cage has
+its own highlighted scale/emphasis beat, and the heart finishes last. Because
+these are overlapping tweens in one scrubbed timeline, the build feels
+continuous rather than like four hard steps.
+
+**How to tune pacing/overlap:** edit the label positions and tween durations in
+`anatomyScrollSection.js`.
 
 | What feels off | Change |
 |---|---|
-| A layer appears too early | Raise its `start` and `end` values |
-| A layer appears too late | Lower its `start` and `end` values |
-| A layer reveals too abruptly | Move `start` and `end` farther apart |
-| The build feels too slow overall | Bring the ranges closer together |
-| The beats feel too separate | Increase overlap between adjacent ranges |
+| A layer appears too early | Move its label later, e.g. `ribs` from `1.45` to `1.65` |
+| A layer appears too late | Move its label earlier |
+| A layer reveals too abruptly | Increase that tween's `duration` |
+| The build feels too slow overall | Lower the ScrollTrigger `end` distance |
+| The beats feel too separate | Move labels closer together so tweens overlap more |
 
-**Heart pulse speed:** the completed-state pulse is CSS-only:
+Desktop currently uses `end: '+=115%'`; mobile uses `end: '+=85%'` so touch
+scrolling stays compact. Raise those values for a longer storytelling section,
+or lower them if it still feels like it pauses too long before the footer.
 
-```css
-.anatomy-scroll.is-complete .anatomy-layer--heart {
-  animation: anatomy-heartbeat 1.45s ease-in-out infinite;
-}
+**Heart pulse speed:** the completed-state pulse is a separate GSAP tween, not
+tied to scroll:
+
+```js
+const heartPulse = gsap.to(heart, {
+  scale: 1.045,
+  duration: 0.72,
+  repeat: -1,
+  yoyo: true,
+  ease: 'sine.inOut',
+  paused: true,
+});
 ```
 
-Lower `1.45s` for a faster beat, raise it for a calmer beat. The pulse starts
-only when the heart reveal is essentially complete, and it is disabled under
-`prefers-reduced-motion: reduce`.
+Lower `duration: 0.72` for a faster beat, raise it for a calmer beat. The pulse
+starts when ScrollTrigger leaves the pinned section at full completion and stops
+when the user scrolls back into/reverses the section.
 
-**Performance notes:** an Intersection Observer keeps updates dormant while the
-section is off-screen. Scroll and resize events only schedule rAF work. During
-scroll, the effect updates CSS variables that feed opacity and transform styles;
-no layout-changing properties are animated on every scroll tick. Mobile uses a
-shorter section height so desktop and touch scrolling reach the complete
-anatomy state without feeling oversized or paused at the end.
+**Performance notes:** GSAP animates opacity and transforms only. ScrollTrigger
+uses native scroll, supports touch scrolling, recalculates on resize, and
+manages pin spacing so the section stays visually separate from the real footer.
+`prefers-reduced-motion: reduce` skips the scrubbed animation and shows the final
+combined anatomy state.
 
 ---
 

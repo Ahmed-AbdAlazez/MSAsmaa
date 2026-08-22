@@ -279,8 +279,8 @@ body.sama-eyes-live .sama-pupil {
   --heart-scale: 0.72;
   --halo-scale: 0.96;
 
-  min-height: 118vh;
-  padding: 5vh 0 6vh;
+  min-height: 100vh;
+  padding: 0;
   background:
     radial-gradient(circle at 25% 18%, rgba(20, 184, 166, 0.18), transparent 28%),
     radial-gradient(circle at 80% 76%, rgba(16, 185, 129, 0.14), transparent 30%),
@@ -289,9 +289,8 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-scroll__sticky {
-  position: sticky;
-  top: 5.5rem;
-  min-height: min(72vh, 650px);
+  position: relative;
+  min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 0 1.5rem;
@@ -485,10 +484,6 @@ body.sama-eyes-live .sama-pupil {
   stroke-linecap: round;
 }
 
-.anatomy-scroll.is-complete .anatomy-layer--heart {
-  animation: anatomy-heartbeat 1.45s ease-in-out infinite;
-}
-
 @keyframes anatomy-heartbeat {
   0%, 58%, 100% {
     transform: translate3d(0, 0, 0) scale(1);
@@ -568,13 +563,12 @@ body.sama-eyes-live .sama-pupil {
 
 @media (max-width: 600px) {
   .anatomy-scroll {
-    min-height: 104vh;
-    padding: 4vh 0 5vh;
+    min-height: 92vh;
+    padding: 0;
   }
 
   .anatomy-scroll__sticky {
-    top: 5rem;
-    min-height: 70vh;
+    min-height: 92vh;
     padding: 0 1rem;
   }
 
@@ -585,6 +579,36 @@ body.sama-eyes-live .sama-pupil {
   .anatomy-scroll__svg {
     filter: drop-shadow(0 18px 34px rgba(9, 51, 39, 0.12));
   }
+}
+
+/* Used when GSAP is unavailable and by reduced-motion users. */
+.anatomy-scroll--static {
+  min-height: auto;
+  padding: 4rem 0;
+  --outline-p: 1;
+  --skeleton-p: 1;
+  --ribs-p: 1;
+  --heart-p: 1;
+  --outline-opacity: 0.58;
+  --skeleton-opacity: 0.82;
+  --ribs-opacity: 0.94;
+  --heart-opacity: 1;
+  --halo-opacity: 0.4;
+  --hospital-opacity: 1;
+  --outline-y: 0px;
+  --skeleton-y: 0px;
+  --ribs-y: 0px;
+  --heart-y: 0px;
+  --outline-scale: 1;
+  --skeleton-scale: 1;
+  --ribs-scale: 1;
+  --heart-scale: 1;
+  --halo-scale: 1;
+}
+
+.anatomy-scroll--static .anatomy-scroll__sticky {
+  position: relative;
+  min-height: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
