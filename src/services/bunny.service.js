@@ -416,6 +416,7 @@ module.exports = {
   getVideo,
   findVideoByLessonId,
   findAllVideosByLessonId,
+  listAllLibraryVideos,
   updateVideoTitle,
   deleteVideo,
   parseLessonTitle,
