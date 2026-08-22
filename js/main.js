@@ -1183,53 +1183,226 @@ document.addEventListener('DOMContentLoaded', () => {
       materialsBox.innerHTML = '';
       const viewerPanel = document.querySelector('#lesson-pdf-viewer');
       const viewerFrame = document.querySelector('#lesson-pdf-frame');
+      const frameWrap = document.querySelector('#lesson-pdf-frame-wrap');
+      const canvasWrap = document.querySelector('#lesson-pdf-canvas-wrap');
+      const viewerCanvas = document.querySelector('#lesson-pdf-canvas');
+      const viewerStatus = document.querySelector('#lesson-pdf-status');
+      const viewerToolbar = document.querySelector('#lesson-pdf-toolbar');
+      const viewerPageLabel = document.querySelector('#lesson-pdf-page-label');
+      const viewerPrevBtn = document.querySelector('#lesson-pdf-prev');
+      const viewerNextBtn = document.querySelector('#lesson-pdf-next');
       const viewerTitle = document.querySelector('#lesson-pdf-viewer-title');
       const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
 
       // ------------------------------------------------------------------
-      // Native PDF rendering via the same-origin backend proxy. The <iframe>
-      // points at GET /api/materials/:id/view, which runs the enrollment
-      // check and streams the bytes itself — the browser never touches the
-      // Supabase domain, so mobile Safari cannot navigate away, and every
-      // platform uses its own native PDF renderer (more forgiving of odd
-      // PDF files than PDF.js was).
+      // Hybrid inline PDF viewing, fed by the same-origin backend proxy in
+      // BOTH modes (the browser never touches the Supabase domain):
+      //  - Desktop: plain <iframe> + the browser's native PDF renderer.
+      //    Mobile browsers (iOS Safari, Android Chrome) refuse to render
+      //    PDFs inside iframes and hijack the tab instead, so:
+      //  - Mobile: fetch the same proxy URL as bytes and draw pages with
+      //    PDF.js onto a canvas. This is reliable now because every upload
+      //    is auto-normalized server-side before it is ever stored.
       // ------------------------------------------------------------------
+      const supportsNativePdfFrame =
+        window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+
+      let pdfDoc = null;          // loaded PDFDocumentProxy (mobile mode)
+      let pdfPageNum = 1;
+      let pdfPageCount = 1;
+      let pdfRenderTask = null;
+      let pdfLoadToken = 0;       // invalidates stale loads when switching files
+
+      /** Shows or hides the status line over the canvas. */
+      const setPdfStatus = (text) => {
+        if (viewerStatus) {
+          viewerStatus.textContent = text || '';
+          viewerStatus.hidden = !text;
+        }
+      };
+
+      /**
+       * Renders the current page fit-to-panel-width at devicePixelRatio for
+       * crisp text (mobile mode only).
+       */
+      const renderPdfPage = async () => {
+        if (!pdfDoc || !viewerCanvas) return;
+
+        if (pdfRenderTask) {
+          pdfRenderTask.cancel();
+          pdfRenderTask = null;
+        }
+
+        const page = await pdfDoc.getPage(pdfPageNum);
+        const wrap = viewerCanvas.parentElement;
+        const availableWidth = Math.max(240, (wrap ? wrap.clientWidth : 320) - 24);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const fitScale = availableWidth / baseViewport.width;
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const viewport = page.getViewport({ scale: fitScale * pixelRatio });
+
+        const context = viewerCanvas.getContext('2d');
+        viewerCanvas.width = viewport.width;
+        viewerCanvas.height = viewport.height;
+        viewerCanvas.style.width = `${Math.round(baseViewport.width * fitScale)}px`;
+
+        setPdfStatus('');
+        pdfRenderTask = page.render({ canvasContext: context, viewport });
+        try {
+          await pdfRenderTask.promise;
+        } catch (renderError) {
+          if ((renderError && renderError.name) !== 'RenderingCancelledException') {
+            throw renderError;
+          }
+        } finally {
+          pdfRenderTask = null;
+        }
+
+        if (viewerPageLabel) {
+          viewerPageLabel.textContent = `صفحة ${pdfPageNum} من ${pdfPageCount}`;
+        }
+        if (viewerPrevBtn) viewerPrevBtn.disabled = pdfPageNum <= 1;
+        if (viewerNextBtn) viewerNextBtn.disabled = pdfPageNum >= pdfPageCount;
+      };
+
+      /** Frees state before loading another file or closing the panel. */
+      const destroyPdfDoc = () => {
+        pdfLoadToken += 1;
+        if (pdfRenderTask) {
+          pdfRenderTask.cancel();
+          pdfRenderTask = null;
+        }
+        if (pdfDoc) {
+          pdfDoc.destroy();
+          pdfDoc = null;
+        }
+        pdfPageNum = 1;
+        pdfPageCount = 1;
+        if (viewerCanvas) {
+          const context = viewerCanvas.getContext('2d');
+          context && context.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
+        }
+      };
+
       const closePdfViewer = () => {
         if (!viewerPanel) return;
         viewerPanel.hidden = true;
+        destroyPdfDoc();
+        setPdfStatus('');
         if (viewerFrame) viewerFrame.src = 'about:blank';
       };
 
-      // Opens one material inside the inline panel by pointing the iframe at
-      // the same-origin proxy. Identity travels as query params because an
-      // <iframe> request cannot carry custom auth headers; the backend still
-      // performs the full enrollment check before serving any bytes.
-      const openMaterialInViewer = (material, button) => {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+
+      /** Re-renders on resize/rotation so the page keeps fitting the width. */
+      let pdfResizeRaf = null;
+      window.addEventListener('resize', () => {
+        if (!pdfDoc || !viewerPanel || viewerPanel.hidden) return;
+        if (pdfResizeRaf) cancelAnimationFrame(pdfResizeRaf);
+        pdfResizeRaf = requestAnimationFrame(() => {
+          pdfResizeRaf = null;
+          renderPdfPage().catch(() => {});
+        });
+      });
+
+      /** Mobile path: pull the PDF through the proxy and render via PDF.js. */
+      const openMaterialWithPdfJs = async (material, button) => {
+        if (!window.pdfjsLib) {
+          showToast('تعذر تحميل عارض PDF، تحققي من الاتصال بالإنترنت.', 'danger');
+          button.disabled = false;
+          button.textContent = 'عرض';
+          return;
+        }
+
         try {
-          if (viewerTitle) {
-            viewerTitle.textContent = `📄 ${material.title || 'ملف PDF'}`;
+          button.disabled = true;
+          button.textContent = 'جاري...';
+
+          const identity =
+            `userId=${encodeURIComponent(authHeaders['x-user-id'] || '')}` +
+            `&role=${encodeURIComponent(authHeaders['x-user-role'] || '')}`;
+          const response = await fetch(
+            `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/view?${identity}`
+          );
+          if (!response.ok) {
+            throw new Error('تعذر تحميل الملف من السيرفر.');
           }
-          if (viewerFrame) {
-            const identity =
-              `userId=${encodeURIComponent(authHeaders['x-user-id'] || '')}` +
-              `&role=${encodeURIComponent(authHeaders['x-user-role'] || '')}`;
-            viewerFrame.src =
-              `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/view?${identity}`;
-          }
-          if (viewerPanel) {
-            viewerPanel.hidden = false;
-            viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+
+          const pdfBytes = await response.arrayBuffer();
+          destroyPdfDoc();
+          const loadToken = pdfLoadToken;
+
+          if (viewerFrameWrap) viewerFrameWrap.hidden = true;
+          if (canvasWrap) canvasWrap.hidden = false;
+          setPdfStatus('جاري تحميل الملف...');
+          if (viewerToolbar) viewerToolbar.hidden = true;
+
+          const loadedDoc = await window.pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          if (loadToken !== pdfLoadToken) return; // another file opened meanwhile
+
+          pdfDoc = loadedDoc;
+          pdfPageCount = pdfDoc.numPages;
+          pdfPageNum = 1;
+
+          if (viewerToolbar) viewerToolbar.hidden = pdfPageCount <= 1;
+          await renderPdfPage();
         } catch (error) {
           showToast(error.message, 'danger');
+          setPdfStatus('تعذر عرض الملف.');
         } finally {
           button.disabled = false;
           button.textContent = 'عرض';
         }
       };
 
+      // Opens one material inside the inline panel, choosing the rendering
+      // path by device capability.
+      const openMaterialInViewer = (material, button) => {
+        if (viewerTitle) {
+          viewerTitle.textContent = `📄 ${material.title || 'ملف PDF'}`;
+        }
+        if (viewerPanel) {
+          viewerPanel.hidden = false;
+          viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        if (supportsNativePdfFrame && viewerFrame && frameWrap) {
+          if (canvasWrap) canvasWrap.hidden = true;
+          if (viewerToolbar) viewerToolbar.hidden = true;
+          frameWrap.hidden = false;
+          const identity =
+            `userId=${encodeURIComponent(authHeaders['x-user-id'] || '')}` +
+            `&role=${encodeURIComponent(authHeaders['x-user-role'] || '')}`;
+          viewerFrame.src =
+            `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/view?${identity}`;
+        } else {
+          openMaterialWithPdfJs(material, button);
+        }
+      };
+
       if (viewerClose && viewerPanel) {
         viewerClose.addEventListener('click', closePdfViewer);
+      }
+
+      if (viewerPrevBtn) {
+        viewerPrevBtn.addEventListener('click', () => {
+          if (pdfDoc && pdfPageNum > 1) {
+            pdfPageNum -= 1;
+            renderPdfPage().catch((error) => showToast(error.message, 'danger'));
+          }
+        });
+      }
+
+      if (viewerNextBtn) {
+        viewerNextBtn.addEventListener('click', () => {
+          if (pdfDoc && pdfPageNum < pdfPageCount) {
+            pdfPageNum += 1;
+            renderPdfPage().catch((error) => showToast(error.message, 'danger'));
+          }
+        });
       }
 
       materials.forEach((material) => {
