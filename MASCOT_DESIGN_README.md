@@ -3,7 +3,7 @@
 "Sama" is the friendly mascot of منصة المرسال: a flat vector character drawn as
 a **circle in the site's primary brand green** with a **white doctor figure**
 inside it (white coat, V-collar, teal stethoscope across the chest, round eyes,
-small smile). She lives in the hero section of the homepage and powers three
+small smile). She lives in the hero section of the homepage and powers four
 lightweight effects inspired by Duolingo / Brilliant.org.
 
 All files are **frontend-only** (no backend/API changes) and each effect lives in
@@ -152,6 +152,69 @@ navbar.
 Everything also switches itself off automatically for users with
 `prefers-reduced-motion: reduce`, and eye-tracking disables itself on touch
 devices where Sama instead runs a CSS idle blink/wander animation.
+
+---
+
+## 4. Scroll-built anatomy section (Effect 4)
+
+**Where:** `index.html` contains a single mount directly above the real footer:
+
+```html
+<div data-anatomy-scroll-section></div>
+<footer class="footer">...</footer>
+```
+
+`js/components/anatomyScrollSection.js` renders the SVG and controls the effect.
+This keeps the anatomy story independent from the footer element while still
+placing it at the end of the homepage, after the CTA banner and before the
+footer content.
+
+**How scroll maps to layers:** the component reads the section's
+`getBoundingClientRect()` inside `requestAnimationFrame` and converts it to a
+clamped progress value from `0..1`. Four overlapping smoothstep ranges then map
+that progress to CSS variables:
+
+```js
+outline  = smoothstep(0.02, 0.24, p)
+skeleton = smoothstep(0.20, 0.54, p)
+ribs     = smoothstep(0.43, 0.72, p)
+heart    = smoothstep(0.66, 0.94, p)
+```
+
+Those ranges intentionally overlap, so the outline, skeleton, rib cage emphasis,
+and heart build continuously rather than snapping through four separate states.
+The same formula is used in both directions, so scrolling up reverses the entire
+sequence cleanly along the exact same progress curve.
+
+**How to tune pacing/overlap:** edit the four `smoothstep(start, end, p)` ranges
+near the bottom of `anatomyScrollSection.js`.
+
+| What feels off | Change |
+|---|---|
+| A layer appears too early | Raise its `start` and `end` values |
+| A layer appears too late | Lower its `start` and `end` values |
+| A layer reveals too abruptly | Move `start` and `end` farther apart |
+| The build feels too slow overall | Bring the ranges closer together |
+| The beats feel too separate | Increase overlap between adjacent ranges |
+
+**Heart pulse speed:** the completed-state pulse is CSS-only:
+
+```css
+.anatomy-scroll.is-complete .anatomy-layer--heart {
+  animation: anatomy-heartbeat 1.45s ease-in-out infinite;
+}
+```
+
+Lower `1.45s` for a faster beat, raise it for a calmer beat. The pulse starts
+only when the heart reveal is essentially complete, and it is disabled under
+`prefers-reduced-motion: reduce`.
+
+**Performance notes:** an Intersection Observer keeps updates dormant while the
+section is off-screen. Scroll and resize events only schedule rAF work. During
+scroll, the effect updates CSS variables that feed opacity and transform styles;
+no layout-changing properties are animated on every scroll tick. Mobile uses a
+shorter section height so touch scrolling reaches the complete anatomy state
+without feeling oversized.
 
 ---
 
