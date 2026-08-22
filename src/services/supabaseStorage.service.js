@@ -312,7 +312,11 @@ async function getUpstreamFileStream(filePath) {
 
   return fetch(objectUrl, {
     headers: {
+      // Supabase's gateway requires BOTH headers. With only Authorization it
+      // treats the call as anonymous and private buckets come back as
+      // "Bucket not found" (NoSuchBucket) instead of a clear auth error.
       Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY.trim()}`,
+      apikey: process.env.SUPABASE_SERVICE_ROLE_KEY.trim(),
     },
   });
 }

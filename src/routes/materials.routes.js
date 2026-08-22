@@ -344,13 +344,22 @@ router.get("/materials/:materialId/view", async (request, response) => {
     const upstream = await getUpstreamFileStream(materialRecord.filePath);
 
     if (!upstream.ok || !upstream.body) {
+      // TEMP DEBUG: include Supabase's own response text so the REAL
+      // storage-side failure is visible instead of a generic 502.
+      let upstreamDetail = "";
+      try {
+        upstreamDetail = (await upstream.text()).slice(0, 300);
+      } catch (_) { /* body unreadable */ }
       console.error(
-        `[materials.routes] Storage stream failed for material ${request.params.materialId}: HTTP ${upstream.status}`
+        `[materials.routes] Storage stream failed for material ${request.params.materialId}: ` +
+          `HTTP ${upstream.status} ${upstream.statusText} :: ${upstreamDetail}`
       );
       return response
         .status(502)
         .type("text/plain")
-        .send("Failed to load the PDF from storage. Please try again later.");
+        .send(
+          `Failed to load the PDF from storage. [debug] HTTP ${upstream.status} ${upstreamDetail}`
+        );
     }
 
     // DEBUG: count the bytes actually piped to the client and compare with
@@ -378,27 +387,28 @@ router.get("/materials/:materialId/view", async (request, response) => {
       "Content-Disposition": 'inline; filename="material.pdf"',
       "Cache-Control": "private, max-age=300",
     };
-    // Only forward Content-Length when Supabase sent UNCOMPRESSED bytes.
-    // fetch() transparently decompresses gzip/br responses, so a forwarded
-    // compressed length would under-report the real byte count and the
-    // browser would truncate the PDF mid-stream (corrupt file, HTTP 200).
-    if (declaredLength && !wasEncoded) {
-      responseHeaders["Content-Length"] = declaredLength;
-    }
+    // NOTE: Content-Length is deliberately NOT forwarded. Any declared
+    // length makes gateways (Vercel included) buffer the whole response to
+    // enforce it — which reintroduces the 4.5MB cap. Omitting it keeps the
+    // response chunked = genuinely streamed end to end.
     response.set(responseHeaders);
 
     Readable.fromWeb(upstream.body).pipe(byteCounter).pipe(response);
   } catch (error) {
+    // TEMP DEBUG: full stack in the console AND the raw message in the
+    // response, so nothing hides behind a generic string. Remove before go-live.
     console.error(
-      `[materials.routes] Inline view failed for material ${request.params.materialId}:`,
-      error
+      `[materials.routes] Inline view failed for material ${request.params.materialId}\n` +
+        `message: ${error && error.message}\nstack: ${error && error.stack}`
     );
     // Plain text (not JSON): this page can render inside a student iframe.
     if (!response.headersSent) {
       return response
         .status(502)
         .type("text/plain")
-        .send("Failed to load the PDF from storage. Please try again later.");
+        .send(
+          `Failed to load the PDF from storage. [debug] ${(error && error.message) || "unknown error"}`
+        );
     }
     response.end();
   }
