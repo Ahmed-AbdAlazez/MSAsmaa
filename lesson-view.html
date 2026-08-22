@@ -92,20 +92,8 @@
             <span class="lesson-pdf-viewer-title" id="lesson-pdf-viewer-title"></span>
             <button type="button" class="btn btn-secondary lesson-pdf-viewer-close" id="lesson-pdf-viewer-close">إغلاق ✕</button>
           </div>
-          <div class="lesson-pdf-canvas-wrap" id="lesson-pdf-frame-wrap">
+          <div class="lesson-pdf-canvas-wrap">
             <iframe id="lesson-pdf-frame" title="عرض الملف PDF" src="about:blank"></iframe>
-          </div>
-          <!-- Mobile fallback: phones (iOS Safari / Android Chrome) refuse to
-               render PDFs inline in iframes, so there the file streams through
-               the same proxy into PDF.js canvas rendering instead. -->
-          <div class="lesson-pdf-canvas-wrap lesson-pdf-canvas-mode" id="lesson-pdf-canvas-wrap" hidden>
-            <canvas id="lesson-pdf-canvas"></canvas>
-            <p class="lesson-pdf-status" id="lesson-pdf-status">جاري تحميل الملف...</p>
-          </div>
-          <div class="lesson-pdf-toolbar" id="lesson-pdf-toolbar" hidden>
-            <button type="button" class="btn btn-light lesson-pdf-nav" id="lesson-pdf-prev">الصفحة السابقة</button>
-            <span class="lesson-pdf-page-label" id="lesson-pdf-page-label"></span>
-            <button type="button" class="btn btn-light lesson-pdf-nav" id="lesson-pdf-next">الصفحة التالية</button>
           </div>
         </div>
 
@@ -240,11 +228,9 @@
   </footer>
 
   <script src="js/curriculum.js"></script>
-  <!-- PDF.js is ONLY used on mobile browsers, which cannot display PDFs
-       inline inside iframes. Desktop uses the native renderer via the
-       same-origin proxy <iframe> below. Uploads are auto-normalized
-       server-side, so PDF.js always receives well-formed files. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PDFs stream through the same-origin backend proxy
+       (GET /api/materials/:id/view) into a plain <iframe>, so the native
+       browser/OS PDF renderer handles display on every platform. -->
   <script src="js/main.js"></script>
 </body>
 </html>

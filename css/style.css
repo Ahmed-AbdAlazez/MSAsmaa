@@ -1716,16 +1716,14 @@ h1, h2, h3, h4, h5, h6 {
   flex: 0 0 auto;
 }
 
-/* Inline PDF viewer panel: desktop renders via native <iframe>, mobile via
-   PDF.js canvas. Both are fed by the same-origin backend proxy. */
+/* Native inline PDF viewer: a plain <iframe> fed by the same-origin backend
+   proxy, so the browser/OS PDF renderer displays it on desktop AND mobile
+   without ever navigating to the storage domain. */
 .lesson-pdf-canvas-wrap {
   min-height: 280px;
+  max-height: min(80vh, 900px);
   padding: 0;
   background-color: #f8fafc;
-}
-
-.lesson-pdf-canvas-wrap[hidden] {
-  display: none;
 }
 
 .lesson-pdf-canvas-wrap iframe {
@@ -1734,64 +1732,6 @@ h1, h2, h3, h4, h5, h6 {
   height: min(80vh, 900px);
   border: 0;
   background-color: #ffffff;
-}
-
-.lesson-pdf-canvas-mode {
-  position: relative;
-  max-height: min(80vh, 900px);
-  overflow: auto;
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-}
-
-.lesson-pdf-canvas-mode canvas {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  border-radius: 6px;
-  background-color: #ffffff;
-  box-shadow: 0 1px 4px rgba(15, 76, 58, 0.18);
-}
-
-.lesson-pdf-status {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--color-text-muted);
-}
-
-.lesson-pdf-status[hidden] {
-  display: none;
-}
-
-.lesson-pdf-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.6rem 0.9rem;
-  border-top: 1px solid var(--color-border);
-  background-color: rgba(15, 76, 58, 0.04);
-}
-
-.lesson-pdf-toolbar[hidden] {
-  display: none;
-}
-
-.lesson-pdf-nav {
-  padding: 0.35rem 0.7rem;
-  font-size: 0.8rem;
-}
-
-.lesson-pdf-page-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-primary-dark);
 }
 
 /* Assignment Submission Area */
