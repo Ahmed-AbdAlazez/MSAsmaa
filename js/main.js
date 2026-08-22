@@ -1335,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
           destroyPdfDoc();
           const loadToken = pdfLoadToken;
 
-          if (viewerFrameWrap) viewerFrameWrap.hidden = true;
+          if (frameWrap) frameWrap.hidden = true;
           if (canvasWrap) canvasWrap.hidden = false;
           setPdfStatus('جاري تحميل الملف...');
           if (viewerToolbar) viewerToolbar.hidden = true;
