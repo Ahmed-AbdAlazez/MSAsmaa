@@ -1676,6 +1676,54 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.8rem;
 }
 
+.lesson-material-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+/* Inline PDF Viewer panel that opens under the lesson video */
+.lesson-pdf-viewer {
+  margin-top: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.lesson-pdf-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: rgba(15, 76, 58, 0.06);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lesson-pdf-viewer-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-primary-dark);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lesson-pdf-viewer-close {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  flex: 0 0 auto;
+}
+
+.lesson-pdf-viewer iframe {
+  display: block;
+  width: 100%;
+  height: clamp(420px, 80vh, 900px);
+  border: 0;
+  background-color: #f8fafc;
+}
+
 /* Assignment Submission Area */
 .assignment-question-box {
   background-color: var(--color-surface);

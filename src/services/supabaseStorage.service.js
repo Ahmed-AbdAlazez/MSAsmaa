@@ -191,20 +191,27 @@ async function listLessonPdfFiles(lessonId) {
 }
 
 /**
- * Creates a short-lived private download URL for a stored PDF.
+ * Creates a short-lived signed URL for a stored PDF.
+ * By default the URL forces a browser DOWNLOAD (Content-Disposition:
+ * attachment). Passing forceDownload=false produces an INLINE URL instead,
+ * which lets browsers render the PDF inside an <iframe> on the lesson page.
  * This is intentionally separate from uploadPdf so routes can perform access
  * control first and only then ask Supabase for a usable link.
  *
  * @param {string} filePath - The private object path saved in the material record.
  * @param {number} expiresInSeconds - How long the signed URL should work.
- * @returns {Promise<string>} A temporary signed download URL.
+ * @param {object} [options] - Behaviour switches.
+ * @param {boolean} [options.forceDownload=true] - True = attachment, false = inline view.
+ * @returns {Promise<string>} A temporary signed URL.
  */
-async function generateSignedDownloadUrl(filePath, expiresInSeconds) {
+async function generateSignedDownloadUrl(filePath, expiresInSeconds, options = {}) {
   await ensureMaterialsBucket();
+  const forceDownload = options.forceDownload !== false;
+
   const { data, error } = await supabaseClient.storage
     .from(MATERIALS_BUCKET_NAME)
     .createSignedUrl(filePath, expiresInSeconds, {
-      download: true,
+      download: forceDownload,
     });
 
   if (error) {

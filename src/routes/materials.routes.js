@@ -206,9 +206,12 @@ router.get("/lessons/:lessonId/materials", requireAuth, async (request, response
 
 /**
  * GET /api/materials/:materialId/download
+ * GET /api/materials/:materialId/download?mode=inline
  *
- * Returns a temporary signed download URL for one PDF after access control
- * passes. The URL is generated on demand so it can expire quickly.
+ * Returns a temporary signed URL for one PDF after access control passes.
+ * Default mode forces the browser to download the file. With ?mode=inline
+ * the URL renders the PDF inside an iframe on the lesson page instead.
+ * The URL is generated on demand so it can expire quickly.
  */
 router.get("/materials/:materialId/download", requireAuth, async (request, response) => {
   const materialRecord = await getMaterialById(request.params.materialId);
@@ -239,14 +242,17 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
   }
 
   try {
+    const inlineMode = request.query.mode === "inline";
     const downloadUrl = await generateSignedDownloadUrl(
       materialRecord.filePath,
-      DOWNLOAD_URL_LIFETIME_SECONDS
+      DOWNLOAD_URL_LIFETIME_SECONDS,
+      { forceDownload: !inlineMode }
     );
 
     return response.json({
       materialId: materialRecord.id,
       lessonId: materialRecord.lessonId,
+      inline: inlineMode,
       expiresInSeconds: DOWNLOAD_URL_LIFETIME_SECONDS,
       downloadUrl,
     });
