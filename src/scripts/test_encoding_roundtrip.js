@@ -11,7 +11,7 @@
  */
 process.env.PORT = process.env.TEST_PORT || 3100;
 
-const app = require("../app.js");
+const app = require("../../app.js"); // root app.js (NOT the stale src/app.js duplicate)
 const jwt = require("jsonwebtoken");
 
 const PORT = Number(process.env.PORT);
@@ -22,7 +22,7 @@ const tokenFor = (id, role) =>
 // Fresh Arabic test string: tashkeel (ُ َ ّ ْ), Arabic-Indic digits, alef wasla
 const TITLE = "اختبارُ الترميز ٢٠٢٦ — ٱمتحان الحروف";
 const QTEXT = "المِيتُوكُونْدْرِيَا هِيَ مَصْدَرُ الطَّاقَةِ فِي الخَلِيَّةِ";
-const CHOICES = ["النَّواة", "الرِّيبُوسُوم", "الجِهَازُ الغُلْجِي"];
+const CHOICES = ["النَّواة", "الرِّيبُوسُوم", "الجِهَازُ الغُلْجِي", "القَشْرَةُ الخارِجِيَّة"];
 const MODEL = "تُنتِجُ المِيتُوكُونْدْرِيَا الطَّاقَةَ عَبْرَ التنفُّسِ الخَلَوِيِّ.";
 
 let pass = 0;
@@ -58,6 +58,7 @@ function check(name, cond, extra = "") {
         title: TITLE,
         courseId: "biology",
         lessonId: "lesson-encoding-test",
+        questionCount: 2,
         startTime: new Date(now + 60e3).toISOString(),
         endTime: new Date(now + 3600e3).toISOString(),
         durationMinutes: 10,
@@ -83,11 +84,12 @@ function check(name, cond, extra = "") {
       body: JSON.stringify({
         type: "mcq",
         text: QTEXT,
-        choices: CHOICES.map((t) => ({ text: t })),
-        correctChoiceIndex: 2,
+        choices: CHOICES,
+        correctIndex: 2,
       }),
     });
-    check("question added", aqRes.status === 201);
+    const aqData = await aqRes.json().catch(() => ({}));
+    check("question added", aqRes.status === 201, `status=${aqRes.status} body=${JSON.stringify(aqData).slice(0, 200)}`);
 
     console.log("4) add written question with model answer");
     const wqRes = await fetch(`${BASE}/quizzes/${quizId}/questions`, {
@@ -98,7 +100,7 @@ function check(name, cond, extra = "") {
     check("written question added", wqRes.status === 201);
 
     console.log("5) read back via teacher GET and compare byte-for-byte");
-    const gqRes = await fetch(`${BASE}/quizzes/${quizId}`, { headers: auth });
+    const gqRes = await fetch(`${BASE}/quizzes/${quizId}/questions`, { headers: auth });
     const gqCt = gqRes.headers.get("content-type") || "";
     check("read-back content-type has charset=utf-8", /charset=utf-8/i.test(gqCt));
     const gq = await gqRes.json();
@@ -106,7 +108,9 @@ function check(name, cond, extra = "") {
     const mcq = qs.find((q) => q.type === "mcq");
     const wr = qs.find((q) => q.type === "written");
     check("mcq text identical", mcq && mcq.text === QTEXT, `\n     got: ${mcq && mcq.text}`);
-    const gotChoices = (mcq && mcq.choices ? mcq.choices : []).map((c) => c.text).sort();
+    const gotChoices = (mcq && mcq.choices ? mcq.choices : [])
+      .map((c) => (typeof c === "string" ? c : c.text))
+      .sort();
     check(
       "all three choices identical",
       JSON.stringify(gotChoices) === JSON.stringify([...CHOICES].sort()),
@@ -121,7 +125,7 @@ function check(name, cond, extra = "") {
         headers: { Authorization: `Bearer ${stToken}` },
       });
       const av = await avRes.json();
-      const list = av.quizzes || av.available || [];
+      const list = av.exams || av.quizzes || [];
       const mine = list.find((q) => q.id === quizId);
       check(
         "student feed title identical",

@@ -20,6 +20,16 @@ import "flatpickr/dist/flatpickr.min.css";
 
 const API = "";
 
+/* Scoped element lookup.
+ * All builder controls live inside #teacher-quiz-builder. Resolving ids
+ * against this section (instead of the whole document) makes the builder
+ * immune to id collisions with other page scripts - e.g. main.js injects
+ * a legacy quiz panel that also contains an id="quiz-title" input, which
+ * previously stole getElementById("quiz-title") and made publish see an
+ * empty title even though the teacher had typed one. */
+let scope = document;
+const byId = (id) => scope.querySelector(`#${id}`);
+
 /* ---------------- shared helpers ---------------- */
 
 function getToken() {
@@ -95,7 +105,7 @@ function pickerIso(picker) {
 /* ---------------- lesson select (from curriculum.js) ---------------- */
 
 function populateLessonSelect() {
-  const select = document.getElementById("quiz-lesson");
+  const select = byId("quiz-lesson");
   if (!select) return;
   select.innerHTML = "";
 
@@ -127,8 +137,8 @@ function populateLessonSelect() {
 let stagedQuestions = [];
 
 function readBuilderForm() {
-  const type = document.getElementById("question-type").value;
-  const text = document.getElementById("question-text").value.trim();
+  const type = byId("question-type").value;
+  const text = byId("question-text").value.trim();
 
   if (!text) return { error: "اكتبي نص السؤال." };
 
@@ -136,10 +146,10 @@ function readBuilderForm() {
 
   if (type === "mcq") {
     const choices = [
-      document.getElementById("choice-1").value.trim(),
-      document.getElementById("choice-2").value.trim(),
-      document.getElementById("choice-3").value.trim(),
-      document.getElementById("choice-4").value.trim(),
+      byId("choice-1").value.trim(),
+      byId("choice-2").value.trim(),
+      byId("choice-3").value.trim(),
+      byId("choice-4").value.trim(),
     ];
     if (choices.some((choice) => !choice)) {
       return { error: "املئي الاختيارات الأربعة." };
@@ -152,19 +162,19 @@ function readBuilderForm() {
     }
     Object.assign(result, { choices, correctIndex });
   } else {
-    const modelAnswer = document.getElementById("model-answer").value.trim();
+    const modelAnswer = byId("model-answer").value.trim();
     if (!modelAnswer) return { error: "اكتبي الإجابة النموذجية." };
     result.modelAnswer = modelAnswer;
   }
 
-  const imageInput = document.getElementById("question-image");
+  const imageInput = byId("question-image");
   if (imageInput.files[0]) result.imageFile = imageInput.files[0];
 
   return { fields: result };
 }
 
 function renderStagedQuestions() {
-  const list = document.getElementById("staged-questions");
+  const list = byId("staged-questions");
   list.innerHTML = stagedQuestions
     .map(
       (question, index) => `
@@ -207,8 +217,8 @@ function escapeHtml(value) {
 /* ---------------- publish ---------------- */
 
 async function publishQuiz() {
-  const title = document.getElementById("quiz-title").value.trim();
-  const duration = Number(document.getElementById("quiz-duration").value);
+  const title = byId("builder-quiz-title").value.trim();
+  const duration = Number(byId("quiz-duration").value);
   const startTime = pickerIso(startPicker);
   const endTime = pickerIso(endPicker);
 
@@ -219,12 +229,12 @@ async function publishQuiz() {
   if (stagedQuestions.length === 0)
     return toast("أضيفي سؤالاً واحداً على الأقل قبل النشر.", "warning");
 
-  const button = document.getElementById("btn-publish-quiz");
+  const button = byId("btn-publish-quiz");
   button.disabled = true;
 
   try {
     const created = await api("POST", "/api/quizzes", {
-      lessonId: document.getElementById("quiz-lesson").value,
+      lessonId: byId("quiz-lesson").value,
       courseId: "biology",
       title,
       questionCount: stagedQuestions.length,
@@ -242,7 +252,7 @@ async function publishQuiz() {
     // Sequential upload keeps order stable and shows live progress.
     for (let index = 0; index < stagedQuestions.length; index += 1) {
       const question = stagedQuestions[index];
-      document.getElementById(
+      byId(
         "publish-progress"
       ).textContent = `جارٍ رفع السؤال ${index + 1} من ${stagedQuestions.length}…`;
 
@@ -278,22 +288,22 @@ async function publishQuiz() {
     toast(error.message, "danger");
   } finally {
     button.disabled = false;
-    document.getElementById("publish-progress").textContent = "";
+    byId("publish-progress").textContent = "";
   }
 }
 
 function resetBuilder() {
   stagedQuestions = [];
   renderStagedQuestions();
-  document.getElementById("quiz-title").value = "";
-  document.getElementById("quiz-duration").value = "20";
-  document.getElementById("question-text").value = "";
+  byId("builder-quiz-title").value = "";
+  byId("quiz-duration").value = "20";
+  byId("question-text").value = "";
   ["choice-1", "choice-2", "choice-3", "choice-4"].forEach((id) => {
-    document.getElementById(id).value = "";
+    byId(id).value = "";
   });
-  document.getElementById("model-answer").value = "";
-  document.getElementById("question-image").value = "";
-  document.getElementById("image-preview").style.display = "none";
+  byId("model-answer").value = "";
+  byId("question-image").value = "";
+  byId("image-preview").style.display = "none";
   const correct = document.querySelector('input[name="correct-choice"]');
   if (correct) correct.checked = true;
 }
@@ -303,6 +313,8 @@ function resetBuilder() {
 document.addEventListener("DOMContentLoaded", () => {
   const mount = document.getElementById("teacher-quiz-builder");
   if (!mount) return; // not the teacher dashboard
+
+  scope = mount; // all byId() lookups are scoped to this section
 
   if (String(localStorage.getItem("userRole") || "").toLowerCase() !== "teacher") {
     mount.style.display = "none";
@@ -314,16 +326,16 @@ document.addEventListener("DOMContentLoaded", () => {
   renderStagedQuestions();
 
   // MCQ <-> Written toggle swaps which fields are visible.
-  document.getElementById("question-type").addEventListener("change", (event) => {
+  byId("question-type").addEventListener("change", (event) => {
     const isMcq = event.target.value === "mcq";
-    document.getElementById("mcq-fields").style.display = isMcq ? "" : "none";
-    document.getElementById("written-fields").style.display = isMcq ? "none" : "";
+    byId("mcq-fields").style.display = isMcq ? "" : "none";
+    byId("written-fields").style.display = isMcq ? "none" : "";
   });
 
   // Image preview right after choosing a file (works for JPG/PNG/WEBP -
   // browsers decode all of them natively in an <img>).
-  document.getElementById("question-image").addEventListener("change", (event) => {
-    const preview = document.getElementById("image-preview");
+  byId("question-image").addEventListener("change", (event) => {
+    const preview = byId("image-preview");
     const file = event.target.files[0];
     if (!file) {
       preview.style.display = "none";
@@ -334,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Stage a question from the form.
-  document.getElementById("btn-stage-question").addEventListener("click", () => {
+  byId("btn-stage-question").addEventListener("click", () => {
     const parsed = readBuilderForm();
     if (parsed.error) return toast(parsed.error, "warning");
 
@@ -346,19 +358,19 @@ document.addEventListener("DOMContentLoaded", () => {
     renderStagedQuestions();
 
     // Clear inputs for the next question.
-    document.getElementById("question-text").value = "";
+    byId("question-text").value = "";
     ["choice-1", "choice-2", "choice-3", "choice-4"].forEach((id) => {
-      document.getElementById(id).value = "";
+      byId(id).value = "";
     });
-    document.getElementById("model-answer").value = "";
-    const imageInput = document.getElementById("question-image");
+    byId("model-answer").value = "";
+    const imageInput = byId("question-image");
     imageInput.value = "";
-    document.getElementById("image-preview").style.display = "none";
+    byId("image-preview").style.display = "none";
     toast("تمت إضافة السؤال للقائمة ✅", "success", 2000);
   });
 
   // Reorder / remove inside the staged list.
-  document.getElementById("staged-questions").addEventListener("click", (event) => {
+  byId("staged-questions").addEventListener("click", (event) => {
     const moveButton = event.target.closest("[data-move]");
     if (moveButton) {
       const index = Number(moveButton.dataset.index);
@@ -377,5 +389,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.getElementById("btn-publish-quiz").addEventListener("click", publishQuiz);
+  byId("btn-publish-quiz").addEventListener("click", publishQuiz);
 });
