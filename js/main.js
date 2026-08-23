@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // --- Dark / light theme toggle --------------------------------------------
+  // The inline bootstrap script in <head> already applied data-theme
+  // (stored choice, else OS preference). Here we only flip it and persist;
+  // the sun/moon icon swap itself is pure CSS.
+  const themeRoot = document.documentElement;
+  document.querySelectorAll('.theme-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = themeRoot.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      themeRoot.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem('theme', next);
+      } catch (_) { /* storage unavailable — theme still applies for this visit */ }
+    });
+  });
+
   // --- Login accounts (CODE + PASSWORD) ------------------------------------
   // The old username/123456 demo accounts were removed. Login now works
   // with the teacher-issued codes below (matched case-insensitively).

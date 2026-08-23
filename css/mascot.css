@@ -281,12 +281,44 @@ body.sama-eyes-live .sama-pupil {
   --heart-scale: 0.72;
   --halo-scale: 0.96;
 
+  /* Anatomy palette — light values mirror the colors they replace;
+     the [data-theme="dark"] block at the bottom swaps every token. */
+  --anx-bg:
+    radial-gradient(circle at 25% 18%, rgba(20, 184, 166, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 76%, rgba(16, 185, 129, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(232, 250, 247, 0.96) 18%, rgba(243, 255, 250, 0.98) 78%, rgba(248, 250, 252, 0) 100%);
+  --anx-halo-border: rgba(15, 76, 58, 0.14);
+  --anx-halo-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(225, 250, 244, 0.8)),
+    linear-gradient(rgba(15, 76, 58, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 76, 58, 0.04) 1px, transparent 1px);
+  --anx-halo-shadow: 0 26px 70px rgba(9, 51, 39, 0.14);
+  --anx-wall: rgba(255, 255, 255, 0.76);
+  --anx-wall-stroke: rgba(15, 76, 58, 0.12);
+  --anx-win: rgba(20, 184, 166, 0.14);
+  --anx-win-stroke: rgba(20, 184, 166, 0.32);
+  --anx-line: rgba(15, 76, 58, 0.16);
+  --anx-chart: #ffffff;
+  --anx-chart-stroke: rgba(15, 76, 58, 0.14);
+  --anx-floor: rgba(20, 184, 166, 0.11);
+  --anx-bed: rgba(20, 184, 166, 0.2);
+  --anx-bed-stroke: rgba(15, 76, 58, 0.16);
+  --anx-outline-fill: rgba(20, 184, 166, 0.22);
+  --anx-outline-stroke: rgba(15, 76, 58, 0.52);
+  --anx-lung: rgba(6, 182, 212, 0.2);
+  --anx-lung-stroke: rgba(6, 182, 212, 0.32);
+  --anx-bone-stroke: rgba(15, 76, 58, 0.82);
+  --anx-bone-fill: rgba(255, 255, 255, 0.86);
+  --anx-joint: #ffffff;
+  --anx-joint-stroke: rgba(20, 184, 166, 0.9);
+  --anx-rib: rgba(20, 184, 166, 0.95);
+
   min-height: 100vh;
   padding: 0;
   background:
     radial-gradient(circle at 25% 18%, rgba(20, 184, 166, 0.18), transparent 28%),
     radial-gradient(circle at 80% 76%, rgba(16, 185, 129, 0.14), transparent 30%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(232, 250, 247, 0.96) 18%, rgba(243, 255, 250, 0.98) 78%, rgba(248, 250, 252, 0) 100%);
+    var(--anx-bg);
   overflow: clip;
 }
 
@@ -311,16 +343,13 @@ body.sama-eyes-live .sama-pupil {
   position: absolute;
   inset: 2% 0;
   z-index: -1;
-  border: 1px solid rgba(15, 76, 58, 0.14);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(225, 250, 244, 0.8)),
-    linear-gradient(rgba(15, 76, 58, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 76, 58, 0.04) 1px, transparent 1px);
+  border: 1px solid var(--anx-halo-border);
+  background: var(--anx-halo-bg);
   background-size: auto, 34px 34px, 34px 34px;
   border-radius: 8px;
   opacity: var(--halo-opacity);
   transform: scale(var(--halo-scale));
-  box-shadow: 0 26px 70px rgba(9, 51, 39, 0.14);
+  box-shadow: var(--anx-halo-shadow);
   will-change: opacity, transform;
 }
 
@@ -337,14 +366,14 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-room-wall {
-  fill: rgba(255, 255, 255, 0.76);
-  stroke: rgba(15, 76, 58, 0.12);
+  fill: var(--anx-wall);
+  stroke: var(--anx-wall-stroke);
   stroke-width: 2;
 }
 
 .anatomy-room-window {
-  fill: rgba(20, 184, 166, 0.14);
-  stroke: rgba(20, 184, 166, 0.32);
+  fill: var(--anx-win);
+  stroke: var(--anx-win-stroke);
   stroke-width: 2;
 }
 
@@ -352,15 +381,15 @@ body.sama-eyes-live .sama-pupil {
 .anatomy-room-rail,
 .anatomy-room-bed-leg {
   fill: none;
-  stroke: rgba(15, 76, 58, 0.16);
+  stroke: var(--anx-line);
   stroke-width: 4;
   stroke-linecap: round;
 }
 
 .anatomy-room-chart,
 .anatomy-room-monitor {
-  fill: #fff;
-  stroke: rgba(15, 76, 58, 0.14);
+  fill: var(--anx-chart);
+  stroke: var(--anx-chart-stroke);
   stroke-width: 2;
 }
 
@@ -380,12 +409,12 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-room-floor {
-  fill: rgba(20, 184, 166, 0.11);
+  fill: var(--anx-floor);
 }
 
 .anatomy-room-bed {
-  fill: rgba(20, 184, 166, 0.2);
-  stroke: rgba(15, 76, 58, 0.16);
+  fill: var(--anx-bed);
+  stroke: var(--anx-bed-stroke);
   stroke-width: 2;
 }
 
@@ -401,19 +430,19 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-outline-fill {
-  fill: rgba(20, 184, 166, 0.22);
+  fill: var(--anx-outline-fill);
 }
 
 .anatomy-outline-stroke {
   fill: none;
-  stroke: rgba(15, 76, 58, 0.52);
+  stroke: var(--anx-outline-stroke);
   stroke-width: 5;
   stroke-linejoin: round;
 }
 
 .anatomy-lung {
-  fill: rgba(6, 182, 212, 0.2);
-  stroke: rgba(6, 182, 212, 0.32);
+  fill: var(--anx-lung);
+  stroke: var(--anx-lung-stroke);
   stroke-width: 3;
   stroke-linejoin: round;
 }
@@ -424,13 +453,13 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-bone {
-  stroke: rgba(15, 76, 58, 0.82);
+  stroke: var(--anx-bone-stroke);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .anatomy-bone--filled {
-  fill: rgba(255, 255, 255, 0.86);
+  fill: var(--anx-bone-fill);
   stroke-width: 5;
 }
 
@@ -440,8 +469,8 @@ body.sama-eyes-live .sama-pupil {
 }
 
 .anatomy-joint {
-  fill: #fff;
-  stroke: rgba(20, 184, 166, 0.9);
+  fill: var(--anx-joint);
+  stroke: var(--anx-joint-stroke);
   stroke-width: 4;
 }
 
@@ -452,7 +481,7 @@ body.sama-eyes-live .sama-pupil {
 
 .anatomy-rib {
   fill: none;
-  stroke: rgba(20, 184, 166, 0.95);
+  stroke: var(--anx-rib);
   stroke-width: 6.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -649,4 +678,46 @@ body.sama-eyes-live .sama-pupil {
     transform: none !important;
     animation: none !important;
   }
+}
+
+/* --------------------------------------------------------------------------
+   DARK THEME — anatomy section + Sama accessory chip.
+   The skeleton inverts (dark fills, light strokes) so it keeps reading as a
+   bright X-ray figure on the dark hospital backdrop; heart reds stay put.
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] .sama-mascot {
+  --sama-badge-bg: #14212F;
+  --sama-badge-border: rgba(110, 231, 183, 0.35);
+}
+
+[data-theme="dark"] .anatomy-scroll {
+  --anx-bg:
+    radial-gradient(circle at 25% 18%, rgba(20, 184, 166, 0.14), transparent 28%),
+    radial-gradient(circle at 80% 76%, rgba(16, 185, 129, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(12, 20, 32, 0) 0%, rgba(13, 24, 36, 0.96) 18%, rgba(11, 22, 33, 0.98) 78%, rgba(12, 20, 32, 0) 100%);
+  --anx-halo-border: rgba(110, 231, 183, 0.25);
+  --anx-halo-bg:
+    linear-gradient(135deg, rgba(20, 33, 47, 0.94), rgba(16, 28, 42, 0.85)),
+    linear-gradient(rgba(110, 231, 183, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 231, 183, 0.07) 1px, transparent 1px);
+  --anx-halo-shadow: 0 26px 70px rgba(0, 0, 0, 0.55);
+  --anx-wall: rgba(23, 38, 54, 0.9);
+  --anx-wall-stroke: rgba(110, 231, 183, 0.2);
+  --anx-win: rgba(20, 184, 166, 0.2);
+  --anx-win-stroke: rgba(94, 234, 212, 0.45);
+  --anx-line: rgba(157, 176, 195, 0.45);
+  --anx-chart: #1B2C40;
+  --anx-chart-stroke: rgba(157, 176, 195, 0.4);
+  --anx-floor: rgba(20, 184, 166, 0.12);
+  --anx-bed: rgba(20, 184, 166, 0.24);
+  --anx-bed-stroke: rgba(110, 231, 183, 0.35);
+  --anx-outline-fill: rgba(20, 184, 166, 0.16);
+  --anx-outline-stroke: rgba(167, 243, 208, 0.75);
+  --anx-lung: rgba(6, 182, 212, 0.22);
+  --anx-lung-stroke: rgba(103, 232, 249, 0.42);
+  --anx-bone-stroke: rgba(235, 241, 248, 0.92);
+  --anx-bone-fill: rgba(35, 53, 74, 0.95);
+  --anx-joint: #16273A;
+  --anx-joint-stroke: rgba(94, 234, 212, 0.9);
+  --anx-rib: rgba(94, 234, 212, 0.9);
 }
