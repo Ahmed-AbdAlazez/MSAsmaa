@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create toast
     const toast = document.createElement('div');
     toast.className = `toast toast-${type} show`;
-    
+
     // Icon selection
     let icon = '✓';
     if (type === 'danger') icon = '✕';
@@ -92,16 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // The Node backend (server.js) runs on port 3000. When the frontend is
   // opened from anywhere else (VS Code Live Server :5500, GitHub Pages,
   // file://, another machine), API calls must point at the backend origin.
-  const API_BASE = (() => {
-    const { protocol, hostname, port } = window.location;
-    if (protocol === 'file:') return 'http://localhost:3000';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return port === '3000' ? '' : 'http://localhost:3000';
-    }
-    // Served from a real host (e.g. GitHub Pages) — assume the backend is
-    // deployed there too; change this line to the backend URL if separate.
-    return '';
-  })();
+  const API_BASE = import.meta.env.VITE_API_URL;
 
   /**
    * fetch() + safe JSON parsing with human-readable Arabic errors.
@@ -327,7 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   restoreUploadFormFields();
 
-  const fetchJson = async (url, options = {}) => {    let response;
+  const fetchJson = async (url, options = {}) => {
+    let response;
     try {
       response = await fetch(url, options);
     } catch (networkError) {
@@ -362,11 +354,11 @@ document.addEventListener('DOMContentLoaded', () => {
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const targetTab = btn.getAttribute('data-tab');
-        
+
         // Remove active from all buttons & panels
         tabBtns.forEach(b => b.classList.remove('active'));
         tabPanels.forEach(p => p.classList.remove('active'));
-        
+
         // Set active on click
         btn.classList.add('active');
         const panel = document.getElementById(targetTab);
@@ -383,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
     filterBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const filterVal = btn.getAttribute('data-filter');
-        
+
         // Toggle active button class
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -411,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (assignmentForm) {
     assignmentForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      
+
       // Check if MCQ answered
       const chosenMCQ = document.querySelector('input[name="q1"]:checked');
       if (!chosenMCQ) {
@@ -467,8 +459,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('جاري تصدير درجات الطلاب بصيغة Excel...', 'success');
     });
   }
-   // --- Dynamic Client-Side Auth Modal & Login Icon Logic ---
-  
+  // --- Dynamic Client-Side Auth Modal & Login Icon Logic ---
+
   // Inject Login Modal HTML on load if not already present
   if (!document.querySelector('#login-modal-backdrop')) {
     const loginModalHTML = `
@@ -977,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const updateAuthUI = () => {
     const userRole = localStorage.getItem('userRole');
     const username = localStorage.getItem('username') || '';
-    
+
     // Update any username greeting placeholders on dashboard
     const namePlaceholders = document.querySelectorAll('.student-name-placeholder');
     namePlaceholders.forEach(el => {
@@ -990,7 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userRole) {
       // User is logged in
       const logoutTitle = `تسجيل الخروج من الحساب (${username})`;
-      
+
       if (navAuthContainer) {
         navAuthContainer.innerHTML = `
           ${getNotificationButtonHTML()}
@@ -1160,22 +1152,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // --- Sign in: hardcoded teacher-issued codes first ---------------------
       if (authMode === 'signin') {
-        const localAccount = LOGIN_ACCOUNTS[code] || savedAccounts[code];
-
-        if (localAccount) {
-          if (localAccount.password !== password) {
-            showToast('كلمة المرور غير صحيحة لهذا الكود.', 'danger');
-            loginPassword.focus();
-            return;
-          }
-          completeLogin(localAccount.role, localAccount.displayName || localAccount.name || code, code);
-          return;
-        }
-
-        // Not a local account -> try the backend (server.js / Vercel API),
-        // which now also authenticates by code.
         try {
-          const data = await fetchJson(`${API_BASE}/api/auth/login`, {
+          const data = await fetchJson(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, password }),
@@ -1254,9 +1232,9 @@ document.addEventListener('DOMContentLoaded', () => {
     header.addEventListener('click', () => {
       const item = header.parentElement;
       const body = item.querySelector('.accordion-body');
-      
+
       const isActive = item.classList.contains('active');
-      
+
       if (isActive) {
         item.classList.remove('active');
         body.style.maxHeight = null;
@@ -1279,22 +1257,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const titleParam = urlParams.get('title');
     if (titleParam) {
       const decodedTitle = decodeURIComponent(titleParam);
-      
+
       // Update page title tag
       document.title = `عرض الدرس | ${decodedTitle} | منصة المرسال`;
-      
+
       // Update breadcrumbs title
       const bcTitle = document.querySelector('#lesson-breadcrumb-title');
       if (bcTitle) {
         bcTitle.textContent = decodedTitle;
       }
-      
+
       // Update page heading
       const heading = document.querySelector('#lesson-name-heading');
       if (heading) {
         heading.textContent = decodedTitle;
       }
-      
+
       // Update video overlay player title
       const videoTitle = document.querySelector('#lesson-video-title');
       if (videoTitle) {
@@ -1304,152 +1282,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lesson identity + chapter-synced sidebar ---
     const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
-    const chapters = (window.CURRICULUM && window.CURRICULUM.biology) || [];
-
-    const listBox = document.querySelector('#sidebar-lessons-list');
-    if (listBox && chapters.length) {
-      const chapter =
-        chapters.find((c) => c.id === urlParams.get('chapter')) ||
-        chapters.find((c) => c.lessons.some((l) => l.id === lessonId)) ||
-        chapters[0];
-
-      const sidebarTitle = document.querySelector('.lesson-sidebar-title');
-      if (sidebarTitle) {
-        sidebarTitle.textContent = `دروس ${chapter.name.split(':')[0]}`;
-      }
-
-      const arabicNums = ['١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩', '١٠'];
-      listBox.innerHTML = '';
-      chapter.lessons.forEach((lesson, i) => {
-        const link = document.createElement('a');
-        link.className =
-          'sidebar-lesson-item' + (lesson.id === lessonId ? ' active' : '');
-        link.href =
-          `lesson-view.html?title=${encodeURIComponent(lesson.name)}` +
-          `&lesson=${lesson.id}&chapter=${chapter.id}`;
-        link.innerHTML =
-          `<span class="sidebar-lesson-icon">${arabicNums[i] || i + 1}</span>` +
-          `<span class="sidebar-lesson-name">${lesson.name}</span>`;
-        listBox.appendChild(link);
-      });
-    }
-
-    // --- Real video playback via Bunny Stream (backend API) ---
-    const durationEl = document.querySelector('#lesson-video-duration');
-    const formatDuration = (totalSeconds) => {
-      const s = Math.round(totalSeconds);
-      const h = Math.floor(s / 3600);
-      const m = Math.floor((s % 3600) / 60);
-      const sec = s % 60;
-      let out = '';
-      if (h) out += `${h} ساعة `;
-      if (m) out += `${m} دقيقة `;
-      if (sec || (!h && !m)) out += `${sec} ثانية`;
-      return out.trim();
-    };
-
     const playBtn = document.querySelector('.video-play-btn');
     const playerBox = document.querySelector('.video-player-mock');
 
-    // Playlist state: a lesson can have several videos (شرح + مراجعة...).
-    let lessonVideos = [];
-    let currentVideoIdx = 0;
+    if (playBtn && playerBox) {
+      playBtn.addEventListener('click', async () => {
+        playBtn.disabled = true;
+        showToast('جاري تحضير الفيديو...', 'success');
 
-    const loadIframe = (videoEntry) => {
-      playerBox.innerHTML =
-        `<iframe src="${videoEntry.playbackUrl}" ` +
-        'style="width:100%; height:100%; border:0;" ' +
-        'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
-        'allowfullscreen loading="lazy"></iframe>';
-    };
-
-    // Renders the part-selector above the player when there is more than one.
-    const renderVideoChooser = () => {
-      if (lessonVideos.length < 2) return;
-      let chooser = document.querySelector('#lesson-videos-chooser');
-      if (!chooser) {
-        chooser = document.createElement('div');
-        chooser.id = 'lesson-videos-chooser';
-        chooser.style.cssText =
-          'display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;';
-        playerBox.parentNode.insertBefore(chooser, playerBox);
-      }
-      chooser.innerHTML = '';
-      lessonVideos.forEach((v, i) => {
-        const btn = document.createElement('button');
-        btn.className = i === currentVideoIdx
-          ? 'btn btn-primary'
-          : 'btn btn-light';
-        btn.style.cssText = 'font-size:0.85rem; padding:0.45rem 1rem;';
-        btn.textContent = v.name || `الفيديو ${i + 1}`;
-        if (!v.ready) btn.textContent += ' (معالجة...)';
-        btn.addEventListener('click', () => {
-          currentVideoIdx = i;
-          renderVideoChooser();
-          if (playerBox.querySelector('iframe')) loadIframe(v);
-          else if (durationEl && v.lengthSeconds) {
-            durationEl.textContent =
-              `أ. أسماء مرسال | ⏱ ${formatDuration(v.lengthSeconds)}`;
-          }
-        });
-        chooser.appendChild(btn);
-      });
-    };
-
-    // Load the lesson's videos once on page open.
-    const userId = localStorage.getItem('userId') || 'dev-student';
-    const userRole = localStorage.getItem('userRole') || 'student';
-    const authHeaders = { 'x-user-id': userId, 'x-user-role': userRole };
-
-    const renderLessonMaterials = (materials) => {
-      const materialsBox = document.querySelector('#lesson-materials-list');
-      if (!materialsBox) return;
-
-      if (!materials.length) {
-        materialsBox.innerHTML =
-          '<p class="text-muted" style="font-size:0.9rem; margin:0;">لا توجد ملفات PDF لهذا الدرس بعد.</p>';
-        return;
-      }
-
-      materialsBox.innerHTML = '';
-      const viewerPanel = document.querySelector('#lesson-pdf-viewer');
-      const viewerFrame = document.querySelector('#lesson-pdf-frame');
-      const viewerTitle = document.querySelector('#lesson-pdf-viewer-title');
-      const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
-
-      // ------------------------------------------------------------------
-      // Inline PDF viewing via short-lived signed Supabase URLs. The backend
-      // runs the enrollment check, then hands back a signed URL created with
-      // download:false (inline). Bytes stream straight from Supabase's CDN,
-      // so Vercel's function response limit never applies — any file size
-      // works.
-      // ------------------------------------------------------------------
-      const closePdfViewer = () => {
-        if (!viewerPanel) return;
-        viewerPanel.hidden = true;
-        if (viewerFrame) viewerFrame.src = 'about:blank';
-      };
-
-      const openMaterialInViewer = async (material, button) => {
         try {
-          button.disabled = true;
-          button.textContent = 'جاري...';
+          // Auth headers from the signed-in account (dev scheme until real JWT).
+          const userId = localStorage.getItem('userId') || 'dev-student';
+          const userRole = localStorage.getItem('userRole') || 'student';
+          const data = await fetchJson(`${API_BASE}/lessons/${lessonId}/video-url`, {
+            headers: { 'x-user-id': userId, 'x-user-role': userRole },
+          });
 
-          const data = await fetchJson(
-            `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
-            { headers: authHeaders }
-          );
-
-          if (viewerTitle) {
-            viewerTitle.textContent = `📄 ${material.title || 'ملف PDF'}`;
-          }
-          if (viewerFrame) {
-            viewerFrame.src = data.downloadUrl;
-          }
-          if (viewerPanel) {
-            viewerPanel.hidden = false;
-            viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          // Swap the mock overlay for Bunny's embed player.
+          playerBox.innerHTML =
+            `<iframe src="${data.playbackUrl}" ` +
+            'style="width:100%; height:100%; border:0;" ' +
+            'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
+            'allowfullscreen loading="lazy"></iframe>';
         } catch (error) {
           showToast(error.message, 'danger');
         } finally {
@@ -1912,9 +1766,8 @@ document.addEventListener('DOMContentLoaded', () => {
         UploadFloat.show('جاري رفع الفيديو');
         UploadFloat.update(0, 'جاري تجهيز الفيديو على سيرفر البث...');
 
-        // Step 1: reserve a slot on Bunny. Title follows the platform
-        // convention: "lesson-N | name | attachment | description".
-        const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
+        // Step 1: reserve a slot on Bunny (title follows the lesson convention).
+        const prepared = await fetchJson(`${API_BASE}/lessons/${lessonId}/video`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({
@@ -1990,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const poll = setInterval(async () => {
           try {
             const st = await fetchJson(
-              `${API_BASE}/api/lessons/${lessonId}/video-status`,
+              `${API_BASE}/lessons/${lessonId}/video-status`,
               { headers: authHeaders }
             );
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';

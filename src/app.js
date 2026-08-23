@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Mount API routes
-app.use('/api', apiRoutes);
+app.use('/api/v1', apiRoutes);
 
 // Error Handling Middlewares
 app.use(notFound);
