@@ -92,7 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // The Node backend (server.js) runs on port 3000. When the frontend is
   // opened from anywhere else (VS Code Live Server :5500, GitHub Pages,
   // file://, another machine), API calls must point at the backend origin.
-  const API_BASE = import.meta.env.VITE_API_URL;
+  // Empty string = same-origin relative URLs. On Vercel the /api/* rewrite
+  // routes them to the serverless function; locally the Vite dev proxy
+  // forwards them to node server.js. Never leave this undefined — a literal
+  // "undefined/api/..." URL 404s on static hosting.
+  const API_BASE = import.meta.env.VITE_API_URL || '';
 
   /**
    * fetch() + safe JSON parsing with human-readable Arabic errors.
@@ -1153,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- Sign in: hardcoded teacher-issued codes first ---------------------
       if (authMode === 'signin') {
         try {
-          const data = await fetchJson(`${API_BASE}/auth/login`, {
+          const data = await fetchJson(`${API_BASE}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, password }),
@@ -1280,44 +1284,131 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // --- Lesson identity + chapter-synced sidebar ---
+    // --- Lesson identity + shared page elements ---
     const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
     const playBtn = document.querySelector('.video-play-btn');
     const playerBox = document.querySelector('.video-player-mock');
+    const durationEl = document.querySelector('#lesson-video-duration');
+    const materialsBox = document.querySelector('#lesson-materials-list');
 
-    if (playBtn && playerBox) {
-      playBtn.addEventListener('click', async () => {
-        playBtn.disabled = true;
-        showToast('جاري تحضير الفيديو...', 'success');
+    // Inline PDF viewer (markup lives in lesson-view.html).
+    const viewerPanel = document.querySelector('#lesson-pdf-viewer');
+    const viewerTitle = document.querySelector('#lesson-pdf-viewer-title');
+    const viewerFrame = document.querySelector('#lesson-pdf-frame');
+    const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
 
-        try {
-          // Auth headers from the signed-in account (dev scheme until real JWT).
-          const userId = localStorage.getItem('userId') || 'dev-student';
-          const userRole = localStorage.getItem('userRole') || 'student';
-          const data = await fetchJson(`${API_BASE}/lessons/${lessonId}/video-url`, {
-            headers: { 'x-user-id': userId, 'x-user-role': userRole },
-          });
+    // Auth headers for every API call on this page.
+    const authHeaders = {
+      'x-user-id': localStorage.getItem('userId') || 'dev-student',
+      'x-user-role': localStorage.getItem('userRole') || 'student',
+    };
 
-          // Swap the mock overlay for Bunny's embed player.
-          playerBox.innerHTML =
-            `<iframe src="${data.playbackUrl}" ` +
-            'style="width:100%; height:100%; border:0;" ' +
-            'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
-            'allowfullscreen loading="lazy"></iframe>';
-        } catch (error) {
-          showToast(error.message, 'danger');
-        } finally {
-          button.disabled = false;
-          button.textContent = 'عرض';
-        }
+    // Lesson videos state (filled by applyVideosData below).
+    let lessonVideos = [];
+    let currentVideoIdx = 0;
+
+    /** "75" seconds -> "1:15" for the player overlay. */
+    const formatDuration = (totalSeconds) => {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = Math.floor(totalSeconds % 60);
+      return `${minutes}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    /** Swaps the mock overlay for the Bunny embed player iframe. */
+    const loadIframe = (videoEntry) => {
+      if (!playerBox) return;
+      playerBox.innerHTML =
+        `<iframe src="${videoEntry.playbackUrl}" ` +
+        'style="width:100%; height:100%; border:0;" ' +
+        'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
+        'allowfullscreen loading="lazy"></iframe>';
+    };
+
+    /** Part buttons under the player when a lesson has several videos. */
+    const renderVideoChooser = () => {
+      if (!playerBox || lessonVideos.length <= 1) return;
+
+      let chooser = document.querySelector('#lesson-video-chooser');
+      if (!chooser) {
+        chooser = document.createElement('div');
+        chooser.id = 'lesson-video-chooser';
+        chooser.style.cssText =
+          'display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;';
+        playerBox.insertAdjacentElement('afterend', chooser);
+      }
+      chooser.innerHTML = '';
+
+      lessonVideos.forEach((video, idx) => {
+        const partBtn = document.createElement('button');
+        partBtn.type = 'button';
+        partBtn.className = 'btn btn-secondary';
+        partBtn.style.cssText =
+          'font-size:0.85rem; padding:0.4rem 0.9rem;' +
+          (idx === currentVideoIdx ? ' font-weight:700;' : '');
+        partBtn.textContent = video.name || `الجزء ${idx + 1}`;
+        if (!video.ready) partBtn.textContent += ' (قيد المعالجة)';
+        partBtn.addEventListener('click', () => {
+          currentVideoIdx = idx;
+          renderVideoChooser();
+          // Once playback started, switching parts loads them instantly.
+          if (playerBox.querySelector('iframe')) {
+            if (video.ready) {
+              showToast(`جاري تشغيل: ${partBtn.textContent}`, 'success');
+              loadIframe(video);
+            } else {
+              showToast('هذا الجزء ما زال قيد المعالجة على Bunny.', 'warning');
+            }
+          }
+        });
+        chooser.appendChild(partBtn);
       });
+    };
 
+    /** Shows the inline PDF viewer panel with a short-lived signed URL. */
+    const openMaterialInViewer = async (material, triggerButton) => {
+      try {
+        if (triggerButton) triggerButton.disabled = true;
+        const data = await fetchJson(
+          `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
+          { headers: authHeaders }
+        );
+        if (!viewerPanel || !viewerFrame) {
+          window.open(data.downloadUrl, '_blank', 'noopener');
+          return;
+        }
+        viewerTitle.textContent = material.title || 'ملف PDF';
+        viewerFrame.src = data.downloadUrl;
+        viewerPanel.hidden = false;
+        viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        showToast(error.message, 'danger');
+      } finally {
+        if (triggerButton) triggerButton.disabled = false;
+      }
+    };
 
-      if (viewerClose && viewerPanel) {
-        viewerClose.addEventListener('click', closePdfViewer);
+    const closePdfViewer = () => {
+      if (!viewerPanel) return;
+      viewerPanel.hidden = true;
+      if (viewerFrame) viewerFrame.src = 'about:blank';
+    };
+
+    if (viewerClose && viewerPanel) {
+      viewerClose.addEventListener('click', closePdfViewer);
+    }
+
+    /** Renders the PDF materials list in the sidebar. */
+    const renderLessonMaterials = (materialsList) => {
+      if (!materialsBox) return;
+      materialsBox.innerHTML = '';
+
+      if (!materialsList.length) {
+        materialsBox.innerHTML =
+          '<p class="text-muted" style="font-size:0.9rem; margin:0;">لا توجد ملفات PDF لهذا الدرس بعد.</p>';
+        return;
       }
 
-      materials.forEach((material) => {
+      materialsList.forEach((material) => {
         const row = document.createElement('div');
         row.className = 'lesson-material-item';
 
@@ -1361,6 +1452,7 @@ document.addEventListener('DOMContentLoaded', () => {
         materialsBox.appendChild(row);
       });
     };
+
 
     // ------------------------------------------------------------------
     // Stale-while-revalidate cache for lesson content. The site is a
@@ -1768,7 +1860,7 @@ document.addEventListener('DOMContentLoaded', () => {
         UploadFloat.update(0, 'جاري تجهيز الفيديو على سيرفر البث...');
 
         // Step 1: reserve a slot on Bunny (title follows the lesson convention).
-        const prepared = await fetchJson(`${API_BASE}/lessons/${lessonId}/video`, {
+        const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({
@@ -1844,7 +1936,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const poll = setInterval(async () => {
           try {
             const st = await fetchJson(
-              `${API_BASE}/lessons/${lessonId}/video-status`,
+              `${API_BASE}/api/lessons/${lessonId}/video-status`,
               { headers: authHeaders }
             );
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
