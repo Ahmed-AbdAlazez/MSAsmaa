@@ -14,15 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- Login accounts (CODE + PASSWORD) ------------------------------------
-  // The old username/123456 demo accounts were removed. Login now works
-  // with the teacher-issued codes below (matched case-insensitively).
-  // Locally-created signup accounts are stored separately in
-  // localStorage under 'frontEndAccounts', also keyed by code.
-  const LOGIN_ACCOUNTS = {
-    'STU-2026-01': { password: 'Stu@2026', displayName: 'أحمد محمد', role: 'student' },
-    'TCH-2026-01': { password: 'Tea@2026', displayName: 'أ. أسماء مرسال', role: 'teacher' }
-  };
+  // --- Authentication (REAL BACKEND ONLY) ----------------------------------
+  // Login/signup go to the real backend (VITE_API_URL). There are NO
+  // hardcoded accounts and NO localStorage fallback: the backend is the
+  // single source of truth for credentials, roles and account status.
 
   const openLoginModal = () => {
     document.querySelector('#login-modal-backdrop')?.classList.add('show');
@@ -89,14 +84,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Backend API helpers -------------------------------------------------
-  // The Node backend (server.js) runs on port 3000. When the frontend is
-  // opened from anywhere else (VS Code Live Server :5500, GitHub Pages,
-  // file://, another machine), API calls must point at the backend origin.
-  // Empty string = same-origin relative URLs. On Vercel the /api/* rewrite
-  // routes them to the serverless function; locally the Vite dev proxy
-  // forwards them to node server.js. Never leave this undefined — a literal
-  // "undefined/api/..." URL 404s on static hosting.
-  const API_BASE = import.meta.env.VITE_API_URL || '';
+  // --- Backend API configuration -------------------------------------------
+  // AUTH API: real backend (source of truth). Set in .env / Vercel:
+  //   VITE_API_URL=https://ms-asmaa.vercel.app/api/v1
+  // Auth calls are therefore ${API_BASE}/auth/login and ${API_BASE}/auth/signup.
+  const API_BASE = import.meta.env.VITE_API_URL;
+
+  /**
+   * JWT helpers. The token comes from POST ${API_BASE}/auth/login and is sent
+   * back on every protected request as: Authorization: Bearer <token>.
+   * localStorage keeps ONLY the token + non-sensitive UI state (role/name/id);
+   * passwords are never stored anywhere.
+   */
+  const getAuthToken = () => {
+    try {
+      return localStorage.getItem('token') || '';
+    } catch (_) {
+      return '';
+    }
+  };
+
+  /** Headers for protected requests (fresh read on every call). */
+  const authHeaders = () => {
+    const token = getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   /**
    * fetch() + safe JSON parsing with human-readable Arabic errors.
@@ -345,7 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!response.ok) {
-      throw new Error(data.error || `خطأ من السيرفر (${response.status}).`);
+      // The v1 backend sends { message } (errorMiddleware); older routes send
+      // { error }. Show whichever the backend actually returned.
+      throw new Error(data.message || data.error || `خطأ من السيرفر (${response.status}).`);
     }
     return data;
   };
@@ -492,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
               <label for="login-code" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كود الدخول</label>
-              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="مثال: STU-2026-01" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
+              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="أدخل كود الدخول الخاص بك" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
             </div>
             <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
               <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
@@ -1105,6 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.removeItem('userRole');
       localStorage.removeItem('username');
       localStorage.removeItem('userId');
+      localStorage.removeItem('token');
       showToast('تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋', 'success');
       updateAuthUI();
       // Redirect to index page
@@ -1130,11 +1145,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Login submission
+  // Handle Login / Signup submission (REAL BACKEND ONLY)
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const role = document.querySelector('#login-role').value;
       const usernameInput = document.querySelector('#login-username').value.trim();
       const code = normalizeCode(loginCode.value);
       const password = loginPassword.value;
@@ -1151,63 +1165,89 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Locally-created accounts (signup mode), stored by CODE not email.
-      const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
-
-      // --- Sign in: hardcoded teacher-issued codes first ---------------------
+      // --- Sign in: POST ${API_BASE}/auth/login ----------------------------
+      // Body fields match the backend authController exactly:
+      //   { studentCode, password }
+      // Response: { status, token, data: { user: { id, name, role, ... } } }
+      // The role ALWAYS comes from the backend — never from the UI select.
       if (authMode === 'signin') {
         try {
-          const data = await fetchJson(`${API_BASE}/api/auth/login`, {
+          const data = await fetchJson(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, password }),
+            body: JSON.stringify({ studentCode: code, password }),
           });
 
-          completeLogin(data.role, data.name, data.id || code);
+          const user = data && data.data && data.data.user;
+          if (!data || !data.token || !user) {
+            throw new Error('رد غير متوقع من السيرفر أثناء تسجيل الدخول.');
+          }
+
+          completeLogin(user.role, user.name, user.id, data.token);
           return;
         } catch (error) {
-          // Backend answered with a real error (wrong credentials / down).
+          // Real backend error (invalid credentials / pending / rejected).
+          // No fallback to any local account is allowed.
           showToast(error.message, 'danger');
           loginPassword.focus();
           return;
         }
       }
 
-      // --- Sign up: create a new locally-stored account keyed by code ------
+      // --- Sign up: POST ${API_BASE}/auth/signup ---------------------------
+      // Body: { studentCode, name, password } -> creates a PENDING request
+      // that the teacher approves. No JWT is issued at signup; the user must
+      // log in AFTER approval.
       if (authMode === 'signup') {
         if (!usernameInput) {
           showToast('يرجى إدخال الاسم لإنشاء الحساب.', 'warning');
           return;
         }
-        if (LOGIN_ACCOUNTS[code] || savedAccounts[code]) {
-          showToast('هذا الكود مستخدم بالفعل. اختر كوداً آخر أو سجّل الدخول.', 'warning');
-          return;
+
+        try {
+          const data = await fetchJson(`${API_BASE}/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              studentCode: code,
+              name: usernameInput,
+              password,
+            }),
+          });
+
+          showToast(
+            (data && data.message) ||
+              'تم إرسال طلب التسجيل بنجاح. بانتظار موافقة المعلمة ثم سجّل الدخول.',
+            'success'
+          );
+          loginForm.reset();
+          setAuthMode('signin');
+        } catch (error) {
+          showToast(error.message, 'danger');
         }
-        savedAccounts[code] = { name: usernameInput, password, role };
-        localStorage.setItem('frontEndAccounts', JSON.stringify(savedAccounts));
-        showToast(`تم إنشاء حسابك بنجاح! احفظ كود الدخول الخاص بك: ${code}`, 'success');
-        completeLogin(role, usernameInput, code);
       }
     });
   }
 
   /**
-   * Shared finish-login routine: stores the session, closes the modal,
-   * shows the welcome toast and redirects to the role's dashboard.
+   * Shared finish-login routine: stores the JWT + non-sensitive session
+   * info, closes the modal, shows the welcome toast and redirects to the
+   * dashboard matching the role returned by the BACKEND.
    */
-  function completeLogin(role, displayName, userId) {
-    localStorage.setItem('userRole', role);
-    localStorage.setItem('username', displayName);
-    localStorage.setItem('userId', userId);
+  function completeLogin(role, displayName, userId, token) {
+    localStorage.setItem('userRole', String(role || 'student').toLowerCase());
+    localStorage.setItem('username', displayName != null ? String(displayName) : '');
+    localStorage.setItem('userId', userId != null ? String(userId) : '');
+    if (token) localStorage.setItem('token', token);
 
     if (loginModal) loginModal.classList.remove('show');
 
     showToast(`مرحباً بك يا ${displayName}! تم تسجيل الدخول بنجاح. 🎉`, 'success');
     updateAuthUI();
 
-    // Redirect depending on role
+    // Redirect depending on the backend-provided role
     setTimeout(() => {
-      if (role === 'teacher') {
+      if (String(role).toLowerCase() === 'teacher') {
         window.location.href = 'dashboard-teacher.html';
       } else {
         window.location.href = 'dashboard-student.html';
@@ -1297,11 +1337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewerFrame = document.querySelector('#lesson-pdf-frame');
     const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
 
-    // Auth headers for every API call on this page.
-    const authHeaders = {
-      'x-user-id': localStorage.getItem('userId') || 'dev-student',
-      'x-user-role': localStorage.getItem('userRole') || 'student',
-    };
+    // Auth headers come from the shared JWT helper (authHeaders() above).
 
     // Lesson videos state (filled by applyVideosData below).
     let lessonVideos = [];
@@ -1369,8 +1405,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         if (triggerButton) triggerButton.disabled = true;
         const data = await fetchJson(
-          `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
-          { headers: authHeaders }
+          `/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
+          { headers: authHeaders() }
         );
         if (!viewerPanel || !viewerFrame) {
           window.open(data.downloadUrl, '_blank', 'noopener');
@@ -1435,8 +1471,8 @@ document.addEventListener('DOMContentLoaded', () => {
             downloadButton.disabled = true;
             downloadButton.textContent = 'جاري...';
             const data = await fetchJson(
-              `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download`,
-              { headers: authHeaders }
+              `/api/materials/${encodeURIComponent(material.id)}/download`,
+              { headers: authHeaders() }
             );
             window.open(data.downloadUrl, '_blank', 'noopener');
           } catch (error) {
@@ -1493,8 +1529,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cachedMaterials = lessonCacheRead('materials', lessonId);
     if (cachedMaterials && cachedMaterials.fresh) {
       renderLessonMaterials(cachedMaterials.data || []);
-      fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
-        headers: authHeaders,
+      fetchJson(`/api/lessons/${lessonId}/materials`, {
+        headers: authHeaders(),
       })
         .then((freshData) => {
           const nextMaterials = freshData.materials || [];
@@ -1507,8 +1543,8 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(() => { /* keep showing cached list */ });
     } else {
-      fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
-        headers: authHeaders,
+      fetchJson(`/api/lessons/${lessonId}/materials`, {
+        headers: authHeaders(),
       })
         .then((data) => {
           const materials = data.materials || [];
@@ -1556,8 +1592,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cachedVideos = lessonCacheRead('videos', lessonId);
     if (cachedVideos && cachedVideos.fresh) {
       applyVideosData(cachedVideos.data);
-      fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
-        headers: authHeaders,
+      fetchJson(`/api/lessons/${lessonId}/videos`, {
+        headers: authHeaders(),
       })
         .then((freshData) => {
           const nextVideos = freshData.videos || [];
@@ -1568,8 +1604,8 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(() => { /* keep showing cached playlist */ });
     } else {
-      fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
-        headers: authHeaders,
+      fetchJson(`/api/lessons/${lessonId}/videos`, {
+        headers: authHeaders(),
       })
         .then((data) => {
           lessonCacheWrite('videos', lessonId, data.videos || []);
@@ -1658,13 +1694,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
 
-    // Self-contained auth headers (this function runs on the dashboard page,
-    // outside the lesson-view block where its own authHeaders is defined).
-    const authHeaders = {
-      'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-      'x-user-role': localStorage.getItem('userRole') || 'teacher',
-    };
-
+    // Auth: JWT Bearer token from the shared helper (no client-trusted role
+    // headers — the backend decides who may upload).
     // ------------------------------------------------------------------
     // DIRECT UPLOAD (3 phases). Vercel caps function request bodies at
     // ~4.5MB, so the PDF bytes must never pass through our API:
@@ -1673,10 +1704,10 @@ document.addEventListener('DOMContentLoaded', () => {
     //   3. tell our API to register the material (+ normalize server-side)
     // ------------------------------------------------------------------
     const prepared = await fetchJson(
-      `${API_BASE}/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
+      `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ fileName: pdfFile.name }),
       }
     );
@@ -1697,9 +1728,9 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/pdf' },
         blob: pdfFile,
         finalize: {
-          url: `${API_BASE}/api/materials/finalize`,
+          url: `/api/materials/finalize`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             lessonId,
             filePath: prepared.filePath,
@@ -1746,9 +1777,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
 
-      result = await fetchJson(`${API_BASE}/api/materials/finalize`, {
+      result = await fetchJson(`/api/materials/finalize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           lessonId,
           filePath: prepared.filePath,
@@ -1840,16 +1871,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Only teachers may upload.
+      // Only teachers may upload (UI hint only — the backend enforces the
+      // real role from the JWT).
       if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
         showToast('رفع الفيديوهات متاح لحساب المعلمة فقط.', 'danger');
         return;
       }
-
-      const authHeaders = {
-        'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-        'x-user-role': 'teacher',
-      };
 
       try {
         uploadBtn.disabled = true;
@@ -1860,9 +1887,9 @@ document.addEventListener('DOMContentLoaded', () => {
         UploadFloat.update(0, 'جاري تجهيز الفيديو على سيرفر البث...');
 
         // Step 1: reserve a slot on Bunny (title follows the lesson convention).
-        const prepared = await fetchJson(`${API_BASE}/api/lessons/${lessonId}/video`, {
+        const prepared = await fetchJson(`/api/lessons/${lessonId}/video`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             title: videoName,
             attachmentUrl,
@@ -1946,8 +1973,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const poll = setInterval(async () => {
           try {
             const st = await fetchJson(
-              `${API_BASE}/api/lessons/${lessonId}/video-status`,
-              { headers: authHeaders }
+              `/api/lessons/${lessonId}/video-status`,
+              { headers: authHeaders() }
             );
             pollFailures = 0;
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
@@ -1956,9 +1983,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (st.ready) {
               clearInterval(poll);
               progressBar.style.width = '100%';
-              statusText.textContent =
-                `الفيديو جاهز ✅ — يظهر الآن للطلاب في درس: ${st.lessonName}`;
-              showToast(`تم رفع فيديو ${lessonId} بنجاح! الطلاب يستطيعون مشاهدته الآن.`, 'success');
+              statusText.textContent = 'الفيديو جاهز ✅ — تم الرفع بنجاح';
+              showToast('تم رفع الفيديو بنجاح! الطلاب يستطيعون مشاهدته الآن.', 'success');
               UploadFloat.done('الفيديو جاهز ✅');
               uploadBtn.disabled = false;
             } else if ([5, 6].includes(st.status)) {
@@ -2123,12 +2149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         row.querySelector('.js-delete-video').addEventListener('click', async () => {
           if (!confirm(`حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`)) return;
           try {
-            await fetchJson(`${API_BASE}/api/videos/${v.videoId}`, {
+            await fetchJson(`/api/videos/${v.videoId}`, {
               method: 'DELETE',
-              headers: {
-                'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-                'x-user-role': 'teacher',
-              },
+              headers: authHeaders(),
             });
             showToast('تم حذف الفيديو بنجاح.', 'success');
             loadVideosList();
@@ -2147,13 +2170,8 @@ document.addEventListener('DOMContentLoaded', () => {
         videosListBox.innerHTML =
           '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
         const data = await fetchJson(
-          `${API_BASE}/api/lessons/${lessonId}/videos`,
-          {
-            headers: {
-              'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-              'x-user-role': 'teacher',
-            },
-          }
+          `/api/lessons/${lessonId}/videos`,
+          { headers: authHeaders() }
         );
         loadedVideos = data.videos || [];
         renderManageList();
@@ -2183,12 +2201,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (moveTo) body.lessonId = moveTo;
 
       try {
-        await fetchJson(`${API_BASE}/api/videos/${videoId}`, {
+        await fetchJson(`/api/videos/${videoId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-            'x-user-role': 'teacher',
+            ...authHeaders(),
           },
           body: JSON.stringify(body),
         });
@@ -2208,11 +2225,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const materialsManageLesson = document.querySelector('#materials-manage-lesson');
 
   if (materialsManageChapter && materialsManageLesson && window.CURRICULUM) {
-    // Same dev-auth header convention as every other teacher call in this file.
-    const teacherAuthHeaders = {
-      'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
-      'x-user-role': 'teacher',
-    };
+    // Auth uses the shared JWT helper — the backend enforces the teacher role.
 
     /** Fills the lesson dropdown for the chosen chapter. */
     const fillMaterialsManageLessons = (chapterIdx) => {
@@ -2300,9 +2313,9 @@ document.addEventListener('DOMContentLoaded', () => {
         row.querySelector('.js-delete-material').addEventListener('click', async () => {
           if (!confirm(`حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`)) return;
           try {
-            await fetchJson(`${API_BASE}/api/materials/${encodeURIComponent(material.id)}`, {
+            await fetchJson(`/api/materials/${encodeURIComponent(material.id)}`, {
               method: 'DELETE',
-              headers: teacherAuthHeaders,
+              headers: authHeaders(),
             });
             showToast('تم حذف المادة بنجاح.', 'success');
             loadMaterialsManageList();
@@ -2322,8 +2335,8 @@ document.addEventListener('DOMContentLoaded', () => {
         materialsListBox.innerHTML =
           '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
         const data = await fetchJson(
-          `${API_BASE}/api/lessons/${lessonId}/materials/manage`,
-          { headers: teacherAuthHeaders }
+          `/api/lessons/${lessonId}/materials/manage`,
+          { headers: authHeaders() }
         );
         loadedMaterials = data.materials || [];
         renderMaterialsManageList();
@@ -2352,11 +2365,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        await fetchJson(`${API_BASE}/api/materials/${encodeURIComponent(materialId)}`, {
+        await fetchJson(`/api/materials/${encodeURIComponent(materialId)}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            ...teacherAuthHeaders,
+            ...authHeaders(),
           },
           body: JSON.stringify({ title: newTitle }),
         });

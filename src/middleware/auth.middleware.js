@@ -1,43 +1,58 @@
 /**
  * auth.middleware.js
  * ---------------------------------------------------------------------------
- * DEV/TEST stand-in for the real authentication middleware.
+ * JWT authentication for the content API (videos / lesson materials).
  *
- * The contract expected by video.routes.js:
+ * Contract expected by video.routes.js / materials.routes.js:
  *   - Sets req.user.id   (string)
- *   - Sets req.user.role ("teacher" | "student")
+ *   - Sets req.user.role ("teacher" | "student" — lowercased from the JWT)
  *
- * HOW IT WORKS RIGHT NOW (testing only):
- *   Reads two plain headers sent by the client:
- *     x-user-id:   any non-empty string
- *     x-user-role: "teacher" or "student" (anything else -> "student")
- *
- *   Example request:
- *     curl -H "x-user-id: student-1" -H "x-user-role: student" \
- *          http://localhost:3000/api/lessons/lesson-1/video-url
- *
- * REPLACE LATER: swap the header reading for real JWT verification
- * (Authorization: Bearer <token> -> verify -> req.user = decoded payload).
- * Keep the same exported name and the same req.user shape so nothing
- * downstream changes.
+ * HOW IT WORKS:
+ *   Reads "Authorization: Bearer <token>" and verifies the JWT signed by
+ *   utils/jwt.signToken() at POST /api/v1/auth/login (same JWT_SECRET).
+ *   The token payload is { id, role } where role comes from the database.
+ *   The client can no longer claim a role via headers: the ONLY trusted
+ *   source is the verified token (backend is the source of truth).
  */
 
-function requireAuth(req, res, next) {
-  const userId = req.get("x-user-id");
-  const roleHeader = req.get("x-user-role");
+const { verifyToken } = require("../utils/jwt");
 
-  if (!userId || !userId.trim()) {
+function requireAuth(req, res, next) {
+  const authorization = req.get("authorization") || "";
+  const token = authorization.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : null;
+
+  if (!token) {
     return res.status(401).json({
       error: "Authentication required.",
     });
   }
 
-  req.user = {
-    id: userId.trim(),
-    role: roleHeader === "teacher" ? "teacher" : "student",
-  };
+  verifyToken(token)
+    .then((decoded) => {
+      if (!decoded || !decoded.id) {
+        return res.status(401).json({
+          error: "Invalid token. Please log in again.",
+        });
+      }
 
-  next();
+      req.user = {
+        id: String(decoded.id),
+        // Routes compare against lowercase "teacher"; the DB stores TEACHER.
+        role: String(decoded.role || "student").toLowerCase(),
+      };
+
+      return next();
+    })
+    .catch((error) => {
+      return res.status(401).json({
+        error:
+          error && error.name === "TokenExpiredError"
+            ? "Your session has expired. Please log in again."
+            : "Invalid token. Please log in again.",
+      });
+    });
 }
 
 module.exports = { requireAuth };

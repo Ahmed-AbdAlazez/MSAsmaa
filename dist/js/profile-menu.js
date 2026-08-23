@@ -65,7 +65,7 @@
 
   function handleLogout() {
     if (!window.confirm('هل تريد بالتأكيد تسجيل الخروج من الحساب؟')) return;
-    ['userRole', 'username', 'userId'].forEach((key) => {
+    ['userRole', 'username', 'userId', 'token'].forEach((key) => {
       try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
     });
     window.location.href = 'index.html';

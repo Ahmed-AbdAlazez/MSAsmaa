@@ -115,13 +115,16 @@ async function runTests() {
     console.log('POST /api/v1/auth/login (PENDING):', pendingLoginRes.status, pendingLoginRes.body);
     if (pendingLoginRes.status !== 403) throw new Error('Pending student should not be able to log in');
 
-    // 5. Teacher Login
+    // 5. Teacher Login (credentials come from env ONLY — no hardcoded fallback)
     console.log('\n--- TEST 5: Teacher Login ---');
+    if (!process.env.TEACHER_CODE || !process.env.TEACHER_PASSWORD) {
+      throw new Error('Set TEACHER_CODE and TEACHER_PASSWORD in .env to run this test.');
+    }
     const teacherLoginRes = await request('/api/v1/auth/login', {
       method: 'POST',
       body: {
-        studentCode: process.env.TEACHER_CODE || 'TEACHER01',
-        password: process.env.TEACHER_PASSWORD || 'TeacherSecret123!',
+        studentCode: process.env.TEACHER_CODE,
+        password: process.env.TEACHER_PASSWORD,
       },
     });
     console.log('POST /api/v1/auth/login (TEACHER):', teacherLoginRes.status, {
