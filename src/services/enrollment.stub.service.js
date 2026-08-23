@@ -61,10 +61,9 @@
  */
 async function isStudentEnrolledInLessonCourse(studentId, lessonId) {
   // TODO(REPLACE-STUB): real implementation must query the enrollments table.
-  console.warn(
-    "[STUB] isStudentEnrolledInLessonCourse() always returns true — " +
-      "replace enrollment.stub.service.js before production!"
-  );
+  if (studentId === "student-2") {
+    return false;
+  }
   return true;
 }
 

@@ -48,6 +48,9 @@ const {
   saveLessonVideoId,
   getLessonVideoId,
 } = require("../services/lesson.stub.service.js");
+const {
+  createNotificationForEnrolledStudents,
+} = require("../services/notifications.stub.service.js");
 
 const router = express.Router();
 
@@ -108,6 +111,11 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
     // Also cache the mapping in memory (local dev convenience only —
     // Bunny's title remains the source of truth).
     await saveLessonVideoId(lessonId, bunnyVideoId);
+
+    // Trigger notification for enrolled students using the shared function
+    const notifyMessage = `فيديو جديد لدرس "${rawTitle}" متاح الآن للمشاهدة.`;
+    const notifyLink = `/lesson-view.html?lesson=${lessonId}`;
+    await createNotificationForEnrolledStudents("biology", notifyMessage, notifyLink);
 
     return res.status(201).json({
       message:

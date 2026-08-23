@@ -62,12 +62,16 @@ app.use("/api", require("./src/routes/materials.routes.js"));
 // PDF lesson materials API (teacher upload + enrolled student download).
 app.use("/api", materialsRoutes);
 
+const notificationsRoutes = require("./src/routes/notifications.routes.js");
+app.use("/api", notificationsRoutes);
+
 /* ==========================================================================
  * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a
  * real database + hashed passwords later).
  *
  * Login is now CODE + PASSWORD (no emails):
- *   Student:  STU-2026-01   /  Stu@2026
+ *   Student 1 (Enrolled):  STU-2026-01   /  Stu@2026
+ *   Student 2 (Not Enrolled): STU-2026-02 /  Stu@2026
  *   Teacher:  TCH-2026-01   /  Tea@2026
  * ========================================================================== */
 const DEV_ACCOUNTS = [
@@ -76,6 +80,13 @@ const DEV_ACCOUNTS = [
     code: "STU-2026-01",
     password: "Stu@2026",
     name: "أحمد محمد",
+    role: "student",
+  },
+  {
+    id: "student-2",
+    code: "STU-2026-02",
+    password: "Stu@2026",
+    name: "طالب غير مسجل",
     role: "student",
   },
   {

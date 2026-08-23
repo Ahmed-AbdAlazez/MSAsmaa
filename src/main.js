@@ -575,39 +575,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   ]);
 
-  const getNotifications = () => getStoredItems(NOTIFICATIONS_STORAGE_KEY, [
-    {
-      id: 'notify-welcome',
-      title: 'اختبار جديد متاح',
-      message: 'تم إضافة اختبار سريع في الوراثة الجزيئية.',
-      type: 'quiz',
-      read: false
-    }
-  ]);
+  let cachedNotifications = [];
 
-  const addNotification = (title, message, type = 'news') => {
-    const notifications = getNotifications();
-    notifications.unshift({
-      id: `notify-${Date.now()}`,
-      title,
-      message,
-      type,
-      read: false
-    });
-    setStoredItems(NOTIFICATIONS_STORAGE_KEY, notifications);
-    updateNotificationBadge();
+  const fetchNotifications = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return [];
+    try {
+      const data = await fetchJson('/api/notifications', {
+        headers: authHeaders(),
+      });
+      cachedNotifications = data.notifications || [];
+      return cachedNotifications;
+    } catch (error) {
+      console.warn('[notifications] Failed to fetch notifications:', error);
+      return cachedNotifications;
+    }
   };
 
-  const updateNotificationBadge = () => {
-    const unreadCount = getNotifications().filter((item) => !item.read).length;
+  const addNotification = (title, message, type = 'news') => {
+    console.warn('[notifications] Local addNotification is deprecated. Trigger notifications via backend instead.');
+  };
+
+  const updateNotificationBadge = async () => {
+    const notifications = await fetchNotifications();
+    const unreadCount = notifications.filter((item) => !item.read).length;
     document.querySelectorAll('.notification-count').forEach((badge) => {
       badge.textContent = unreadCount;
       badge.hidden = unreadCount === 0;
     });
   };
 
-  const renderNotificationsMenu = () => {
-    const notifications = getNotifications();
+  const renderNotificationsMenu = async () => {
+    const notifications = await fetchNotifications();
     const list = document.querySelector('#notification-list');
     if (!list) return;
 
@@ -617,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     list.innerHTML = notifications.slice(0, 6).map((item) => `
-      <div class="notification-item ${item.read ? '' : 'unread'}">
+      <div class="notification-item ${item.read ? '' : 'unread'}" data-id="${item.id}" data-link="${item.link || ''}">
         <div class="notification-item-icon">${item.type === 'quiz' ? '؟' : '!'}</div>
         <div>
           <h4>${item.title}</h4>
@@ -625,6 +624,29 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
     `).join('');
+
+    // Bind click events on notification items to mark read on the backend and navigate
+    list.querySelectorAll('.notification-item').forEach((item) => {
+      item.addEventListener('click', async () => {
+        const id = item.dataset.id;
+        const link = item.dataset.link;
+        try {
+          await fetchJson(`/api/notifications/${id}/read`, {
+            method: 'POST',
+            headers: authHeaders(),
+          });
+          await updateNotificationBadge();
+          if (link) {
+            window.location.href = link;
+          }
+        } catch (error) {
+          console.error('[notifications] Failed to mark read:', error);
+          if (link) {
+            window.location.href = link;
+          }
+        }
+      });
+    });
   };
 
   const escapeHTML = (value = '') => String(value)
@@ -901,7 +923,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const quizzes = getQuizzes();
         quizzes.unshift(quiz);
         setStoredItems(QUIZZES_STORAGE_KEY, quizzes);
-        addNotification('اختبار جديد من أ. أسماء', `${quiz.title} متاح الآن للطلاب.`, 'quiz');
+        
+        // Publish notification to backend
+        fetchJson('/api/notifications/quiz', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+          },
+          body: JSON.stringify({ title: quiz.title }),
+        })
+          .then(() => {
+            updateNotificationBadge();
+          })
+          .catch((err) => {
+            console.error('[quiz] Failed to notify backend:', err);
+          });
+
         renderTeacherQuizList();
         quizPanel.querySelector('#teacher-quiz-form').reset();
         draftQuestions.length = 0;
@@ -1051,27 +1089,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationBtn = document.querySelector('#notification-btn');
     const notificationMenu = document.querySelector('#notification-menu');
     if (notificationBtn && notificationMenu) {
-      notificationBtn.addEventListener('click', (event) => {
+      notificationBtn.addEventListener('click', async (event) => {
         event.stopPropagation();
-        renderNotificationsMenu();
+        await renderNotificationsMenu();
         notificationMenu.classList.toggle('show');
       });
     }
 
     const markNotificationsRead = document.querySelector('#mark-notifications-read');
     if (markNotificationsRead) {
-      markNotificationsRead.addEventListener('click', () => {
-        const notifications = getNotifications().map((item) => ({ ...item, read: true }));
-        setStoredItems(NOTIFICATIONS_STORAGE_KEY, notifications);
-        renderNotificationsMenu();
-        updateNotificationBadge();
+      markNotificationsRead.addEventListener('click', async () => {
+        try {
+          await fetchJson('/api/notifications/mark-all-read', {
+            method: 'POST',
+            headers: authHeaders(),
+          });
+          await renderNotificationsMenu();
+          await updateNotificationBadge();
+        } catch (error) {
+          console.error('[notifications] Failed to mark all read:', error);
+        }
       });
     }
 
     const mobileNotificationsBtn = document.querySelector('#mobile-notifications-btn');
     if (mobileNotificationsBtn) {
-      mobileNotificationsBtn.addEventListener('click', () => {
-        const latestNotification = getNotifications()[0];
+      mobileNotificationsBtn.addEventListener('click', async () => {
+        const notifications = await fetchNotifications();
+        const latestNotification = notifications[0];
         showToast(latestNotification?.message || 'لا توجد إشعارات جديدة الآن.', latestNotification?.type === 'quiz' ? 'success' : 'warning');
       });
     }
