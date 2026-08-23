@@ -1902,6 +1902,10 @@ document.addEventListener('DOMContentLoaded', () => {
           });
 
           if (!outcome.ok) {
+            const rawError = String(outcome.error || '');
+            if (/failed to fetch|networkerror|load failed/i.test(rawError)) {
+              throw new Error('انقطع الاتصال أثناء رفع الفيديو. تأكدي من الشبكة وحاولي مرة أخرى.');
+            }
             throw new Error(outcome.error || 'فشل رفع الملف.');
           }
         } else {
@@ -1933,12 +1937,19 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText.textContent = 'تم الرفع! جاري معالجة الفيديو على Bunny...';
 
         // Step 3: poll encoding status until the video is watchable.
+        // A single failed poll (network blip, radio handoff, laptop sleep)
+        // must NOT abort the flow — the upload itself already succeeded and
+        // Bunny keeps encoding. Only give up after several consecutive
+        // failures.
+        let pollFailures = 0;
+        const MAX_POLL_FAILURES = 6;
         const poll = setInterval(async () => {
           try {
             const st = await fetchJson(
               `${API_BASE}/api/lessons/${lessonId}/video-status`,
               { headers: authHeaders }
             );
+            pollFailures = 0;
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
             UploadFloat.update(Math.max(st.encodeProgress || 0, 5), 'جاري معالجة الفيديو على Bunny...');
 
@@ -1958,10 +1969,18 @@ document.addEventListener('DOMContentLoaded', () => {
               uploadBtn.disabled = false;
             }
           } catch (pollError) {
-            clearInterval(poll);
-            statusText.textContent = pollError.message;
-            UploadFloat.fail(pollError.message);
-            uploadBtn.disabled = false;
+            pollFailures += 1;
+            if (pollFailures >= MAX_POLL_FAILURES) {
+              clearInterval(poll);
+              statusText.textContent =
+                'انقطعت المراقبة أثناء معالجة الفيديو، لكن الملف مرفوع. حدّثي صفحة الدرس بعد قليل للتحقق.';
+              showToast('فقدنا الاتصال بمراقبة المعالجة. الملف مرفوع على Bunny وسيظهر في الدرس عند جهوزه.', 'warning');
+              UploadFloat.fail('انقطعت مراقبة المعالجة.');
+              uploadBtn.disabled = false;
+            } else {
+              statusText.textContent =
+                `تعذر التحقق مؤقتاً — سنعيد المحاولة (${pollFailures}/${MAX_POLL_FAILURES})...`;
+            }
           }
         }, 5000);
       } catch (error) {

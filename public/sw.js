@@ -102,39 +102,58 @@ async function runJob(job) {
       job.blob &&
       typeof job.blob.stream === "function";
 
-    if (supportsStreaming) {
-      const total = job.blob.size || 1;
-      let sent = 0;
-      let lastPct = -1;
-      const counter = new TransformStream({
-        transform(chunk, controller) {
-          sent += chunk.byteLength || 0;
-          const pct = Math.min(99, Math.round((sent * 100) / total));
-          if (pct !== lastPct) {
-            lastPct = pct;
-            broadcast({ type: "progress", jobId: job.id, pct });
-          }
-          controller.enqueue(chunk);
-        },
+    /** One network attempt. Throws on network failure or non-2xx. */
+    const attemptPut = async (body) => {
+      const res = await fetch(job.url, {
+        method: job.method || "PUT",
+        headers: job.headers || {},
+        body,
+        ...(body && typeof body.pipeThrough === "function"
+          ? { duplex: "half" }
+          : {}),
       });
+      if (!res.ok) {
+        throw new Error(`فشل رفع الملف (${res.status}).`);
+      }
+      return res;
+    };
 
-      response = await fetch(job.url, {
-        method: job.method || "PUT",
-        headers: job.headers || {},
-        body: job.blob.stream().pipeThrough(counter),
-        duplex: "half",
-      });
-    } else {
-      response = await fetch(job.url, {
-        method: job.method || "PUT",
-        headers: job.headers || {},
-        body: job.blob,
-      });
+    try {
+      if (supportsStreaming) {
+        const total = job.blob.size || 1;
+        let sent = 0;
+        let lastPct = -1;
+        const counter = new TransformStream({
+          transform(chunk, controller) {
+            sent += chunk.byteLength || 0;
+            const pct = Math.min(99, Math.round((sent * 100) / total));
+            if (pct !== lastPct) {
+              lastPct = pct;
+              broadcast({ type: "progress", jobId: job.id, pct });
+            }
+            controller.enqueue(chunk);
+          },
+        });
+
+        response = await attemptPut(
+          job.blob.stream().pipeThrough(counter)
+        );
+      } else {
+        throw new Error("streaming unsupported");
+      }
+    } catch (streamError) {
+      // Streaming can fail on some networks/servers (connection reset mid
+      // stream, HTTP/1.1 negotiation...). Retry ONCE with a plain one-shot
+      // blob — but only for NETWORK errors; HTTP status errors (401/400...)
+      // would just fail identically and must not trigger a full re-send.
+      const msg = String((streamError && streamError.message) || streamError);
+      const isNetworkError =
+        streamError instanceof TypeError ||
+        /failed to fetch|networkerror|load failed|internetconnect/i.test(msg);
+      if (!isNetworkError) throw streamError;
+      console.warn("[sw-upload] streaming PUT failed, retrying plain:", streamError);
+      response = await attemptPut(job.blob);
       broadcast({ type: "progress", jobId: job.id, pct: 100 });
-    }
-
-    if (!response.ok) {
-      throw new Error(`فشل رفع الملف (${response.status}).`);
     }
 
     // Optional server-side step after the raw bytes landed (PDF finalize:
