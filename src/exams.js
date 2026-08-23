@@ -105,18 +105,18 @@ function examCardHtml(exam) {
 
   return `
   <article class="exam-card" data-exam-id="${exam.id}">
-    <div>
+    <div class="exam-card-top">
       <div class="exam-title">${escapeHtml(exam.title)}</div>
-      <div class="exam-meta">
-        <span>📘 ${escapeHtml(lessonName || exam.lessonId)}</span>
-        <span>🕒 تبدأ: ${formatDateTime(exam.startTime)}</span>
-        <span>⏹ تنتهي: ${formatDateTime(exam.endTime)}</span>
-        <span>⏱ المدة: ${exam.durationMinutes} دقيقة</span>
-        <span>❓ ${exam.questionCount} سؤال</span>
-      </div>
-    </div>
-    <div style="display:flex; align-items:center; gap:.6rem;">
       <span class="exam-status ${exam.status}">${STATUS_LABELS[exam.status]}</span>
+    </div>
+    <div class="exam-meta">
+      <span>📘 ${escapeHtml(lessonName || exam.lessonId)}</span>
+      <span>🕒 تبدأ: ${formatDateTime(exam.startTime)}</span>
+      <span>⏹ تنتهي: ${formatDateTime(exam.endTime)}</span>
+      <span>⏱ المدة: ${exam.durationMinutes} دقيقة</span>
+      <span>❓ ${exam.questionCount} سؤال</span>
+    </div>
+    <div class="exam-foot">
       ${action}
     </div>
   </article>`;
@@ -130,7 +130,7 @@ function renderExams(exams, tab) {
   all.innerHTML =
     exams.length === 0
       ? '<p class="muted">لا توجد اختبارات متاحة حالياً.</p>'
-      : exams.map(examCardHtml).join("");
+      : `<div class="exam-grid">${exams.map(examCardHtml).join("")}</div>`;
 
   // Grouped-by-lesson view.
   const groups = new Map();
@@ -152,8 +152,10 @@ function renderExams(exams, tab) {
                 if (found) lessonName = found.name;
               }
             }
-            return `<h3 class="exam-group-title">📘 ${escapeHtml(lessonName)}</h3>
-                    ${lessonExams.map(examCardHtml).join("")}`;
+            return `<section class="exam-group">
+                      <h3 class="exam-group-title">📘 ${escapeHtml(lessonName)}</h3>
+                      <div class="exam-grid">${lessonExams.map(examCardHtml).join("")}</div>
+                    </section>`;
           })
           .join("");
 
@@ -171,10 +173,23 @@ function showTab(tab) {
 }
 
 async function loadHub() {
-  const { ok, data } = await api("GET", "/api/quizzes/available");
+  const { ok, status, data } = await api("GET", "/api/quizzes/available");
   if (!ok) {
+    // Surface the REAL failure (status + backend message) to the console
+    // so a generic "confirm login" message never hides the actual cause.
+    console.error(
+      "[exams] failed to load /api/quizzes/available:",
+      status,
+      data && data.error ? data.error : data
+    );
+    const reason =
+      status === 401
+        ? "تعذر تحميل الاختبارات. تأكدي من تسجيل الدخول."
+        : status === 0
+          ? "تعذر الوصول للسيرفر. تأكدي من تشغيله ثم أعيدي التحميل."
+          : `تعذر تحميل الاختبارات (خطأ ${status}).`;
     document.getElementById("exams-by-lesson").innerHTML =
-      '<p class="muted">تعذر تحميل الاختبارات. تأكدي من تسجيل الدخول.</p>';
+      `<p class="muted">${reason}</p>`;
     document.getElementById("exams-all").innerHTML = "";
     return;
   }

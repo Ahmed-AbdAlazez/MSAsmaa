@@ -796,11 +796,11 @@ async function runTests() {
       "still-open quizzes labeled 'active' (quiz5)",
       byId.get(quiz5) && byId.get(quiz5).status === "active"
     );
-    const teacherBlockedFromHub = await req("GET", "/api/quizzes/available", {
+    const teacherHubPreview = await req("GET", "/api/quizzes/available", {
       token: teacher,
     });
-    check("teacher cannot use the student exams feed -> 403",
-      teacherBlockedFromHub.status === 403);
+    check("teacher can preview the exams feed -> 200",
+      teacherHubPreview.status === 200);
 
     /* ================================================================
      * TEST 12 - NOTIFICATION on publish (shared helper reused)

@@ -127,16 +127,18 @@ async function autoSubmitExpiredAttempt(attempt, quiz) {
 }
 
 /* ------------------------------------------------------------------ *
- * GET /quizzes/available - Exams Hub feed for the STUDENT.
- * Returns every quiz the student can see with its lesson, timing and a
- * FRESH server-computed status (upcoming | active | ended). Defined in
- * this router and mounted BEFORE the creation router so the literal path
- * is never captured by GET /quizzes/:quizId (which is teacher-only).
+ * GET /quizzes/available - Exams Hub feed.
+ * Returns every quiz with its lesson, timing and a FRESH server-computed
+ * status (upcoming | active | ended). Defined in this router and mounted
+ * BEFORE the creation router so the literal path is never captured by
+ * GET /quizzes/:quizId (which is teacher-only). Any logged-in user may
+ * call it: students consume the feed, teachers preview the hub exactly
+ * as students see it. The payload contains NO student-specific data.
  *
  * FUTURE DB: quizzes joined to the enrollments table so only quizzes of
  * enrolled courses are returned; today the enrollment stub passes.
  * ------------------------------------------------------------------ */
-router.get("/quizzes/available", requireAuth, requireStudent, async (req, res) => {
+router.get("/quizzes/available", requireAuth, async (req, res) => {
   const quizzes = await listAllQuizzes();
   const now = Date.now();
 
