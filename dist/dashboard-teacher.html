@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Theme bootstrap: runs before first paint so there is no flash of the
+    // wrong theme. Stored choice wins; otherwise follow the OS preference.
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <title>لوحة تحكم المعلم | منصة المرسال</title>
+  <meta name="description"
+    content="لوحة التحكم الخاصة بمعلم المادة لمتابعة درجات طلاب الثانوية العامة ونسب حضورهم وتسليماتهم.">
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-BiZckyoG.ico?v=2">
+  <link rel="icon" type="image/png" href="/assets/favicon-NYif2_Ic.png?v=2">
+  <script type="module" crossorigin src="/assets/main-CaQxV7B6.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/main-DJY2E0iA.css">
+</head>
+
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">الرئيسية</a></li>
+        <li><a href="course-biology.html" class="nav-link">الأحياء (3ث)</a></li>
+        <li><a href="assignments.html" class="nav-link">الواجبات</a></li>
+        <li><a href="chatbots.html" class="nav-link">المحادثات</a></li>
+        <li><a href="dashboard-student.html" class="nav-link">لوحة الطالب</a></li>
+        <li><a href="dashboard-teacher.html" class="nav-link active">لوحة المعلم</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري"><span class="ti-sun">☀️</span><span class="ti-moon">🌙</span></button>
+        <div class="nav-auth-container"></div>
+        <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Drawer Overlay & Sidebar -->
+  <div class="drawer-overlay"></div>
+  <div class="mobile-drawer">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </div>
+      <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري"><span class="ti-sun">☀️</span><span class="ti-moon">🌙</span></button>
+      <button class="mobile-drawer-close">✕</button>
+    </div>
+    <ul class="mobile-links">
+      <li><a href="index.html" class="mobile-link">الرئيسية</a></li>
+      <li><a href="course-biology.html" class="mobile-link">الأحياء (3ث)</a></li>
+      <li><a href="assignments.html" class="mobile-link">الواجبات</a></li>
+      <li><a href="chatbots.html" class="mobile-link">المحادثات</a></li>
+      <li><a href="dashboard-student.html" class="mobile-link">لوحة الطالب</a></li>
+      <li><a href="dashboard-teacher.html" class="mobile-link active">لوحة المعلم</a></li>
+    </ul>
+    <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
+  </div>
+
+  <!-- Dashboard Workspace -->
+  <main class="dashboard-layout">
+    <div class="container">
+
+      <!-- Dashboard Header -->
+      <div class="dashboard-header">
+        <div class="dashboard-userinfo">
+          <h1>لوحة إدارة المعلمة 👩‍🏫</h1>
+          <p class="text-muted">الأستاذة أسماء مرسال | إدارة دفعة الأحياء 2026</p>
+        </div>
+        <div style="display:flex; gap:0.75rem;">
+          <button id="btn-teacher-export" class="btn btn-secondary">📊 تصدير درجات الطلاب</button>
+          <button id="btn-teacher-add" class="btn btn-primary">➕ إضافة طالب جديد</button>
+        </div>
+      </div>
+
+      <!-- Overview Cards Grid -->
+      <div class="stat-grid">
+        <!-- Card 1 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(16, 185, 129, 0.08); color: var(--color-accent-dark);">
+            👨‍🎓</div>
+          <div>
+            <div class="stat-value">240</div>
+            <div class="stat-label">إجمالي الطلاب</div>
+          </div>
+        </div>
+        <!-- Card 2 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(217, 119, 6, 0.08); color: var(--color-warning);">📤
+          </div>
+          <div>
+            <div class="stat-value">88%</div>
+            <div class="stat-label">نسبة تسليم الواجبات</div>
+          </div>
+        </div>
+        <!-- Card 3 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(15, 76, 58, 0.08); color: var(--color-primary);">📈</div>
+          <div>
+            <div class="stat-value">84%</div>
+            <div class="stat-label">متوسط درجات الدفعة</div>
+          </div>
+        </div>
+        <!-- Card 4 -->
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: rgba(239, 68, 68, 0.08); color: var(--color-danger);">⏳</div>
+          <div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">واجبات معلقة للتصحيح</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Upload Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">رفع فيديوهات الشرح 🎬</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="upload-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="upload-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-top:1rem;">
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم الفيديو *</label>
+            <input id="upload-title" type="text" placeholder="شرح الدعامة في النبات"
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط ملف إضافي PDF / وسائط (اختياري)</label>
+            <input id="upload-attachment" type="url" placeholder="https://drive.google.com/..."
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;" dir="ltr">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف الفيديو *</label>
+            <input id="upload-file" type="file" accept="video/*"
+              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-pdf-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف PDF للدرس (اختياري)</label>
+            <input id="upload-pdf-file" type="file" accept="application/pdf,.pdf"
+              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+        </div>
+
+        <div style="margin-top:1rem;">
+          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس (اختياري)</label>
+          <textarea id="upload-description" rows="3" placeholder="ملخص محتوى الشرح، المصادر، تعليمات للطلاب..."
+            style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
+          <button id="btn-upload-video" class="btn btn-primary" style="min-width:160px;">⬆ رفع الفيديو</button>
+          <button id="btn-upload-material" class="btn btn-secondary" style="min-width:170px;">رفع PDF فقط</button>
+        </div>
+
+        <div id="upload-progress-area" style="display:none; margin-top:1.25rem;">
+          <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-status-text">جاري الرفع...</div>
+          <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
+            <div id="upload-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Management Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">إدارة الفيديوهات المرفوعة 🛠️</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="manage-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="manage-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="manage-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="manage-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-videos" class="btn btn-secondary" style="min-width:130px;">📋 عرض الفيديوهات</button>
+        </div>
+
+        <div id="manage-videos-list" style="margin-top:1.25rem;"></div>
+
+        <!-- Edit form (hidden until تعديل is clicked) -->
+        <div id="video-edit-form" style="display:none; margin-top:1.25rem; padding:1.25rem; background-color:var(--color-bg); border-radius:var(--radius-md);">
+          <input type="hidden" id="edit-video-id">
+          <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+            <div style="flex:2; min-width:200px;">
+              <label for="edit-name" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم الفيديو</label>
+              <input id="edit-name" type="text" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+            </div>
+            <div style="flex:2; min-width:200px;">
+              <label for="edit-move-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">نقل إلى درس (اختياري)</label>
+              <select id="edit-move-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"><option value="">— إبقاء الدرس الحالي —</option></select>
+            </div>
+          </div>
+          <div style="margin-top:1rem;">
+            <label for="edit-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط الملف الإضافي</label>
+            <input id="edit-attachment" type="url" dir="ltr" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="margin-top:1rem;">
+            <label for="edit-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس</label>
+            <textarea id="edit-description" rows="3" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
+          </div>
+          <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
+            <button id="btn-save-edit" class="btn btn-primary">💾 حفظ التعديلات</button>
+            <button id="btn-cancel-edit" class="btn btn-light">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lesson PDF Materials Management Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">إدارة مواد الدرس PDF 📄</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="materials-manage-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="materials-manage-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="materials-manage-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="materials-manage-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-materials" class="btn btn-secondary" style="min-width:130px;">📋 عرض ملفات PDF</button>
+        </div>
+
+        <div id="manage-materials-list" style="margin-top:1.25rem;"></div>
+
+        <!-- Rename form (hidden until تعديل is clicked) -->
+        <div id="material-edit-form" style="display:none; margin-top:1.25rem; padding:1.25rem; background-color:var(--color-bg); border-radius:var(--radius-md);">
+          <input type="hidden" id="edit-material-id">
+          <label for="edit-material-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم المادة</label>
+          <input id="edit-material-title" type="text" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
+            <button id="btn-save-material-edit" class="btn btn-primary">💾 حفظ الاسم الجديد</button>
+            <button id="btn-cancel-material-edit" class="btn btn-light">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Records Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">قائمة أداء الطلاب وتتبع الحضور</h2>
+
+      <!-- Table Container -->
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>اسم الطالب</th>
+                <th>الباب الحالي</th>
+                <th>الدروس المنجزة</th>
+                <th>درجة آخر واجب</th>
+                <th>حالة التقدم بالمنصة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row 1 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👨‍🎓</span> عمر مصطفى كمال
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٣ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-primary);">٩ / ١٠</td>
+                <td><span class="badge badge-success">مكتمل النشاط</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('عمر مصطفى سجل دخولاً آخر مرة منذ ساعتين.', 'success')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👩‍🎓</span> سارة عبد الرحمن
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٤ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-primary);">١٠ / ١٠</td>
+                <td><span class="badge badge-success">ممتاز</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('سارة عبد الرحمن أنهت الباب بالكامل!', 'success')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👨‍🎓</span> يوسف طارق علام
+                </td>
+                <td>التنسيق الهرموني</td>
+                <td>١ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-warning);">٦ / ١٠</td>
+                <td><span class="badge badge-warning">مراجعة مطلوبة</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('يوسف طارق يحتاج لمتابعة في الدعامة.', 'warning')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 4 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👨‍🎓</span> أحمد محمد الشافعي
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٣ / ٤ دروس</td>
+                <td style="font-weight: 700; color: var(--color-primary);">٩ / ١٠</td>
+                <td><span class="badge badge-success">مكتمل النشاط</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('أحمد محمد مسجل دخول حالياً.', 'success')">تتبع الدخول</button>
+                </td>
+              </tr>
+              <!-- Row 5 -->
+              <tr>
+                <td style="font-weight: 700; display:flex; align-items:center; gap: 0.5rem;">
+                  <span style="font-size: 1.5rem;">👩‍🎓</span> مريم حسن علي
+                </td>
+                <td>الدعامة والحركة</td>
+                <td>٢ / ٤ دروس</td>
+                <td>--</td>
+                <td><span class="badge badge-danger">لم يسلم بعد</span></td>
+                <td>
+                  <button class="btn btn-light" style="font-size:0.8rem; padding: 0.35rem 0.75rem;"
+                    onclick="showToast('مريم حسن تأخرت عن موعد واجب الحركة.', 'danger')">تتبع الدخول</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>🧬 منصة المرسال</h3>
+          <p>منصة تعليمية متطورة لتدريس مادة الأحياء لطلاب الثانوية العامة في جمهورية مصر العربية. نسعى لتبسيط العلوم
+            الحيوية وبناء عقول علمية تعتمد على الفهم وليس التلقين.</p>
+        </div>
+        <div>
+          <h4 class="footer-links-title">أقسام المنهج</h4>
+          <ul class="footer-links">
+            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="assignments.html" class="footer-link">بنك الأسئلة والواجبات</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">روابط سريعة</h4>
+          <ul class="footer-links">
+            <li><a href="#" class="footer-link js-login-trigger">بوابة الدخول</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/curriculum.js"></script>
+  <script src="/js/profile-menu.js"></script>
+</body>
+
+</html>

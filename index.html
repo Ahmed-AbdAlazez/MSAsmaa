@@ -296,14 +296,15 @@
 
   <!-- Sama mascot + homepage effects (each independent, load order matters:
        mascot first, then the effects that attach to it) -->
-  <script src="js/components/samaMascot.js"></script>
-  <script src="js/components/mascotEyeTracking.js"></script>
-  <script src="js/components/mascotNavHover.js"></script>
-  <script src="js/components/scrollBiology.js"></script>
+  <script src="/js/components/samaMascot.js"></script>
+  <script src="/js/components/mascotEyeTracking.js"></script>
+  <script src="/js/components/mascotNavHover.js"></script>
+  <script src="/js/components/scrollBiology.js"></script>
 
-  <script src="js/components/anatomyScrollSection.js"></script>
+  <!-- GSAP is bundled via npm imports inside this module (see vite.config.js) -->
+  <script type="module" src="/src/anatomyScrollSection.js"></script>
 
-  <script src="js/profile-menu.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script src="/js/profile-menu.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

@@ -16,7 +16,6 @@
 
 require("dotenv").config();
 
-const path = require("path");
 const express = require("express");
 
 const videoRoutes = require("./src/routes/video.routes.js");
@@ -44,9 +43,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve the static frontend from the project root (local dev only;
-// on Vercel the platform serves static files itself).
-app.use(express.static(path.join(__dirname)));
+// Pure API server: no static file serving. The frontend is served by the
+// Vite dev server in development (which proxies /api here) and by `vite
+// preview` / static hosting (Vercel) in production.
 
 // Real video API (upload prep + signed playback URLs).
 app.use("/api/lessons", videoRoutes);

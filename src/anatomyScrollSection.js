@@ -5,6 +5,9 @@
  * one scrubbed GSAP timeline with ScrollTrigger. No Intersection Observer or
  * hand-built scroll percentage logic is used for the layer reveal.
  */
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
 (() => {
   const mount = document.querySelector('[data-anatomy-scroll-section]');
   if (!mount) return;
@@ -76,14 +79,7 @@
     </section>
   `;
 
-  if (!window.gsap || !window.ScrollTrigger) {
-    mount.querySelector('.anatomy-scroll')?.classList.add('anatomy-scroll--static');
-    return;
-  }
-
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const gsap = window.gsap;
-  const ScrollTrigger = window.ScrollTrigger;
   gsap.registerPlugin(ScrollTrigger);
 
   const section = mount.querySelector('.anatomy-scroll');
