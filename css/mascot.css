@@ -25,6 +25,8 @@
   --sama-pupil-color: var(--color-primary-dark);
   --sama-cheek-color: rgba(15, 76, 58, 0.10);
   --sama-tube: var(--color-accent-blue);      /* #14B8A6 teal stethoscope */
+  --sama-badge-bg: #ffffff;                   /* hover accessory chip */
+  --sama-badge-border: rgba(15, 76, 58, 0.14);
 }
 
 
@@ -161,10 +163,10 @@ body.sama-eyes-live .sama-pupil {
   align-items: center;
   justify-content: center;
 
-  background: #fff;
+  background: var(--sama-badge-bg);
   color: var(--color-primary-light);
   border-radius: 50%;
-  border: 2px solid rgba(15, 76, 58, 0.14);
+  border: 2px solid var(--sama-badge-border);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 
   opacity: 0;

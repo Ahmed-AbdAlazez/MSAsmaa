@@ -32,6 +32,108 @@
   --radius-lg: 1.25rem;
   
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Semantic aliases — text/surfaces that must adapt between themes.
+     Light values mirror the hardcoded colors they replace. */
+  --color-heading: #093327;            /* headings / deep-green text */
+  --color-primary-ink: #0F4C3A;        /* brand green used as text/icons/bars */
+  --navbar-bg: rgba(255, 255, 255, 0.8);
+  --navbar-border: var(--color-border);
+  --surface-glass: rgba(255, 255, 255, 0.92);
+  --surface-glass-strong: rgba(255, 255, 255, 0.88);
+  --surface-solid: #FFFFFF;
+  --input-bg: rgba(255, 255, 255, 0.94);
+  --row-hover: rgba(248, 250, 252, 0.8);
+  --bubble-warm: #FFFAF0;              /* warm teacher-chat bubble */
+  --soft-tint: linear-gradient(135deg, rgba(15, 76, 58, 0.07), rgba(6, 182, 212, 0.07));
+  --progress-track: rgba(15, 76, 58, 0.15);
+  --bg-canvas:
+    radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.12) 0, transparent 28%),
+    radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.12) 0, transparent 26%),
+    radial-gradient(circle at 70% 85%, rgba(6, 182, 212, 0.1) 0, transparent 22%),
+    linear-gradient(180deg, #f4fffb 0%, #f8fafc 18%, #f7fbf7 100%);
+  --hero-bg: linear-gradient(135deg, var(--surface-glass) 0%, rgba(247, 255, 251, 0.96) 45%, rgba(241, 253, 250, 0.88) 100%);
+  --section-alt-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 252, 249, 0.96) 100%);
+  --cell-art-bg: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.88) 0%, rgba(240, 255, 249, 0.8) 22%, rgba(255, 255, 255, 0.94) 58%, rgba(16, 185, 129, 0.03) 100%);
+  --cell-art-border: rgba(15, 76, 58, 0.12);
+}
+
+/* ==========================================================================
+   DARK THEME — swaps token values only; components never duplicate styles.
+   Accent greens shift lighter here so they stay legible on dark surfaces.
+   ========================================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #0C1420;
+  --color-surface: #14212F;
+  --color-text-main: #E6EDF5;
+  --color-text-muted: #9DB0C3;
+  --color-border: #263B52;
+
+  --color-heading: #D6F5E8;            /* mint-white headings */
+  --color-primary-ink: #5EEAD4;        /* teal-mint brand text */
+  --color-accent-dark: #34D399;        /* brighter green for small text */
+  --color-warning: #FBBF24;            /* amber that reads on dark */
+
+  --navbar-bg: rgba(12, 20, 32, 0.82);
+  --navbar-border: rgba(38, 59, 82, 0.9);
+  --surface-glass: rgba(20, 33, 47, 0.92);
+  --surface-glass-strong: rgba(20, 33, 47, 0.88);
+  --surface-solid: #16273A;
+  --input-bg: rgba(9, 16, 25, 0.65);
+  --row-hover: rgba(36, 54, 76, 0.55);
+  --bubble-warm: #2E2718;
+  --soft-tint: linear-gradient(135deg, rgba(110, 231, 183, 0.1), rgba(6, 182, 212, 0.12));
+  --progress-track: rgba(110, 231, 183, 0.22);
+
+  --bg-canvas:
+    radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.14) 0, transparent 28%),
+    radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.1) 0, transparent 26%),
+    radial-gradient(circle at 70% 85%, rgba(6, 182, 212, 0.08) 0, transparent 22%),
+    linear-gradient(180deg, #0C1420 0%, #0D1622 55%, #0C141F 100%);
+  --hero-bg: linear-gradient(135deg, rgba(12, 20, 32, 0.72) 0%, rgba(13, 26, 34, 0.92) 45%, rgba(11, 25, 30, 0.88) 100%);
+  --section-alt-bg: linear-gradient(180deg, rgba(12, 20, 32, 0.55) 0%, rgba(14, 26, 36, 0.92) 100%);
+  --cell-art-bg: radial-gradient(circle at 35% 35%, rgba(33, 51, 70, 0.95) 0%, rgba(21, 36, 52, 0.9) 30%, rgba(14, 25, 37, 0.96) 70%, rgba(16, 185, 129, 0.05) 100%);
+  --cell-art-border: rgba(110, 231, 183, 0.28);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.45);
+}
+
+/* Theme toggle button (desktop nav + mobile drawer) */
+.theme-toggle {
+  width: 2.65rem;
+  height: 2.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--surface-glass-strong);
+  color: var(--color-primary-ink);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.theme-toggle:hover {
+  transform: scale(1.06);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.theme-toggle .ti-moon { display: none; }
+[data-theme="dark"] .theme-toggle .ti-sun { display: none; }
+[data-theme="dark"] .theme-toggle .ti-moon { display: inline; }
+
+@media (max-width: 480px) {
+  .theme-toggle {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+  }
 }
 
 /* Base Resets */
@@ -43,11 +145,7 @@
 
 body {
   font-family: var(--font-family);
-  background:
-    radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.12) 0, transparent 28%),
-    radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.12) 0, transparent 26%),
-    radial-gradient(circle at 70% 85%, rgba(6, 182, 212, 0.1) 0, transparent 22%),
-    linear-gradient(180deg, #f4fffb 0%, #f8fafc 18%, #f7fbf7 100%);
+  background: var(--bg-canvas);
   color: var(--color-text-main);
   line-height: 1.6;
   direction: rtl;
@@ -114,7 +212,7 @@ img {
 /* Typography Helpers */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   line-height: 1.3;
 }
 
@@ -123,8 +221,8 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Navigation Bar */
 .navbar {
-  background: rgba(255, 255, 255, 0.8);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  background: var(--navbar-bg);
+  border-bottom: 1px solid var(--navbar-border);
   backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
@@ -145,7 +243,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.5rem;
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   letter-spacing: 0.01em;
 }
 
@@ -177,7 +275,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nav-link:hover, .nav-link.active {
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .nav-link::after {
@@ -187,7 +285,7 @@ h1, h2, h3, h4, h5, h6 {
   left: 0;
   width: 0;
   height: 2px;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-ink);
   transition: var(--transition);
 }
 
@@ -272,7 +370,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .mobile-link:hover, .mobile-link.active {
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   border-bottom-color: var(--color-border);
 }
 
@@ -312,7 +410,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary {
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-ink);
   color: white;
 }
 
@@ -323,8 +421,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-secondary {
   background-color: var(--color-surface);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  color: var(--color-primary-ink);
+  border-color: var(--color-primary-ink);
 }
 
 .btn-secondary:hover {
@@ -384,7 +482,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Cards */
 .card {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.92) 100%);
+    var(--surface-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
@@ -413,7 +511,7 @@ h1, h2, h3, h4, h5, h6 {
 .card-title {
   font-size: 1.25rem;
   margin-bottom: 0.75rem;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
 }
 
 .card-img-placeholder {
@@ -492,7 +590,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Footer */
 .footer {
-  background-color: var(--color-primary-dark);
+  background-color: var(--color-heading);
   color: rgba(255, 255, 255, 0.8);
   padding: 4rem 0 2rem;
   margin-top: auto;
@@ -566,7 +664,7 @@ h1, h2, h3, h4, h5, h6 {
 .hero {
   padding: 5rem 0;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(247, 255, 251, 0.96) 45%, rgba(241, 253, 250, 0.88) 100%);
+    var(--hero-bg);
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid var(--color-border);
@@ -626,7 +724,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .hero-title span {
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-accent-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -653,9 +751,9 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.45rem;
   padding: 0.65rem 1rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--surface-glass-strong);
   border: 1px solid rgba(16, 185, 129, 0.18);
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
   font-weight: 700;
   font-size: 0.9rem;
@@ -688,8 +786,8 @@ h1, h2, h3, h4, h5, h6 {
   max-width: 380px;
   height: 380px;
   background:
-    radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.88) 0%, rgba(240, 255, 249, 0.8) 22%, rgba(255, 255, 255, 0.94) 58%, rgba(16, 185, 129, 0.03) 100%);
-  border: 1px solid rgba(15, 76, 58, 0.12);
+    var(--cell-art-bg);
+  border: 1px solid var(--cell-art-border);
   border-radius: 60% 40% 70% 30% / 40% 60% 40% 60%; /* Biomorphic shape resembling a biological cell */
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08), inset 0 0 40px rgba(15, 76, 58, 0.08);
   position: relative;
@@ -755,7 +853,7 @@ h1, h2, h3, h4, h5, h6 {
 .curriculum-section {
   padding: 6rem 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 252, 249, 0.96) 100%);
+    var(--section-alt-bg);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
@@ -847,7 +945,7 @@ h1, h2, h3, h4, h5, h6 {
 .auth-logo {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   margin-bottom: 0.5rem;
 }
 
@@ -872,7 +970,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.95rem;
   outline: none;
   transition: var(--transition);
-  background-color: rgba(255, 255, 255, 0.94);
+  background-color: var(--input-bg);
 }
 
 .form-input:focus {
@@ -894,7 +992,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1.25rem;
   padding: 0.35rem;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, rgba(15, 76, 58, 0.07), rgba(6, 182, 212, 0.07));
+  background: var(--soft-tint);
 }
 
 .auth-mode-btn {
@@ -912,7 +1010,7 @@ h1, h2, h3, h4, h5, h6 {
 .auth-mode-btn:hover,
 .auth-mode-btn.active {
   background: var(--color-surface);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   box-shadow: var(--shadow-sm);
 }
 
@@ -951,7 +1049,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .password-toggle:hover {
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .password-requirements {
@@ -995,9 +1093,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .role-radio:checked + .role-label {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-ink);
   background-color: rgba(15, 76, 90, 0.04);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .form-footer {
@@ -1058,7 +1156,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 3.5rem;
   border-radius: var(--radius-md);
   background-color: rgba(15, 76, 58, 0.08);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1068,7 +1166,7 @@ h1, h2, h3, h4, h5, h6 {
 .stat-value {
   font-size: 1.75rem;
   font-weight: 800;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   line-height: 1.2;
 }
 
@@ -1103,7 +1201,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(16, 185, 129, 0.18);
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 253, 250, 0.92) 100%);
+    var(--surface-glass);
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
 }
 
@@ -1171,7 +1269,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--surface-glass);
 }
 
 .quiz-item-icon,
@@ -1183,7 +1281,7 @@ h1, h2, h3, h4, h5, h6 {
   flex: 0 0 auto;
   border-radius: 0.8rem;
   background: rgba(16, 185, 129, 0.1);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   font-weight: 900;
 }
 
@@ -1194,7 +1292,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .quiz-item-content h4,
 .quiz-mini-row strong {
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   font-size: 0.98rem;
 }
 
@@ -1221,10 +1319,10 @@ h1, h2, h3, h4, h5, h6 {
   height: 2.65rem;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid var(--color-border);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-primary);
+  background: var(--surface-solid);
+  color: var(--color-primary-ink);
   cursor: pointer;
   transition: var(--transition);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
@@ -1271,7 +1369,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--surface-solid);
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
   opacity: 0;
   pointer-events: none;
@@ -1299,7 +1397,7 @@ h1, h2, h3, h4, h5, h6 {
 .notification-menu-header button {
   border: 0;
   background: transparent;
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   font-family: var(--font-family);
   font-weight: 700;
   cursor: pointer;
@@ -1323,8 +1421,8 @@ h1, h2, h3, h4, h5, h6 {
   place-items: center;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: white;
-  color: var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-primary-ink);
   font-weight: 900;
 }
 
@@ -1360,7 +1458,7 @@ h1, h2, h3, h4, h5, h6 {
   background-color: var(--color-bg);
   padding: 1rem;
   font-weight: 700;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   border-bottom: 2px solid var(--color-border);
 }
 
@@ -1394,7 +1492,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .assignment-info h4 {
   font-size: 1rem;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   margin-bottom: 0.25rem;
 }
 
@@ -1423,9 +1521,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .filter-btn:hover, .filter-btn.active {
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-ink);
   color: white;
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-ink);
 }
 
 /* Single Lesson Page Styles */
@@ -1535,7 +1633,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .tab-btn:hover, .tab-btn.active {
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .tab-btn.active::after {
@@ -1545,7 +1643,7 @@ h1, h2, h3, h4, h5, h6 {
   left: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-ink);
 }
 
 .tab-panel {
@@ -1577,7 +1675,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .term-arabic {
   font-weight: 700;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   font-size: 1.1rem;
   margin-bottom: 0.25rem;
 }
@@ -1614,7 +1712,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.75rem 0.5rem;
   border-radius: var(--radius-sm);
   transition: var(--transition);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .sidebar-lesson-item:last-child {
@@ -1623,7 +1721,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar-lesson-item:hover, .sidebar-lesson-item.active {
   background-color: var(--color-bg);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .sidebar-lesson-icon {
@@ -1666,7 +1764,7 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   overflow-wrap: anywhere;
 }
 
@@ -1705,7 +1803,7 @@ h1, h2, h3, h4, h5, h6 {
 .lesson-pdf-viewer-title {
   font-weight: 700;
   font-size: 0.9rem;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -1823,7 +1921,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .file-upload-drag:hover {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-ink);
   background-color: rgba(15, 76, 58, 0.02);
 }
 
@@ -1902,7 +2000,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: flex-start;
   flex-wrap: wrap;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 255, 251, 0.95) 100%);
+    var(--surface-glass);
 }
 
 .teacher-avatar-placeholder {
@@ -1932,9 +2030,9 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 1rem;
   padding: 0.8rem 1rem;
-  border: 1px solid rgba(226, 232, 240, 0.85);
+  border: 1px solid var(--color-border);
   border-radius: 1rem;
-  background: rgba(248, 250, 252, 0.72);
+  background: var(--row-hover);
   transition: var(--transition);
 }
 
@@ -1948,7 +2046,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 2.5rem;
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.14));
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1959,7 +2057,7 @@ h1, h2, h3, h4, h5, h6 {
   position: fixed;
   bottom: 2rem;
   left: 2rem;
-  background-color: var(--color-primary-dark);
+  background-color: var(--color-heading);
   color: white;
   padding: 1rem 2rem;
   border-radius: var(--radius-md);
@@ -2011,8 +2109,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .welcome-modal {
   background:
-    radial-gradient(circle at top right, rgba(16, 185, 129, 0.08) 0%, transparent 35%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 255, 250, 0.98) 100%);
+    var(--surface-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   width: 90%;
@@ -2046,7 +2143,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .welcome-modal h2 {
   font-size: 1.75rem;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   margin-bottom: 0.75rem;
 }
 
@@ -2077,7 +2174,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .teacher-profile-img:hover {
   transform: scale(1.02);
-  box-shadow: 0 20px 25px -5px rgba(15, 76, 58, 0.15);
+  box-shadow: 0 20px 25px -5px var(--progress-track);
 }
 
 .teacher-section-grid {
@@ -2089,8 +2186,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .teacher-section-grid > div:last-child {
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: var(--surface-glass);
+  border: 1px solid var(--color-border);
   padding: 2rem;
   border-radius: 1.5rem;
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
@@ -2114,7 +2211,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 0.5rem;
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   background-color: rgba(16, 185, 129, 0.08);
   padding: 0.35rem 0.85rem;
   border-radius: 50px;
@@ -2158,7 +2255,7 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   user-select: none;
   font-weight: 700;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   transition: var(--transition);
 }
 
@@ -2174,7 +2271,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .accordion-arrow {
   font-size: 1.2rem;
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   transition: transform 0.3s ease;
   display: inline-block;
 }
@@ -2243,7 +2340,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .term-title {
   font-size: 1.5rem;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid var(--color-border);
@@ -2255,15 +2352,15 @@ h1, h2, h3, h4, h5, h6 {
 .term-badge {
   font-size: 0.8rem;
   padding: 0.25rem 0.75rem;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-ink);
   color: white;
   border-radius: 50px;
 }
 
 /* Login Icon Button */
 .login-icon-btn {
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: var(--surface-glass);
+  border: 1px solid var(--color-border);
   color: var(--color-text-main);
   padding: 0.6rem;
   border-radius: 50%;
@@ -2278,7 +2375,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-icon-btn:hover {
   background-color: var(--color-border);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   transform: scale(1.05);
 }
 
@@ -2500,7 +2597,7 @@ h1, h2, h3, h4, h5, h6 {
 .chatbot-panel {
   min-height: 620px;
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
   display: flex;
@@ -2524,7 +2621,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.94));
+  background: var(--surface-solid);
 }
 
 .chatbot-identity {
@@ -2586,14 +2683,14 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.25rem;
   overflow-y: auto;
   background:
-    linear-gradient(180deg, rgba(248, 250, 252, 0.64), rgba(255, 255, 255, 0.82));
+    linear-gradient(180deg, rgba(248, 250, 252, 0.64), var(--surface-glass));
 }
 
 .chat-message {
   max-width: 86%;
   padding: 0.8rem 0.95rem;
   border-radius: 1rem;
-  border: 1px solid rgba(226, 232, 240, 0.86);
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
   line-height: 1.7;
 }
@@ -2608,19 +2705,19 @@ h1, h2, h3, h4, h5, h6 {
 
 .bot-message {
   align-self: flex-start;
-  background: white;
+  background: var(--color-surface);
   border-top-right-radius: 0.35rem;
 }
 
 .teacher-message {
-  background: #fffaf0;
+  background: var(--bubble-warm);
 }
 
 .user-message {
   align-self: flex-end;
   background: var(--color-primary);
   color: white;
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-ink);
   border-top-left-radius: 0.35rem;
 }
 
@@ -2634,7 +2731,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.75rem;
   padding: 1rem;
   border-top: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--input-bg);
 }
 
 .chatbot-input {
@@ -2693,21 +2790,21 @@ h1, h2, h3, h4, h5, h6 {
 .upload-floating-status .ufl-title {
   display: block;
   font-size: 0.9rem;
-  color: var(--color-primary-dark);
+  color: var(--color-heading);
   margin-bottom: 0.5rem;
 }
 
 .upload-floating-status .upload-progress-bar {
   height: 8px;
   border-radius: 999px;
-  background-color: rgba(15, 76, 58, 0.15);
+  background-color: var(--progress-track);
   overflow: hidden;
 }
 
 .upload-floating-status .upload-progress-bar > div {
   height: 100%;
   width: 0%;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-ink);
   transition: width 0.2s ease;
 }
 

@@ -3,6 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Theme bootstrap: runs before first paint so there is no flash of the
+    // wrong theme. Stored choice wins; otherwise follow the OS preference.
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <title>المحادثات الذكية | منصة المرسال</title>
   <meta name="description" content="محادثات تجريبية للطالب مع مساعد المنهج ومع المعلمة داخل منصة المرسال.">
   <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
@@ -27,6 +42,7 @@
         <li><a href="dashboard-teacher.html" class="nav-link">لوحة المعلم</a></li>
       </ul>
       <div class="nav-actions">
+        <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري"><span class="ti-sun">☀️</span><span class="ti-moon">🌙</span></button>
         <div class="nav-auth-container"></div>
         <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
       </div>
@@ -41,6 +57,7 @@
         <span class="brand-icon">🧬</span>
         <span>المرسال</span>
       </div>
+      <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري"><span class="ti-sun">☀️</span><span class="ti-moon">🌙</span></button>
       <button class="mobile-drawer-close">✕</button>
     </div>
     <ul class="mobile-links">
