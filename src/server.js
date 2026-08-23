@@ -22,6 +22,7 @@ const startServer = async () => {
       console.log(`[Server] Received ${signal}. Shutting down gracefully...`);
       server.close(async () => {
         await disconnectDB();
+        console.log("connecting succes with postgresql")
         process.exit(0);
       });
     };
