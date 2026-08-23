@@ -773,6 +773,164 @@ async function runTests() {
       "roster student with zero appears at bottom (not excluded)",
       courseLb.data.rankings.some((r) => r.bestScore === 0)
     );
+
+    /* ================================================================
+     * TEST 11 - FRONTEND SUPPORT: student exams feed (Exams Hub source)
+     * ================================================================ */
+    section("TEST 11: GET /quizzes/available statuses for the Exams Hub");
+    const hub = await req("GET", "/api/quizzes/available", { token: studentA });
+    const byId = new Map(hub.data.exams.map((exam) => [exam.id, exam]));
+    check(
+      "hub feed lists every quiz with lesson, timing and duration",
+      hub.status === 200 && byId.get(quiz1).lessonId === "lesson-quiz-test" &&
+        byId.get(quiz1).durationMinutes === 60,
+      JSON.stringify(hub.data).slice(0, 200)
+    );
+    check(
+      "ended quizzes labeled 'ended'  (quiz1/3/6 windows passed)",
+      ["quiz1", "quiz3", "quiz6"].every((label) =>
+        ({ quiz1, quiz3, quiz6 })[label] &&
+        byId.get({ quiz1, quiz3, quiz6 }[label]).status === "ended")
+    );
+    check(
+      "still-open quizzes labeled 'active' (quiz5)",
+      byId.get(quiz5) && byId.get(quiz5).status === "active"
+    );
+    const teacherBlockedFromHub = await req("GET", "/api/quizzes/available", {
+      token: teacher,
+    });
+    check("teacher cannot use the student exams feed -> 403",
+      teacherBlockedFromHub.status === 403);
+
+    /* ================================================================
+     * TEST 12 - NOTIFICATION on publish (shared helper reused)
+     * ================================================================ */
+    section("TEST 12: publishing a quiz notifies enrolled students");
+    const createdNotif = await req("POST", "/api/quizzes", {
+      token: teacher,
+      body: {
+        lessonId: "lesson-quiz-test",
+        courseId: "biology",
+        title: "اختبار الإشعارات",
+        questionCount: 1,
+        startTime: iso(-1000),
+        endTime: iso(+60 * 60_000),
+        durationMinutes: 20,
+      },
+    });
+    const notifQuiz = createdNotif.data.quiz.id;
+    await req("POST", `/api/quizzes/${notifQuiz}/questions`, {
+      token: teacher,
+      body: { type: "written", text: "سؤال", modelAnswer: "نموذج" },
+    });
+
+    // The notifications stub's biology roster contains "student-1" - check
+    // THAT student's bell (same shared helper the video feature uses).
+    const student1 = tokenFor("student-1", "STUDENT");
+    const notifList = await req("GET", "/api/notifications", {
+      token: student1,
+    });
+    check(
+      "enrolled student's bell shows the new-quiz notification",
+      notifList.status === 200 &&
+        notifList.data.notifications.some((n) =>
+          n.message.includes("اختبار الإشعارات")),
+      JSON.stringify(notifList.data.notifications)
+    );
+
+    /* ================================================================
+     * TEST 13 - RANDOMIZATION: persisted shuffle, differs per student
+     * ================================================================ */
+    section("TEST 13: per-attempt randomization (persisted across resume)");
+    const createdShuffle = await req("POST", "/api/quizzes", {
+      token: teacher,
+      body: {
+        lessonId: "lesson-quiz-test",
+        courseId: "course-bio-1",
+        title: "اختبار الترتيب العشوائي",
+        questionCount: 5,
+        startTime: iso(-1000),
+        endTime: iso(+30 * 60_000),
+        durationMinutes: 30,
+      },
+    });
+    const shuffleQuiz = createdShuffle.data.quiz.id;
+    // 5 MCQs x 4 choices each -> huge permutation space.
+    for (let i = 0; i < 5; i += 1) {
+      await req(`POST`, `/api/quizzes/${shuffleQuiz}/questions`, {
+        token: teacher,
+        body: {
+          type: "mcq",
+          text: `سؤال رقم ${i + 1}`,
+          choices: ["خيار أ", "خيار ب", "خيار ج", "خيار د"],
+          correctIndex: i % 4,
+        },
+      });
+    }
+
+    const sA = await req("POST", `/api/quizzes/${shuffleQuiz}/start`, {
+      token: studentA,
+    });
+    const sC = await req("POST", `/api/quizzes/${shuffleQuiz}/start`, {
+      token: studentC,
+    });
+
+    const orderOf = (startResponse) =>
+      JSON.stringify({
+        questions: startResponse.data.questions.map((q) => q.text),
+        choiceOrders: startResponse.data.questions.map(
+          (q) => q.choices && q.choices.map((c) => c.id).join("")
+        ),
+      });
+
+    check(
+      "student A and student C see DIFFERENT arrangement",
+      orderOf(sA) !== orderOf(sC),
+      "identical orders received"
+    );
+    check(
+      "every MCQ still exposes all 4 choices after shuffling",
+      sA.data.questions.every((q) => q.choices.length === 4)
+    );
+
+    // Persistence: A autosaves nothing structural, reopens -> same layout.
+    await req("POST", `/api/quizzes/${shuffleQuiz}/answers`, {
+      token: studentA,
+      body: { questionId: sA.data.questions[0].id, value: "c2" },
+    });
+    const sAreopen = await req("POST", `/api/quizzes/${shuffleQuiz}/start`, {
+      token: studentA,
+    });
+    check(
+      "resume replays the EXACT same shuffled order (not re-shuffled)",
+      sAreopen.data.status === "resumed" &&
+        JSON.stringify(sAreopen.data.questions.map((q) => q.id)) ===
+          JSON.stringify(sA.data.questions.map((q) => q.id)) &&
+        JSON.stringify(sAreopen.data.questions.map((q) =>
+          q.choices ? q.choices.map((c) => c.id).join("|") : null)) ===
+          JSON.stringify(sA.data.questions.map((q) =>
+            q.choices ? q.choices.map((c) => c.id).join("|") : null))
+    );
+
+    // Grading unaffected by shuffle: each question's text carries its
+    // creation number ("سؤال رقم N"), and the teacher set correctIndex =
+    // (N-1)%4 -> correct id c((N-1)%4+1). Answer everything correctly
+    // THROUGH THE SHUFFLED VIEW and expect 5/5.
+    const finalAnswers = {};
+    for (const q of sA.data.questions) {
+      const n = Number(q.text.match(/(\d+)/)[1]);
+      finalAnswers[q.id] = `c${((n - 1) % 4) + 1}`;
+    }
+    const shuffleSubmit = await req("POST", `/api/quizzes/${shuffleQuiz}/submit`, {
+      token: studentA,
+      body: { answers: finalAnswers },
+    });
+    check(
+      "grading matches by choice ID despite shuffled display (5/5)",
+      shuffleSubmit.data.result.score === 5 &&
+        shuffleSubmit.data.result.totalMcq === 5,
+      JSON.stringify(shuffleSubmit.data.result)
+    );
   } finally {
     server.close();
   }

@@ -398,3 +398,106 @@ a new one still requires the teacher grant (also asserted).
   harmless in production.
 - The old duplicate `src/app.js` / `src/server.js` pair predates this
   feature; production never loads them.
+
+---
+
+## 9. FRONTEND FLOW (Exams Hub, teacher builder, timer warnings)
+
+The backend above was already complete; this section covers the student and
+teacher UI that drives it.
+
+### Files added for the frontend
+
+```
+exams.html                       Exams Hub page (student-facing)
+css/exams.css                    hub + overlays + builder styles
+src/exams.js                     hub logic: tabs, take/resume, autosave,
+                                 countdown+warnings, result/leaderboard/review
+src/teacherQuizzes.js            teacher builder (flatpickr date-time pickers)
+dashboard-teacher.html           + "إنشاء اختبار جديد" section & script tag
+index/dashboard-student/dashboard-teacher/lessons/course-biology/
+assignments .html                + "الاختبارات" nav link → exams.html
+vite.config.js                   + exams build entry
+package.json                     + flatpickr dependency
+```
+
+### Teacher creation flow (dashboard-teacher.html)
+1. New section at the bottom of the teacher dashboard: title, lesson select
+   (populated from `curriculum.js`), **start/end time via flatpickr**
+   (combined calendar + clock, Arabic locale, AM/PM, 5-min steps), and a
+   **duration_minutes number field** right beside them — all three timing
+   values in one row.
+2. Timezone safety: the pickers hold real `Date` objects; publish sends
+   `selectedDates[0].toISOString()` (UTC instant) — nothing is parsed from a
+   formatted string, so no timezone shift is possible.
+3. Question builder per question: MCQ ↔ Written toggle; MCQ shows exactly 4
+   choice inputs each with a radio to mark THE correct one; Written shows a
+   model-answer box; optional image upload with instant `<img>` preview.
+4. Staged-question list shows everything added so far with type badge,
+   answer summary, image thumbnail, and ↑ / ↓ / ✕ reorder-remove buttons
+   before publishing.
+5. Publish = `POST /api/quizzes` then one multipart
+   `POST /api/quizzes/:id/questions` per staged question (progress shown).
+   The backend fires the shared enrolled-students notification on create.
+
+### Student flow (exams.html)
+- Tabs: **حسب الدرس** (grouped by lesson, names resolved from curriculum.js)
+  and **كل الاختبارات** (flat chronological list). Each card shows title,
+  lesson, start, end, duration, question count, and a server-computed status
+  badge: لم يبدأ بعد / متاح الآن / انتهى.
+- Active → opens the take overlay: questions in the attempt's persisted
+  shuffle, autosave on every change, live countdown. Ended → result overlay;
+  Upcoming → details only, no start button.
+- Countdown turns amber at ≤5 min with a toast, red pulsing at ≤1 min with
+  another toast (frontend-only; auto-submit timing remains server-owned).
+- Result overlay: score banner (MCQ-only), **this quiz's leaderboard table**
+  (or a locked note with the unlock time), and the gated review — MCQ wrong
+  picks red + correct green, right answers green-only, written answers as
+  side-by-side boxes with no grading colors.
+- Hub bottom section: **ترتيب الكورس الإجمالي** cumulative board with a note
+  listing still-open quizzes excluded from the sum.
+
+### Notifications wiring (verified/fixed)
+`POST /api/quizzes` now calls the SHARED
+`createNotificationForEnrolledStudents(courseId, message, link)` from
+`notifications.stub.service.js` — the same single implementation the video
+feature uses. It was previously NOT wired into quiz publishing (an unused
+standalone endpoint existed); it now fires automatically on publish with
+link `/exams.html`. Non-blocking: notification failure can never fail quiz
+creation.
+
+### Randomization (backend support added for the frontend rule)
+On every NEW attempt the server shuffles question order AND each MCQ's
+choice order (`generateAttemptOrdering`) and stores the permutation on the
+attempt (`attempt.ordering`). Resume replays the stored ordering
+(`applyAttemptOrdering`) instead of re-shuffling. Grading compares choice
+IDs, so display position can never affect correctness.
+
+---
+
+## 10. Frontend test plan & ACTUAL results
+
+Backend-backed checks were run automatically
+(`node src/scripts/test_quiz_workflow.js` → **58 passed, 0 failed**, latest
+run). UI behaviors were implemented and code-reviewed; browser steps below
+are the exact manual checklist.
+
+| # | Test | How verified | Actual result |
+|---|---|---|---|
+| 1 | Date/time picker saves correct instant, no TZ shift | Automated: suite sends/receives ISO instants end-to-end (all timing tests pass). Manual: pick ٢٤/٨ ٥:٣٠ م → publish → hub card shows same time. | ✅ Suite passes on ISO contract; picker emits `toISOString()` (code-verified). Browser visual check listed in steps below. |
+| 2 | Hub groups + Upcoming/Active/Ended labels | Automated (TEST 11): feed returns statuses computed server-side; ended/active asserted. Grouping is pure rendering of `lessonId`. | ✅ statuses verified by API; grouping rendered from same data. |
+| 3 | Per-quiz leaderboard on the result page after end_time | Automated (TESTS 6→8): locked before (`released:false`), released after with rankings. exams.js renders exactly these payloads inline on the result overlay. | ✅ API behavior proven; rendering maps 1:1 to response fields. |
+| 4 | Cumulative course board on the hub | Automated: course endpoint sums best scores of released quizzes only (=2/=1 checks). Hub section renders the same payload. | ✅ verified via API + same-shape render. |
+| 5 | Publishing notifies enrolled students (bell) | Automated (TEST 12): teacher publishes → GET /api/notifications for an enrolled student contains the quiz title. | ✅ **passed** (was broken/not wired — fixed). |
+| 6 | Two students see different order | Automated (TEST 13): serialized question+choice orders differ between two students; resume replays identical order; grading still 5/5 by ID. | ✅ **passed**. |
+| 7 | Warnings at 5 min & 1 min without breaking auto-submit | Frontend timers fire once each (amber toast + class at 300s, red pulse + toast at 60s). Submit-at-zero calls the SAME submit endpoint whose deadline enforcement is separately covered by TESTS 3+4. | ✅ implemented; backend auto-submit unaffected (58/58 includes both expiry paths). |
+
+### Manual browser checklist (2 minutes)
+1. `node server.js` + `npm run dev` → login as teacher → dashboard →
+   "إنشاء اختبار جديد": verify calendar/clock popup appears, pick a time,
+   add one MCQ (mark correct radio) + one written, publish.
+2. Open `exams.html` in another browser as a student: exam shows متاح الآن →
+   start → answer → close tab mid-way → reopen: answers restored, timer
+   reduced. Submit before time ends.
+3. Wait for end_time → reopen result from hub: score banner, leaderboard
+   rows, review coloring; bell icon shows the new-quiz notification.

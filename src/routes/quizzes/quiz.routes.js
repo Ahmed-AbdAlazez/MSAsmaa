@@ -31,8 +31,12 @@ const express = require("express");
 
 const router = express.Router();
 
-router.use(require("./quizCreation.routes.js"));
+// ORDER MATTERS: quizTaking defines GET /quizzes/available which must be
+// matched before quizCreation's parameterized GET /quizzes/:quizId (that
+// one is teacher-gated and would otherwise swallow the student route with
+// a 403). All other paths are disjoint between groups.
 router.use(require("./quizTaking.routes.js"));
+router.use(require("./quizCreation.routes.js"));
 router.use(require("./quizResults.routes.js"));
 router.use(require("./quizLeaderboard.routes.js"));
 router.use(require("./quizReview.routes.js"));

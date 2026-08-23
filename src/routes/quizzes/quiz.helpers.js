@@ -171,6 +171,85 @@ async function attachImageUrls(questions) {
   );
 }
 
+/* ------------------------------------------------------------------ *
+ * PER-ATTEMPT RANDOMIZATION
+ * Each attempt gets its OWN question order AND choice order, generated
+ * server-side and PERSISTED on the attempt record, so a student who
+ * closes the tab and resumes sees exactly the same arrangement again
+ * instead of a fresh shuffle. Grading compares choice IDs (never display
+ * positions), so shuffling can never change correctness.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Fisher-Yates shuffle returning a NEW array (never mutates the input,
+ * because these arrays are the canonical stored records).
+ *
+ * @param {Array} items - Array to copy-and-shuffle.
+ * @returns {Array} A new shuffled array.
+ */
+function shuffledCopy(items) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/**
+ * Creates the ordering snapshot for a fresh attempt:
+ *   questionIds -> shuffled question presentation order
+ *   choiceOrder -> per-MCQ-question shuffled array of choice ids
+ *
+ * @param {object[]} questions - FULL question records for the quiz.
+ * @returns {object} { questionIds: string[], choiceOrder: Object<string,string[]> }
+ */
+function generateAttemptOrdering(questions) {
+  const choiceOrder = {};
+  for (const question of questions) {
+    if (question.type === "mcq") {
+      choiceOrder[question.id] = shuffledCopy(
+        question.choices.map((choice) => choice.id)
+      );
+    }
+  }
+  return {
+    questionIds: shuffledCopy(questions.map((question) => question.id)),
+    choiceOrder,
+  };
+}
+
+/**
+ * Presents questions for a student according to an attempt's persisted
+ * ordering. Choices come out reordered BY ID (text travels with its id),
+ * and sanitizeQuestionForStudent still strips all answer material.
+ *
+ * @param {object[]} questions - Full questions in canonical order.
+ * @param {object} ordering    - Attempt.ordering (see generateAttemptOrdering).
+ * @returns {object[]} Ordered full copies (sanitize afterwards).
+ */
+function applyAttemptOrdering(questions, ordering) {
+  const byId = new Map(questions.map((question) => [question.id, question]));
+
+  return (ordering.questionIds || [])
+    .map((questionId) => byId.get(questionId))
+    .filter(Boolean)
+    .map((question) => {
+      if (question.type !== "mcq" || !ordering.choiceOrder[question.id]) {
+        return question;
+      }
+      const choicesById = new Map(
+        question.choices.map((choice) => [choice.id, choice])
+      );
+      return {
+        ...question,
+        choices: ordering.choiceOrder[question.id]
+          .map((choiceId) => choicesById.get(choiceId))
+          .filter(Boolean),
+      };
+    });
+}
+
 module.exports = {
   requireTeacher,
   requireStudent,
@@ -180,4 +259,6 @@ module.exports = {
   expiryReason,
   sanitizeQuestionForStudent,
   attachImageUrls,
+  generateAttemptOrdering,
+  applyAttemptOrdering,
 };

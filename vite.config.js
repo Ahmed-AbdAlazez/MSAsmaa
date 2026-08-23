@@ -39,6 +39,7 @@ export default defineConfig({
         assignments: 'assignments.html',
         'assignment-view': 'assignment-view.html',
         chatbots: 'chatbots.html',
+        exams: 'exams.html',
         'dashboard-student': 'dashboard-student.html',
         'dashboard-teacher': 'dashboard-teacher.html',
       },

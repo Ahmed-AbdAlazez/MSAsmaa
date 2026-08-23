@@ -1,0 +1,248 @@
+/* exams.css — Exams Hub + quiz-run/result overlays */
+
+/* ---------- Tabs ---------- */
+.exam-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.exam-tab {
+  border: 1px solid var(--color-border, #ddd);
+  background: transparent;
+  padding: 0.55rem 1.4rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+.exam-tab.active {
+  background: var(--color-accent, #7c3aed);
+  color: #fff;
+  border-color: var(--color-accent, #7c3aed);
+}
+
+/* ---------- Groups & cards ---------- */
+.exam-group-title {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.75rem;
+  color: var(--color-primary, #312e81);
+}
+.exam-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.1rem 1.35rem;
+  margin-bottom: 0.9rem;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.06));
+}
+.exam-card .exam-title { font-weight: 700; font-size: 1.02rem; }
+.exam-meta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; font-size: 0.85rem; color: #666; }
+.muted { color: #777; }
+
+.exam-status {
+  display: inline-block;
+  padding: 0.28rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.exam-status.upcoming { background: #fef3c7; color: #92400e; }
+.exam-status.active   { background: #dcfce7; color: #166534; }
+.exam-status.ended    { background: #e2e8f0; color: #334155; }
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.overlay-panel {
+  background: #fff;
+  border-radius: 16px;
+  width: min(720px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+.overlay-panel-wide { width: min(860px, 100%); }
+.overlay-close { float: left; }
+
+/* ---------- Quiz run ---------- */
+.quiz-run-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+.quiz-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.45rem;
+  font-weight: 800;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 0.35rem 0.9rem;
+  border-radius: 12px;
+}
+.quiz-timer.timer-warning { background: #fef3c7; color: #92400e; }
+.quiz-timer.timer-danger  { background: #fee2e2; color: #b91c1c; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.65; } }
+
+.question-block {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.question-block .q-text { font-weight: 700; margin-bottom: 0.6rem; }
+.question-image { max-width: 100%; max-height: 260px; border-radius: 10px; margin-bottom: 0.6rem; }
+.choice-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.choice-row:hover { background: #f8fafc; }
+.written-answer {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.quiz-run-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-start;
+  margin-top: 1.25rem;
+}
+
+/* ---------- Result / review ---------- */
+.result-section { margin-top: 1.75rem; }
+.score-banner {
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #065f46;
+  border-radius: 12px;
+  padding: 0.9rem;
+  margin-top: 1rem;
+}
+.lb-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.lb-table th, .lb-table td { padding: 0.55rem 0.6rem; text-align: right; border-bottom: 1px solid #f1f5f9; }
+.lb-table tr.me { background: #eef2ff; font-weight: 700; }
+.rank-medal { font-size: 1.05rem; }
+
+.review-question { border: 1px solid #eee; border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.review-choice { padding: 0.45rem 0.7rem; border-radius: 8px; margin-bottom: 0.35rem; }
+.review-choice.correct { background: #dcfce7; color: #14532d; }
+.review-choice.wrong-pick { background: #fee2e2; color: #7f1d1d; }
+.written-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.6rem; }
+@media (max-width: 600px) { .written-compare { grid-template-columns: 1fr; } }
+.written-box { border-radius: 10px; padding: 0.75rem 0.85rem; font-size: 0.93rem; }
+.written-box.student { background: #f8fafc; border: 1px solid #e2e8f0; }
+.written-box.model   { background: #eff6ff; border: 1px solid #dbeafe; }
+.written-box h5 { margin-bottom: 0.35rem; font-size: 0.82rem; color: #64748b; }
+
+.locked-note {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.92rem;
+}
+
+/* ---------- Toasts ---------- */
+#toast-container {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 50%;
+  transform: translateX(50%);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+.toast {
+  background: #1e293b;
+  color: #fff;
+  padding: 0.7rem 1.2rem;
+  border-radius: 10px;
+  font-size: 0.93rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  animation: toast-in 0.25s ease-out;
+}
+.toast.success { background: #047857; }
+.toast.warning { background: #b45309; }
+.toast.danger  { background: #b91c1c; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- Teacher quiz builder (dashboard-teacher.html) ---------- */
+.choice-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.choice-edit input[type="radio"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--color-accent, #7c3aed);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.choice-edit input[type="text"] { flex: 1; }
+
+.staged-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.6rem;
+  background: #fafafa;
+}
+.staged-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.badge {
+  display: inline-block;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  margin-inline-start: 0.5rem;
+  vertical-align: middle;
+}
+.btn-sm { padding: 0.3rem 0.65rem !important; font-size: 0.85rem !important; }
+.btn-danger {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+/* flatpickr RTL niceties */
+.flatpickr-calendar { direction: rtl; font-family: inherit; }

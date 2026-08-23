@@ -103,6 +103,20 @@ async function createQuiz(input) {
 }
 
 /**
+ * Lists every quiz in storage (Exams Hub feed source).
+ *
+ * FUTURE DB: prisma.quiz.findMany({ orderBy: { startTime: "asc" } }) joined
+ * to enrollments so students only see quizzes of their courses.
+ *
+ * @returns {Promise<object[]>} All quizzes, soonest-starting first.
+ */
+async function listAllQuizzes() {
+  return [...quizzesById.values()].sort((a, b) =>
+    a.startTime.localeCompare(b.startTime)
+  );
+}
+
+/**
  * Reads one quiz by ID.
  *
  * @param {string} quizId - The quiz to find.
@@ -462,6 +476,7 @@ module.exports = {
   getQuizById,
   getQuizzesForLesson,
   getQuizzesForCourse,
+  listAllQuizzes,
   addQuestionToQuiz,
   getQuestionsForQuiz,
   createAttempt,

@@ -33,6 +33,9 @@ const {
   uploadQuizImage,
   isAllowedQuizImage,
 } = require("../../services/supabaseStorage.service.js");
+const {
+  createNotificationForEnrolledStudents,
+} = require("../../services/notifications.stub.service.js");
 
 const router = express.Router();
 
@@ -98,6 +101,18 @@ router.post("/quizzes", requireAuth, requireTeacher, async (req, res) => {
   }
 
   const quiz = await createQuiz(fields);
+
+  // PUBLISH NOTIFICATION - reuses the SHARED helper from the notifications
+  // feature (never a second implementation). Fired after the quiz exists,
+  // deliberately non-blocking: a notification outage must never fail
+  // quiz creation.
+  createNotificationForEnrolledStudents(
+    quiz.courseId || "biology",
+    `اختبار جديد: ${quiz.title} — افتحي صفحة الاختبارات لبدء الحل.`,
+    "/exams.html"
+  ).catch((error) =>
+    console.error("[quiz] publish notification failed:", error.message)
+  );
   return res.status(201).json({ message: "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø±.", quiz });
 });
 

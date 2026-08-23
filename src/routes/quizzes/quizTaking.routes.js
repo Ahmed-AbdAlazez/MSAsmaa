@@ -31,11 +31,14 @@ const {
   isWithinQuizWindow,
   sanitizeQuestionForStudent,
   attachImageUrls,
+  generateAttemptOrdering,
+  applyAttemptOrdering,
 } = require("./quiz.helpers.js");
 const { gradeSubmission } = require("../../services/quizGrading.service.js");
 const {
   getQuizById,
   getQuestionsForQuiz,
+  listAllQuizzes,
   createAttempt,
   getAttemptsForStudent,
   saveInProgressAnswer,
@@ -124,7 +127,42 @@ async function autoSubmitExpiredAttempt(attempt, quiz) {
 }
 
 /* ------------------------------------------------------------------ *
- * POST /quizzes/:quizId/start â€” start fresh OR resume automatically
+ * GET /quizzes/available - Exams Hub feed for the STUDENT.
+ * Returns every quiz the student can see with its lesson, timing and a
+ * FRESH server-computed status (upcoming | active | ended). Defined in
+ * this router and mounted BEFORE the creation router so the literal path
+ * is never captured by GET /quizzes/:quizId (which is teacher-only).
+ *
+ * FUTURE DB: quizzes joined to the enrollments table so only quizzes of
+ * enrolled courses are returned; today the enrollment stub passes.
+ * ------------------------------------------------------------------ */
+router.get("/quizzes/available", requireAuth, requireStudent, async (req, res) => {
+  const quizzes = await listAllQuizzes();
+  const now = Date.now();
+
+  const exams = quizzes.map((quiz) => {
+    const startMs = Date.parse(quiz.startTime);
+    const endMs = Date.parse(quiz.endTime);
+    return {
+      id: quiz.id,
+      title: quiz.title,
+      lessonId: quiz.lessonId,
+      courseId: quiz.courseId,
+      questionCount: quiz.questionCount,
+      startTime: quiz.startTime,
+      endTime: quiz.endTime,
+      durationMinutes: quiz.durationMinutes,
+      // Status computed FRESH on every request from the server clock.
+      status:
+        now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
+    };
+  });
+
+  return res.json({ exams });
+});
+
+/* ------------------------------------------------------------------ *
+ * POST /quizzes/:quizId/start - start fresh OR resume automatically
  * ------------------------------------------------------------------ */
 router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, res) => {
   const quiz = await loadQuizOr404(req, res);
@@ -154,7 +192,6 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
     return res.status(400).json({ error: "Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø± Ù„Ø§ ÙŠØ­ØªÙˆÙŠ Ø£Ø³Ø¦Ù„Ø© Ø¨Ø¹Ø¯." });
   }
   await attachImageUrls(questions);
-  const safeQuestions = questions.map(sanitizeQuestionForStudent);
 
   /* ---- RESUME PATH: an unfinished attempt exists ------------------- */
   const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
@@ -181,7 +218,10 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
       endTime: quiz.endTime,
       remainingSeconds: remainingSeconds(inProgress, quiz),
       durationMinutes: quiz.durationMinutes,
-      questions: safeQuestions,
+      // SAME persisted shuffle as the original start - never re-shuffled.
+      questions: applyAttemptOrdering(questions, inProgress.ordering).map(
+        sanitizeQuestionForStudent
+      ),
       savedAnswers: Object.fromEntries(
         Object.entries(inProgress.answers).map(([questionId, entry]) => [
           questionId,
@@ -214,6 +254,11 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
   ).toISOString();
   const attempt = await createAttempt(quiz.id, req.user.id, personalDeadline);
 
+  // Per-attempt shuffle generated SERVER-SIDE and stored on the attempt so
+  // resume replays the exact same order (grading matches by choice ID, so
+  // shuffling can never affect correctness).
+  attempt.ordering = generateAttemptOrdering(questions);
+
   return res.status(201).json({
     status: "started",
     attemptId: attempt.id,
@@ -222,7 +267,9 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
     endTime: quiz.endTime,
     remainingSeconds: remainingSeconds(attempt, quiz),
     durationMinutes: quiz.durationMinutes,
-    questions: safeQuestions,
+    questions: applyAttemptOrdering(questions, attempt.ordering).map(
+      sanitizeQuestionForStudent
+    ),
     savedAnswers: {},
   });
 });
