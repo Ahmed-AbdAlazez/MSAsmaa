@@ -1,15 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // --- Demo accounts for testing ---
-  const DEMO_ACCOUNTS = {
-    student: { username: 'student', password: '123456', displayName: 'أحمد محمد', role: 'student' },
-    teacher: { username: 'teacher', password: '123456', displayName: 'أ. أسماء مرسال', role: 'teacher' }
-  };
-
-  const findAccount = (username, password) => {
-    const key = username.trim().toLowerCase();
-    return Object.values(DEMO_ACCOUNTS).find(
-      (acc) => acc.username === key && acc.password === password
-    );
+  // --- Login accounts (CODE + PASSWORD) ------------------------------------
+  // The old username/123456 demo accounts were removed. Login now works
+  // with the teacher-issued codes below (matched case-insensitively).
+  // Locally-created signup accounts are stored separately in
+  // localStorage under 'frontEndAccounts', also keyed by code.
+  const LOGIN_ACCOUNTS = {
+    'STU-2026-01': { password: 'Stu@2026', displayName: 'أحمد محمد', role: 'student' },
+    'TCH-2026-01': { password: 'Tea@2026', displayName: 'أ. أسماء مرسال', role: 'teacher' }
   };
 
   const openLoginModal = () => {
@@ -56,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create toast
     const toast = document.createElement('div');
     toast.className = `toast toast-${type} show`;
-    
+
     // Icon selection
     let icon = '✓';
     if (type === 'danger') icon = '✕';
@@ -86,14 +83,233 @@ document.addEventListener('DOMContentLoaded', () => {
    * fetch() + safe JSON parsing with human-readable Arabic errors.
    * Prevents cryptic "Unexpected token '<' in JSON" crashes when the
    * backend is down or the request lands on a static page instead.
+   * The error now names the exact URL + status so misrouted requests
+   * (Live Server / GitHub Pages hitting a non-API origin) are obvious.
    */
+  // ------------------------------------------------------------------
+  // Floating upload status card. Uploads must never lock the page: the
+  // teacher can keep scrolling/navigating WITHIN the page while the file
+  // uploads, and the card keeps showing live progress anywhere on screen.
+  // ------------------------------------------------------------------
+  const UploadFloat = (() => {
+    let el = null;
+    let bar = null;
+    let label = null;
+    let active = false;
+    // When true, a service-worker job owns the card (it broadcasts progress
+    // from outside this page), so page-local calls must not fight it.
+    let swOwned = false;
+
+    const ensure = () => {
+      if (el) return;
+      el = document.createElement('div');
+      el.className = 'upload-floating-status';
+      el.innerHTML =
+        '<strong class="ufl-title"></strong>' +
+        '<div class="upload-progress-bar"><div></div></div>' +
+        '<small class="ufl-label"></small>';
+      document.body.appendChild(el);
+      bar = el.querySelector('.upload-progress-bar > div');
+      label = el.querySelector('.ufl-label');
+    };
+
+    return {
+      markSwOwned(value) {
+        swOwned = !!value;
+      },
+      show(titleText) {
+        if (swOwned) return;
+        ensure();
+        el.style.display = 'block';
+        active = true;
+        bar.style.width = '0%';
+        el.querySelector('.ufl-title').textContent = titleText;
+        label.textContent = '0%';
+      },
+      update(pct, message) {
+        if (!el || swOwned) return;
+        bar.style.width = pct + '%';
+        label.textContent = message || pct + '%';
+      },
+      done(message) {
+        swOwned = false;
+        if (!el) return;
+        bar.style.width = '100%';
+        label.textContent = message;
+        setTimeout(() => {
+          if (el) el.style.display = 'none';
+          active = false;
+        }, 4000);
+      },
+      fail(message) {
+        swOwned = false;
+        if (!el) return;
+        label.textContent = message;
+        setTimeout(() => {
+          if (el) el.style.display = 'none';
+          active = false;
+        }, 6000);
+      },
+      get isActive() {
+        return active;
+      },
+    };
+  })();
+
+  // ------------------------------------------------------------------
+  // Service-Worker background uploads. When a worker controls the page,
+  // uploads are handed to it (job stored in IndexedDB) so they KEEP RUNNING
+  // while the teacher navigates to other pages of the app. Progress arrives
+  // over a BroadcastChannel and drives the floating card from any page.
+  // Browsers without SW fall back to the classic inline upload.
+  // ------------------------------------------------------------------
+  const UPLOAD_CHANNEL_NAME = 'msasmaa-uploads';
+  const swUploadAvailable =
+    'serviceWorker' in navigator && typeof BroadcastChannel !== 'undefined';
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline/dev */ });
+  }
+
+  function openUploadDb() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('msasmaa-uploads', 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('jobs', { keyPath: 'id' });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function idbPutJob(job) {
+    const db = await openUploadDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('jobs', 'readwrite');
+      tx.objectStore('jobs').put(job);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /** Resolves when the worker reports done/failed for this job. */
+  function waitForUploadOutcome(jobId) {
+    return new Promise((resolve) => {
+      const channel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
+      const handler = (event) => {
+        const m = event.data || {};
+        if (m.jobId !== jobId) return;
+        if (m.type === 'done') {
+          cleanup();
+          resolve({ ok: true, kind: m.kind });
+        } else if (m.type === 'failed') {
+          cleanup();
+          resolve({ ok: false, error: m.error });
+        }
+      };
+      const cleanup = () => {
+        channel.removeEventListener('message', handler);
+        channel.close();
+      };
+      channel.addEventListener('message', handler);
+    });
+  }
+
+  /** Registers global progress listeners once, driving the floating card. */
+  let uploadGlueInstalled = false;
+  function installUploadUiGlue() {
+    if (uploadGlueInstalled || !swUploadAvailable) return;
+    uploadGlueInstalled = true;
+
+    const channel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
+    channel.onmessage = (event) => {
+      const m = event.data || {};
+      if (m.type === 'started') {
+        UploadFloat.markSwOwned(true);
+        UploadFloat.show(m.label || 'جاري رفع ملف');
+      } else if (m.type === 'progress') {
+        UploadFloat.update(m.pct, m.stage === 'finalizing'
+          ? 'جاري تحسين الملف على السيرفر...'
+          : `جاري الرفع... ${m.pct}%`);
+      } else if (m.type === 'done') {
+        UploadFloat.done('تم الرفع بنجاح ✔');
+      } else if (m.type === 'failed') {
+        UploadFloat.fail(`فشل الرفع: ${m.error || ''}`);
+      }
+    };
+
+    // Restore the card after navigation if jobs are still running.
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) {
+        registration.active.postMessage({ type: 'GET_ACTIVE_JOBS' });
+      }
+    });
+
+    const stateChannel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
+    stateChannel.onmessage = (event) => {
+      const m = event.data || {};
+      if (m.type === 'ACTIVE_JOBS' && m.jobs && m.jobs.length) {
+        UploadFloat.show(m.jobs[0].label || 'جاري رفع ملف');
+      }
+    };
+  }
+  installUploadUiGlue();
+
+  /** Hands an upload job to the service worker; resolves on its outcome. */
+  async function startSwUploadJob(job) {
+    await idbPutJob(job);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      (registration.active || navigator.serviceWorker.controller)
+        .postMessage({ type: 'START_UPLOAD', jobId: job.id });
+    } catch (error) {
+      // Worker unreachable — remove the queued job and signal failure so
+      // the caller can fall back to the inline path cleanly.
+      try {
+        const db = await openUploadDb();
+        const tx = db.transaction('jobs', 'readwrite');
+        tx.objectStore('jobs').delete(job.id);
+      } catch (_) { /* ignore */ }
+      return { ok: false, error: error.message };
+    }
+    return waitForUploadOutcome(job.id);
+  }
+
+  // Warn before closing/leaving mid-upload ONLY in fallback mode — with the
+  // service worker active, uploads survive navigating to other pages, so
+  // warning on every click would just be annoying.
+  window.addEventListener('beforeunload', (event) => {
+    if (!swUploadAvailable && UploadFloat.isActive) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+
+  // Persist upload form fields so typed info (video name, links...) survives
+  // navigating between pages and back within the same tab.
+  const UPLOAD_PERSIST_FIELDS = ['upload-title', 'upload-attachment', 'upload-description'];
+  const restoreUploadFormFields = () => {
+    UPLOAD_PERSIST_FIELDS.forEach((fieldId) => {
+      const field = document.querySelector(`#${fieldId}`);
+      if (!field) return;
+      try {
+        const savedValue = sessionStorage.getItem(`uploadForm:${fieldId}`);
+        if (savedValue !== null && !field.value) field.value = savedValue;
+        field.addEventListener('input', () => {
+          sessionStorage.setItem(`uploadForm:${fieldId}`, field.value);
+        });
+      } catch (_) { /* best-effort */ }
+    });
+  };
+  restoreUploadFormFields();
+
   const fetchJson = async (url, options = {}) => {
     let response;
     try {
       response = await fetch(url, options);
     } catch (networkError) {
       throw new Error(
-        'لا يمكن الوصول إلى السيرفر. تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.'
+        `لا يمكن الوصول إلى السيرفر (${url}). تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.`
       );
     }
 
@@ -102,8 +318,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch (parseError) {
+      // Non-JSON response: usually HTML from a static host or an error page.
+      const preview = raw.replace(/<[^>]*>/g, ' ').trim().slice(0, 80);
       throw new Error(
-        'رد غير متوقع من السيرفر (ليس JSON). غالباً السيرفر الخلفي لا يعمل على هذا العنوان.'
+        `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ''}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`
       );
     }
 
@@ -121,11 +339,11 @@ document.addEventListener('DOMContentLoaded', () => {
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const targetTab = btn.getAttribute('data-tab');
-        
+
         // Remove active from all buttons & panels
         tabBtns.forEach(b => b.classList.remove('active'));
         tabPanels.forEach(p => p.classList.remove('active'));
-        
+
         // Set active on click
         btn.classList.add('active');
         const panel = document.getElementById(targetTab);
@@ -142,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     filterBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const filterVal = btn.getAttribute('data-filter');
-        
+
         // Toggle active button class
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -170,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (assignmentForm) {
     assignmentForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      
+
       // Check if MCQ answered
       const chosenMCQ = document.querySelector('input[name="q1"]:checked');
       if (!chosenMCQ) {
@@ -226,8 +444,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('جاري تصدير درجات الطلاب بصيغة Excel...', 'success');
     });
   }
-   // --- Dynamic Client-Side Auth Modal & Login Icon Logic ---
-  
+  // --- Dynamic Client-Side Auth Modal & Login Icon Logic ---
+
   // Inject Login Modal HTML on load if not already present
   if (!document.querySelector('#login-modal-backdrop')) {
     const loginModalHTML = `
@@ -236,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <button id="login-modal-close" class="modal-close-btn">✕</button>
           <div class="welcome-modal-logo">🔐</div>
           <h2 id="auth-modal-title">تسجيل الدخول</h2>
-          <p id="auth-modal-description" class="auth-modal-description">استخدم بريد Gmail وكلمة المرور للوصول إلى حسابك.</p>
+          <p id="auth-modal-description" class="auth-modal-description">استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.</p>
           <div class="auth-mode-switch" role="tablist" aria-label="خيارات الحساب">
             <button type="button" class="auth-mode-btn active" data-auth-mode="signin"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
             <button type="button" class="auth-mode-btn" data-auth-mode="signup"><span aria-hidden="true">✚</span> إنشاء حساب</button>
@@ -254,8 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">👤</span><input type="text" id="login-username" class="form-input" placeholder="اكتب اسمك" style="width: 100%;"></div>
             </div>
             <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
-              <label for="login-email" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">بريد Gmail الإلكتروني</label>
-              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">✉</span><input type="email" id="login-email" class="form-input" placeholder="name@gmail.com" autocomplete="email" required pattern="[a-zA-Z0-9._%+-]+@gmail\\.com" style="width: 100%;"></div>
+              <label for="login-code" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كود الدخول</label>
+              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="مثال: STU-2026-01" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
             </div>
             <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
               <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
@@ -277,11 +495,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const authNameGroup = document.querySelector('#auth-name-group');
   const passwordRequirements = document.querySelector('#password-requirements');
   const authSubmitButton = document.querySelector('#auth-submit-btn');
-  const loginEmail = document.querySelector('#login-email');
+  const loginCode = document.querySelector('#login-code');
   const loginPassword = document.querySelector('#login-password');
   let authMode = 'signin';
 
-  const isGmailAddress = (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com$/i.test(email);
+  const normalizeCode = (value = '') => value.trim().toUpperCase();
   const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
   const QUIZZES_STORAGE_KEY = 'frontEndQuizzes';
   const NOTIFICATIONS_STORAGE_KEY = 'frontEndNotifications';
@@ -713,8 +931,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSignUp = mode === 'signup';
     document.querySelector('#auth-modal-title').textContent = isSignUp ? 'إنشاء حساب' : 'تسجيل الدخول';
     document.querySelector('#auth-modal-description').textContent = isSignUp
-      ? 'أنشئ حساباً باستخدام بريد Gmail وكلمة مرور آمنة.'
-      : 'استخدم بريد Gmail وكلمة المرور للوصول إلى حسابك.';
+      ? 'أنشئ حساباً باختيار كود خاص بك (4 أحرف على الأقل) مع كلمة مرور آمنة.'
+      : 'استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.';
     authNameGroup.hidden = !isSignUp;
     document.querySelector('#login-username').required = isSignUp;
     passwordRequirements.hidden = !isSignUp;
@@ -736,7 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const updateAuthUI = () => {
     const userRole = localStorage.getItem('userRole');
     const username = localStorage.getItem('username') || '';
-    
+
     // Update any username greeting placeholders on dashboard
     const namePlaceholders = document.querySelectorAll('.student-name-placeholder');
     namePlaceholders.forEach(el => {
@@ -749,7 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userRole) {
       // User is logged in
       const logoutTitle = `تسجيل الخروج من الحساب (${username})`;
-      
+
       if (navAuthContainer) {
         navAuthContainer.innerHTML = `
           ${getNotificationButtonHTML()}
@@ -899,12 +1117,12 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const role = document.querySelector('#login-role').value;
       const usernameInput = document.querySelector('#login-username').value.trim();
-      const email = loginEmail.value.trim().toLowerCase();
+      const code = normalizeCode(loginCode.value);
       const password = loginPassword.value;
 
-      if (!isGmailAddress(email)) {
-        showToast('يرجى إدخال بريد إلكتروني صحيح ينتهي بـ @gmail.com.', 'warning');
-        loginEmail.focus();
+      if (!code || code.length < 4) {
+        showToast('يرجى إدخال كود الدخول (4 أحرف على الأقل).', 'warning');
+        loginCode.focus();
         return;
       }
 
@@ -914,16 +1132,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // --- Real backend authentication (hardcoded dev accounts on server) ---
+      // Locally-created accounts (signup mode), stored by CODE not email.
+      const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
+
+      // --- Sign in: hardcoded teacher-issued codes first ---------------------
       if (authMode === 'signin') {
         try {
           const data = await fetchJson(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ code, password }),
           });
 
-          completeLogin(data.role, data.name, data.id);
+          completeLogin(data.role, data.name, data.id || code);
           return;
         } catch (error) {
           // Backend answered with a real error (wrong credentials / down).
@@ -933,27 +1154,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      const savedAccounts = JSON.parse(localStorage.getItem('frontEndAccounts') || '{}');
+      // --- Sign up: create a new locally-stored account keyed by code ------
       if (authMode === 'signup') {
         if (!usernameInput) {
           showToast('يرجى إدخال الاسم لإنشاء الحساب.', 'warning');
           return;
         }
-        if (savedAccounts[email]) {
-          showToast('يوجد حساب مسجل بهذا البريد الإلكتروني. سجّل الدخول بدلاً من ذلك.', 'warning');
-          setAuthMode('signin');
+        if (LOGIN_ACCOUNTS[code] || savedAccounts[code]) {
+          showToast('هذا الكود مستخدم بالفعل. اختر كوداً آخر أو سجّل الدخول.', 'warning');
           return;
         }
-        savedAccounts[email] = { name: usernameInput, password, role };
+        savedAccounts[code] = { name: usernameInput, password, role };
         localStorage.setItem('frontEndAccounts', JSON.stringify(savedAccounts));
-      } else if (savedAccounts[email] && savedAccounts[email].password !== password) {
-        showToast('كلمة المرور غير صحيحة لهذا البريد الإلكتروني.', 'danger');
-        loginPassword.focus();
-        return;
+        showToast(`تم إنشاء حسابك بنجاح! احفظ كود الدخول الخاص بك: ${code}`, 'success');
+        completeLogin(role, usernameInput, code);
       }
-
-      const displayName = authMode === 'signup' ? usernameInput : (savedAccounts[email]?.name || email.split('@')[0]);
-      completeLogin(role, displayName, email);
     });
   }
 
@@ -1002,9 +1217,9 @@ document.addEventListener('DOMContentLoaded', () => {
     header.addEventListener('click', () => {
       const item = header.parentElement;
       const body = item.querySelector('.accordion-body');
-      
+
       const isActive = item.classList.contains('active');
-      
+
       if (isActive) {
         item.classList.remove('active');
         body.style.maxHeight = null;
@@ -1027,22 +1242,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const titleParam = urlParams.get('title');
     if (titleParam) {
       const decodedTitle = decodeURIComponent(titleParam);
-      
+
       // Update page title tag
       document.title = `عرض الدرس | ${decodedTitle} | منصة المرسال`;
-      
+
       // Update breadcrumbs title
       const bcTitle = document.querySelector('#lesson-breadcrumb-title');
       if (bcTitle) {
         bcTitle.textContent = decodedTitle;
       }
-      
+
       // Update page heading
       const heading = document.querySelector('#lesson-name-heading');
       if (heading) {
         heading.textContent = decodedTitle;
       }
-      
+
       // Update video overlay player title
       const videoTitle = document.querySelector('#lesson-video-title');
       if (videoTitle) {
@@ -1050,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // --- Real video playback via Bunny Stream (backend API) ---
+    // --- Lesson identity + chapter-synced sidebar ---
     const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
     const playBtn = document.querySelector('.video-play-btn');
     const playerBox = document.querySelector('.video-player-mock');
@@ -1076,32 +1291,444 @@ document.addEventListener('DOMContentLoaded', () => {
             'allowfullscreen loading="lazy"></iframe>';
         } catch (error) {
           showToast(error.message, 'danger');
-          playBtn.disabled = false;
+        } finally {
+          button.disabled = false;
+          button.textContent = 'عرض';
         }
+      };
+
+      if (viewerClose && viewerPanel) {
+        viewerClose.addEventListener('click', closePdfViewer);
+      }
+
+      materials.forEach((material) => {
+        const row = document.createElement('div');
+        row.className = 'lesson-material-item';
+
+        const title = document.createElement('div');
+        title.className = 'lesson-material-title';
+        title.textContent = material.title || 'ملف PDF';
+
+        const actionsBox = document.createElement('div');
+        actionsBox.className = 'lesson-material-actions';
+
+        // عرض: renders the PDF inline beside/below the video player.
+        const viewButton = document.createElement('button');
+        viewButton.className = 'btn btn-secondary lesson-material-download';
+        viewButton.type = 'button';
+        viewButton.textContent = 'عرض';
+        viewButton.addEventListener('click', () => openMaterialInViewer(material, viewButton));
+
+        const downloadButton = document.createElement('button');
+        downloadButton.className = 'btn btn-secondary lesson-material-download';
+        downloadButton.type = 'button';
+        downloadButton.textContent = 'تحميل';
+        downloadButton.addEventListener('click', async () => {
+          try {
+            downloadButton.disabled = true;
+            downloadButton.textContent = 'جاري...';
+            const data = await fetchJson(
+              `${API_BASE}/api/materials/${encodeURIComponent(material.id)}/download`,
+              { headers: authHeaders }
+            );
+            window.open(data.downloadUrl, '_blank', 'noopener');
+          } catch (error) {
+            showToast(error.message, 'danger');
+          } finally {
+            downloadButton.disabled = false;
+            downloadButton.textContent = 'تحميل';
+          }
+        });
+
+        actionsBox.append(viewButton, downloadButton);
+        row.append(title, actionsBox);
+        materialsBox.appendChild(row);
+      });
+    };
+
+    // ------------------------------------------------------------------
+    // Stale-while-revalidate cache for lesson content. The site is a
+    // multi-page app, so plain in-memory caches die on every navigation;
+    // sessionStorage survives in-app navigation within the same tab —
+    // exactly the "user came back moments ago" case. Within the TTL the
+    // UI renders instantly from cache while a quiet background refetch
+    // updates the cache (and UI only if something changed). Server-side
+    // enrollment checks are untouched: this only skips redundant loading
+    // spinners for already-fetched data.
+    // ------------------------------------------------------------------
+    const LESSON_CACHE_TTL_MS = 7 * 60 * 1000;
+
+    const lessonCacheRead = (kind, id) => {
+      try {
+        const raw = sessionStorage.getItem(`lessonCache:${kind}:${id}`);
+        if (!raw) return null;
+        const entry = JSON.parse(raw);
+        if (!entry || typeof entry.fetchedAt !== 'number') return null;
+        return {
+          data: entry.data,
+          fresh: Date.now() - entry.fetchedAt < LESSON_CACHE_TTL_MS,
+        };
+      } catch (_) {
+        return null;
+      }
+    };
+
+    const lessonCacheWrite = (kind, id, data) => {
+      try {
+        sessionStorage.setItem(
+          `lessonCache:${kind}:${id}`,
+          JSON.stringify({ data, fetchedAt: Date.now() })
+        );
+      } catch (_) { /* storage full/unavailable — caching stays best-effort */ }
+    };
+
+    const cachedMaterials = lessonCacheRead('materials', lessonId);
+    if (cachedMaterials && cachedMaterials.fresh) {
+      renderLessonMaterials(cachedMaterials.data || []);
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
+        headers: authHeaders,
+      })
+        .then((freshData) => {
+          const nextMaterials = freshData.materials || [];
+          lessonCacheWrite('materials', lessonId, nextMaterials);
+          if (
+            JSON.stringify(nextMaterials) !== JSON.stringify(cachedMaterials.data)
+          ) {
+            renderLessonMaterials(nextMaterials);
+          }
+        })
+        .catch(() => { /* keep showing cached list */ });
+    } else {
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/materials`, {
+        headers: authHeaders,
+      })
+        .then((data) => {
+          const materials = data.materials || [];
+          lessonCacheWrite('materials', lessonId, materials);
+          renderLessonMaterials(materials);
+        })
+        .catch((error) => {
+          const materialsBox = document.querySelector('#lesson-materials-list');
+          if (materialsBox) {
+            materialsBox.innerHTML =
+              '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
+          }
+          console.warn('[materials] list failed:', error);
+        });
+    }
+
+    const applyVideosData = (data) => {
+      lessonVideos = data.videos || [];
+
+      if (!lessonVideos.length) {
+        if (durationEl) {
+          durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
+        }
+        return;
+      }
+
+      // Show the first ready video's real duration in the overlay.
+      const readyVideo = lessonVideos.find((v) => v.ready);
+      if (durationEl) {
+        if (!readyVideo) {
+          durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
+        } else if (readyVideo.lengthSeconds) {
+          durationEl.textContent =
+            `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
+        }
+      }
+
+      // Start from the first READY video (skip still-processing parts).
+      const readyIdx = lessonVideos.findIndex((v) => v.ready);
+      currentVideoIdx = readyIdx >= 0 ? readyIdx : 0;
+
+      renderVideoChooser();
+    };
+
+    const cachedVideos = lessonCacheRead('videos', lessonId);
+    if (cachedVideos && cachedVideos.fresh) {
+      applyVideosData(cachedVideos.data);
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
+        headers: authHeaders,
+      })
+        .then((freshData) => {
+          const nextVideos = freshData.videos || [];
+          lessonCacheWrite('videos', lessonId, nextVideos);
+          if (JSON.stringify(nextVideos) !== JSON.stringify(cachedVideos.data)) {
+            applyVideosData(freshData);
+          }
+        })
+        .catch(() => { /* keep showing cached playlist */ });
+    } else {
+      fetchJson(`${API_BASE}/api/lessons/${lessonId}/videos`, {
+        headers: authHeaders,
+      })
+        .then((data) => {
+          lessonCacheWrite('videos', lessonId, data.videos || []);
+          applyVideosData(data);
+        })
+        .catch(() => {
+          /* endpoint errors already surface when the user presses play */
+        });
+    }
+
+    if (playBtn && playerBox) {
+      playBtn.addEventListener('click', async () => {
+        if (!lessonVideos.length) {
+          showToast('لا يوجد فيديو مرفوع لهذا الدرس بعد.', 'warning');
+          return;
+        }
+
+        const videoEntry = lessonVideos[currentVideoIdx];
+        if (!videoEntry.ready) {
+          showToast('الفيديو ما زال قيد المعالجة على Bunny، حاولي بعد قليل.', 'warning');
+          return;
+        }
+
+        playBtn.disabled = true;
+        showToast('جاري تشغيل الفيديو...', 'success');
+        loadIframe(videoEntry);
       });
     }
   }
 
   // --- Teacher dashboard: video upload to Bunny Stream ---
+  const chapterSelect = document.querySelector('#upload-chapter');
+  const lessonSelect = document.querySelector('#upload-lesson');
+
+  // Populate the chapter -> lesson dependent dropdowns from the curriculum.
+  if (chapterSelect && lessonSelect && window.CURRICULUM) {
+    const fillLessons = (chapterIdx) => {
+      const chapter = window.CURRICULUM.biology[chapterIdx];
+      lessonSelect.innerHTML = '';
+      chapter.lessons.forEach((lesson) => {
+        const opt = document.createElement('option');
+        opt.value = lesson.id;
+        opt.textContent = `${chapter.name.split(':')[0]} — ${lesson.name} (${lesson.id})`;
+        lessonSelect.appendChild(opt);
+      });
+    };
+
+    window.CURRICULUM.biology.forEach((chapter, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      chapterSelect.appendChild(opt);
+    });
+
+    chapterSelect.addEventListener('change', () => fillLessons(Number(chapterSelect.value)));
+    fillLessons(0);
+  }
+
   const uploadBtn = document.querySelector('#btn-upload-video');
-  if (uploadBtn) {
-    uploadBtn.addEventListener('click', async () => {
-      const lessonIdInput = document.querySelector('#upload-lesson-id');
-      const titleInput = document.querySelector('#upload-title');
-      const fileInput = document.querySelector('#upload-file');
+  const uploadMaterialBtn = document.querySelector('#btn-upload-material');
+  const uploadSelectedMaterial = async (onProgress) => {
+    const titleInput = document.querySelector('#upload-title');
+    const pdfInput = document.querySelector('#upload-pdf-file');
+    const lessonId = lessonSelect ? lessonSelect.value : '';
+    const pdfFile = pdfInput?.files[0];
+
+    if (!lessonId) {
+      showToast('اختاري الفصل والدرس أولاً.', 'warning');
+      return null;
+    }
+
+    if (!pdfFile) {
+      showToast('اختاري ملف PDF أولاً.', 'warning');
+      return null;
+    }
+
+    if (pdfFile.type !== 'application/pdf' && !/\.pdf$/i.test(pdfFile.name)) {
+      showToast('ملفات PDF فقط مسموح بها.', 'warning');
+      return null;
+    }
+
+    if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
+      showToast('رفع ملفات PDF متاح لحساب المعلمة فقط.', 'danger');
+      return null;
+    }
+
+    const formDataTitle = (titleInput?.value || pdfFile.name).trim();
+
+    // Self-contained auth headers (this function runs on the dashboard page,
+    // outside the lesson-view block where its own authHeaders is defined).
+    const authHeaders = {
+      'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+      'x-user-role': localStorage.getItem('userRole') || 'teacher',
+    };
+
+    // ------------------------------------------------------------------
+    // DIRECT UPLOAD (3 phases). Vercel caps function request bodies at
+    // ~4.5MB, so the PDF bytes must never pass through our API:
+    //   1. ask our API for a short-lived signed Supabase upload URL
+    //   2. PUT the file straight to Supabase (progress reported here)
+    //   3. tell our API to register the material (+ normalize server-side)
+    // ------------------------------------------------------------------
+    const prepared = await fetchJson(
+      `${API_BASE}/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ fileName: pdfFile.name }),
+      }
+    );
+
+    let result;
+    if (swUploadAvailable) {
+      // BACKGROUND PATH: hand the whole upload (bytes PUT + finalize) to the
+      // service worker so navigating to other pages cannot interrupt it.
+      const jobId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      const outcome = await startSwUploadJob({
+        id: jobId,
+        kind: 'pdf',
+        url: prepared.signedUrl,
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        blob: pdfFile,
+        finalize: {
+          url: `${API_BASE}/api/materials/finalize`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            lessonId,
+            filePath: prepared.filePath,
+            title: formDataTitle,
+          }),
+        },
+        meta: { lessonId, label: `PDF: ${formDataTitle}` },
+        status: 'queued',
+      });
+
+      if (!outcome.ok) {
+        throw new Error(outcome.error || 'فشل رفع ملف PDF.');
+      }
+      result = {};
+    } else {
+      // INLINE FALLBACK (no service worker): classic in-page XHR upload.
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', prepared.signedUrl);
+        xhr.setRequestHeader('Content-Type', 'application/pdf');
+
+        if (typeof onProgress === 'function') {
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              onProgress(Math.round((e.loaded / e.total) * 100), null);
+            }
+          });
+        }
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`فشل رفع الملف (${xhr.status}).`));
+          }
+        });
+
+        xhr.addEventListener('error', () =>
+          reject(new Error('انقطع الاتصال أثناء رفع ملف PDF.'))
+        );
+
+        xhr.send(pdfFile);
+      });
+
+      if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
+
+      result = await fetchJson(`${API_BASE}/api/materials/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          lessonId,
+          filePath: prepared.filePath,
+          title: formDataTitle,
+        }),
+      });
+    }
+
+    // Invalidate the lesson-view cache for this lesson so the next visit
+    // fetches a fresh list that includes the new PDF (otherwise the cached
+    // pre-upload list would keep hiding it for up to 7 minutes).
+    try {
+      sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
+    } catch (_) { /* best-effort */ }
+
+    pdfInput.value = '';
+    showToast('تم رفع ملف PDF للدرس بنجاح.', 'success');
+    return result;
+  };
+
+  if (uploadMaterialBtn) {
+    uploadMaterialBtn.addEventListener('click', async () => {
+      // Same progress UI the video upload uses.
       const progressArea = document.querySelector('#upload-progress-area');
       const progressBar = document.querySelector('#upload-progress-bar');
       const statusText = document.querySelector('#upload-status-text');
 
-      const lessonId = (lessonIdInput?.value || '').trim();
-      const file = fileInput?.files[0];
+      try {
+        uploadMaterialBtn.disabled = true;
+        UploadFloat.show('جاري رفع ملف PDF');
+        if (progressArea && progressBar && statusText) {
+          progressArea.style.display = 'block';
+          progressBar.style.width = '0%';
+          statusText.textContent = 'جاري تجهيز الملف...';
+        }
 
-      if (!/^lesson-[\w-]+$/.test(lessonId)) {
-        showToast('أدخلي معرف درس صحيح مثل lesson-1', 'warning');
+        await uploadSelectedMaterial((pct, statusMsg) => {
+          if (progressBar && statusText) {
+            progressBar.style.width = pct + '%';
+            statusText.textContent = statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`;
+          }
+          UploadFloat.update(pct, statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`);
+        });
+
+        if (progressBar && statusText) {
+          progressBar.style.width = '100%';
+          statusText.textContent = 'تم رفع ملف PDF للدرس بنجاح ✔';
+        }
+        UploadFloat.done('تم رفع ملف PDF للدرس بنجاح ✔');
+      } catch (error) {
+        showToast(error.message, 'danger');
+        if (statusText) statusText.textContent = 'فشل رفع ملف PDF.';
+        UploadFloat.fail('فشل رفع ملف PDF.');
+      } finally {
+        uploadMaterialBtn.disabled = false;
+      }
+    });
+  }
+
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', async () => {
+      const titleInput = document.querySelector('#upload-title');
+      const attachmentInput = document.querySelector('#upload-attachment');
+      const descriptionInput = document.querySelector('#upload-description');
+      const fileInput = document.querySelector('#upload-file');
+      const pdfInput = document.querySelector('#upload-pdf-file');
+      const progressArea = document.querySelector('#upload-progress-area');
+      const progressBar = document.querySelector('#upload-progress-bar');
+      const statusText = document.querySelector('#upload-status-text');
+
+      const lessonId = lessonSelect ? lessonSelect.value : '';
+      const videoName = (titleInput?.value || '').trim();
+      const attachmentUrl = (attachmentInput?.value || '').trim();
+      const description = (descriptionInput?.value || '').trim();
+      const file = fileInput?.files[0];
+      const pdfFile = pdfInput?.files[0];
+
+      if (!lessonId) {
+        showToast('اختاري الفصل والدرس أولاً.', 'warning');
+        return;
+      }
+      if (!videoName) {
+        showToast('اكتبي اسم الفيديو.', 'warning');
+        titleInput.focus();
         return;
       }
       if (!file) {
-        showToast('اختاري ملف الفيديو أولاً.', 'warning');
+        showToast('اختاري ملف الفيديو.', 'warning');
         return;
       }
 
@@ -1121,36 +1748,79 @@ document.addEventListener('DOMContentLoaded', () => {
         progressArea.style.display = 'block';
         progressBar.style.width = '0%';
         statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
+        UploadFloat.show('جاري رفع الفيديو');
+        UploadFloat.update(0, 'جاري تجهيز الفيديو على سيرفر البث...');
 
         // Step 1: reserve a slot on Bunny (title follows the lesson convention).
         const prepared = await fetchJson(`${API_BASE}/lessons/${lessonId}/video`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body: JSON.stringify({ title: titleInput?.value.trim() || undefined }),
+          body: JSON.stringify({
+            title: videoName,
+            attachmentUrl,
+            description,
+          }),
         });
 
-        // Step 2: PUT the raw file straight to Bunny with upload progress.
-        await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', prepared.uploadUrl);
-          xhr.setRequestHeader('AccessKey', prepared.accessKey);
-          xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-              const pct = Math.round((e.loaded / e.total) * 100);
-              progressBar.style.width = pct + '%';
-              statusText.textContent = `جاري رفع الملف... ${pct}%`;
-            }
+        if (pdfFile) {
+          await uploadSelectedMaterial((pct, statusMsg) => {
+            progressBar.style.width = pct + '%';
+            statusText.textContent =
+              statusMsg || `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
+            UploadFloat.update(pct, statusMsg || `جاري رفع ملف PDF... ${pct}%`);
           });
-          xhr.addEventListener('load', () =>
-            xhr.status >= 200 && xhr.status < 300
-              ? resolve()
-              : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
-          );
-          xhr.addEventListener('error', () =>
-            reject(new Error('انقطع الاتصال أثناء الرفع.'))
-          );
-          xhr.send(file);
-        });
+          statusText.textContent = 'تم رفع الـ PDF ✔ — جاري رفع الفيديو...';
+          progressBar.style.width = '0%';
+        }
+
+        // Step 2: PUT the raw file straight to Bunny with upload progress.
+        if (swUploadAvailable) {
+          // BACKGROUND PATH: the service worker owns the big video PUT, so
+          // the teacher can browse other pages while it runs. Bunny encodes
+          // server-side afterwards regardless of who is watching.
+          const jobId = typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+          const outcome = await startSwUploadJob({
+            id: jobId,
+            kind: 'video',
+            url: prepared.uploadUrl,
+            method: 'PUT',
+            headers: { AccessKey: prepared.accessKey },
+            blob: file,
+            meta: { lessonId, label: `فيديو: ${videoName}` },
+            status: 'queued',
+          });
+
+          if (!outcome.ok) {
+            throw new Error(outcome.error || 'فشل رفع الملف.');
+          }
+        } else {
+          // INLINE FALLBACK (no service worker).
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', prepared.uploadUrl);
+            xhr.setRequestHeader('AccessKey', prepared.accessKey);
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = pct + '%';
+                statusText.textContent = `جاري رفع الملف... ${pct}%`;
+                UploadFloat.update(pct, `جاري رفع الملف... ${pct}%`);
+              }
+            });
+            xhr.addEventListener('load', () =>
+              xhr.status >= 200 && xhr.status < 300
+                ? resolve()
+                : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
+            );
+            xhr.addEventListener('error', () =>
+              reject(new Error('انقطع الاتصال أثناء الرفع.'))
+            );
+            xhr.send(file);
+          });
+        }
 
         statusText.textContent = 'تم الرفع! جاري معالجة الفيديو على Bunny...';
 
@@ -1162,29 +1832,34 @@ document.addEventListener('DOMContentLoaded', () => {
               { headers: authHeaders }
             );
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
+            UploadFloat.update(Math.max(st.encodeProgress || 0, 5), 'جاري معالجة الفيديو على Bunny...');
 
             if (st.ready) {
               clearInterval(poll);
               progressBar.style.width = '100%';
               statusText.textContent =
-                `الفيديو جاهز للمشاهدة ✅ (المدة: ${Math.round(st.lengthSeconds / 60)} دقيقة)`;
+                `الفيديو جاهز ✅ — يظهر الآن للطلاب في درس: ${st.lessonName}`;
               showToast(`تم رفع فيديو ${lessonId} بنجاح! الطلاب يستطيعون مشاهدته الآن.`, 'success');
+              UploadFloat.done('الفيديو جاهز ✅');
               uploadBtn.disabled = false;
             } else if ([5, 6].includes(st.status)) {
               clearInterval(poll);
               statusText.textContent = 'فشلت معالجة الفيديو على Bunny.';
               showToast('فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.', 'danger');
+              UploadFloat.fail('فشلت معالجة الفيديو.');
               uploadBtn.disabled = false;
             }
           } catch (pollError) {
             clearInterval(poll);
             statusText.textContent = pollError.message;
+            UploadFloat.fail(pollError.message);
             uploadBtn.disabled = false;
           }
         }, 5000);
       } catch (error) {
         showToast(error.message, 'danger');
         progressArea.style.display = 'none';
+        UploadFloat.fail(error.message);
         uploadBtn.disabled = false;
       }
     });
@@ -1233,5 +1908,338 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 450);
     });
   });
+
+  // --- Teacher dashboard: manage already-uploaded videos (edit / delete) ---
+  const manageChapter = document.querySelector('#manage-chapter');
+  const manageLesson = document.querySelector('#manage-lesson');
+
+  if (manageChapter && manageLesson && window.CURRICULUM) {
+    const fillManageLessons = (chapterIdx) => {
+      const chapter = window.CURRICULUM.biology[chapterIdx];
+      manageLesson.innerHTML = '';
+      chapter.lessons.forEach((lesson) => {
+        const opt = document.createElement('option');
+        opt.value = lesson.id;
+        opt.textContent = `${lesson.name} (${lesson.id})`;
+        manageLesson.appendChild(opt);
+      });
+      // Also refresh the "move to lesson" dropdown in the edit form.
+      const moveSelect = document.querySelector('#edit-move-lesson');
+      if (moveSelect) {
+        moveSelect.innerHTML = '<option value="">— إبقاء الدرس الحالي —</option>';
+        window.CURRICULUM.biology.forEach((ch) => {
+          ch.lessons.forEach((l) => {
+            const o = document.createElement('option');
+            o.value = l.id;
+            o.textContent = `${ch.name.split(':')[0]} — ${l.name}`;
+            moveSelect.appendChild(o);
+          });
+        });
+      }
+    };
+
+    window.CURRICULUM.biology.forEach((chapter, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      manageChapter.appendChild(opt);
+    });
+    manageChapter.addEventListener('change', () =>
+      fillManageLessons(Number(manageChapter.value))
+    );
+    fillManageLessons(0);
+
+    const editForm = document.querySelector('#video-edit-form');
+    const videosListBox = document.querySelector('#manage-videos-list');
+    let loadedVideos = [];
+
+    const renderManageList = () => {
+      videosListBox.innerHTML = '';
+
+      if (!loadedVideos.length) {
+        videosListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">لا توجد فيديوهات مرفوعة لهذا الدرس بعد.</p>';
+        return;
+      }
+
+      loadedVideos.forEach((v, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText =
+          'display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;';
+
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1; min-width:200px;';
+        info.innerHTML =
+          `<div style="font-weight:700;">${idx + 1}. ${v.name || '(بدون اسم)'}</div>` +
+          `<div class="text-muted" style="font-size:0.8rem;">` +
+          `${v.ready ? `⏱ ${Math.max(1, Math.round(v.lengthSeconds / 60))} دقيقة` : '⏳ قيد المعالجة'}` +
+          `${v.description ? ` • ${v.description.slice(0, 60)}` : ''}</div>`;
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex; gap:0.5rem;';
+        actions.innerHTML =
+          '<button class="btn btn-light js-edit-video" style="font-size:0.8rem;">✏️ تعديل</button>' +
+          '<button class="btn btn-light js-delete-video" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
+
+        row.append(info, actions);
+
+        row.querySelector('.js-edit-video').addEventListener('click', () => {
+          document.querySelector('#edit-video-id').value = v.videoId;
+          document.querySelector('#edit-name').value = v.name || '';
+          document.querySelector('#edit-attachment').value = v.attachmentUrl || '';
+          document.querySelector('#edit-description').value = v.description || '';
+          document.querySelector('#edit-move-lesson').value = '';
+          editForm.style.display = 'block';
+          editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        row.querySelector('.js-delete-video').addEventListener('click', async () => {
+          if (!confirm(`حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`)) return;
+          try {
+            await fetchJson(`${API_BASE}/api/videos/${v.videoId}`, {
+              method: 'DELETE',
+              headers: {
+                'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+                'x-user-role': 'teacher',
+              },
+            });
+            showToast('تم حذف الفيديو بنجاح.', 'success');
+            loadVideosList();
+          } catch (error) {
+            showToast(error.message, 'danger');
+          }
+        });
+
+        videosListBox.appendChild(row);
+      });
+    };
+
+    const loadVideosList = async () => {
+      const lessonId = manageLesson.value;
+      try {
+        videosListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
+        const data = await fetchJson(
+          `${API_BASE}/api/lessons/${lessonId}/videos`,
+          {
+            headers: {
+              'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+              'x-user-role': 'teacher',
+            },
+          }
+        );
+        loadedVideos = data.videos || [];
+        renderManageList();
+      } catch (error) {
+        loadedVideos = [];
+        videosListBox.innerHTML = '';
+        showToast(error.message, 'danger');
+      }
+    };
+
+    document
+      .querySelector('#btn-load-videos')
+      .addEventListener('click', loadVideosList);
+
+    document.querySelector('#btn-cancel-edit').addEventListener('click', () => {
+      editForm.style.display = 'none';
+    });
+
+    document.querySelector('#btn-save-edit').addEventListener('click', async () => {
+      const videoId = document.querySelector('#edit-video-id').value;
+      const body = {
+        name: document.querySelector('#edit-name').value,
+        attachmentUrl: document.querySelector('#edit-attachment').value,
+        description: document.querySelector('#edit-description').value,
+      };
+      const moveTo = document.querySelector('#edit-move-lesson').value;
+      if (moveTo) body.lessonId = moveTo;
+
+      try {
+        await fetchJson(`${API_BASE}/api/videos/${videoId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+            'x-user-role': 'teacher',
+          },
+          body: JSON.stringify(body),
+        });
+        showToast('تم حفظ التعديلات بنجاح.', 'success');
+        editForm.style.display = 'none';
+        loadVideosList();
+      } catch (error) {
+        showToast(error.message, 'danger');
+      }
+    });
+  }
+
+  // --- Teacher dashboard: manage lesson PDF materials (rename / delete) ---
+  // Mirrors the video management block above: same selects pattern, same
+  // inline edit form, same native confirm() before deleting.
+  const materialsManageChapter = document.querySelector('#materials-manage-chapter');
+  const materialsManageLesson = document.querySelector('#materials-manage-lesson');
+
+  if (materialsManageChapter && materialsManageLesson && window.CURRICULUM) {
+    // Same dev-auth header convention as every other teacher call in this file.
+    const teacherAuthHeaders = {
+      'x-user-id': localStorage.getItem('userId') || 'dev-teacher',
+      'x-user-role': 'teacher',
+    };
+
+    /** Fills the lesson dropdown for the chosen chapter. */
+    const fillMaterialsManageLessons = (chapterIdx) => {
+      const chapter = window.CURRICULUM.biology[chapterIdx];
+      materialsManageLesson.innerHTML = '';
+      chapter.lessons.forEach((lesson) => {
+        const opt = document.createElement('option');
+        opt.value = lesson.id;
+        opt.textContent = `${lesson.name} (${lesson.id})`;
+        materialsManageLesson.appendChild(opt);
+      });
+    };
+
+    window.CURRICULUM.biology.forEach((chapter, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      materialsManageChapter.appendChild(opt);
+    });
+    materialsManageChapter.addEventListener('change', () =>
+      fillMaterialsManageLessons(Number(materialsManageChapter.value))
+    );
+    fillMaterialsManageLessons(0);
+
+    const materialEditForm = document.querySelector('#material-edit-form');
+    const materialsListBox = document.querySelector('#manage-materials-list');
+    let loadedMaterials = [];
+
+    /** Formats a byte count for the management list ("812 KB" / "1.4 MB"). */
+    const formatMaterialSize = (sizeBytes) => {
+      if (!sizeBytes) return '';
+      if (sizeBytes < 1024 * 1024) return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
+      return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    /** Formats an ISO date as a short readable date for the list rows. */
+    const formatMaterialDate = (isoDate) => {
+      if (!isoDate) return '';
+      try {
+        return new Date(isoDate).toLocaleDateString('ar-EG');
+      } catch (error) {
+        return '';
+      }
+    };
+
+    const renderMaterialsManageList = () => {
+      materialsListBox.innerHTML = '';
+
+      if (!loadedMaterials.length) {
+        materialsListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">لا توجد ملفات PDF مرفوعة لهذا الدرس بعد.</p>';
+        return;
+      }
+
+      loadedMaterials.forEach((material, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText =
+          'display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;';
+
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1; min-width:200px;';
+        const metaParts = [
+          formatMaterialDate(material.createdAt),
+          formatMaterialSize(material.sizeBytes),
+        ].filter(Boolean).join(' • ');
+        info.innerHTML =
+          `<div style="font-weight:700;">${idx + 1}. ${material.title || '(بدون اسم)'}</div>` +
+          `<div class="text-muted" style="font-size:0.8rem;">📄 PDF${metaParts ? ` • ${metaParts}` : ''}</div>`;
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex; gap:0.5rem;';
+        actions.innerHTML =
+          '<button class="btn btn-light js-edit-material" style="font-size:0.8rem;">✏️ تعديل</button>' +
+          '<button class="btn btn-light js-delete-material" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
+
+        row.append(info, actions);
+
+        row.querySelector('.js-edit-material').addEventListener('click', () => {
+          document.querySelector('#edit-material-id').value = material.id;
+          document.querySelector('#edit-material-title').value = material.title || '';
+          materialEditForm.style.display = 'block';
+          materialEditForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        row.querySelector('.js-delete-material').addEventListener('click', async () => {
+          if (!confirm(`حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`)) return;
+          try {
+            await fetchJson(`${API_BASE}/api/materials/${encodeURIComponent(material.id)}`, {
+              method: 'DELETE',
+              headers: teacherAuthHeaders,
+            });
+            showToast('تم حذف المادة بنجاح.', 'success');
+            loadMaterialsManageList();
+          } catch (error) {
+            showToast(error.message, 'danger');
+          }
+        });
+
+        materialsListBox.appendChild(row);
+      });
+    };
+
+    const loadMaterialsManageList = async () => {
+      const lessonId = materialsManageLesson.value;
+      if (!lessonId) return;
+      try {
+        materialsListBox.innerHTML =
+          '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
+        const data = await fetchJson(
+          `${API_BASE}/api/lessons/${lessonId}/materials/manage`,
+          { headers: teacherAuthHeaders }
+        );
+        loadedMaterials = data.materials || [];
+        renderMaterialsManageList();
+      } catch (error) {
+        loadedMaterials = [];
+        materialsListBox.innerHTML = '';
+        showToast(error.message, 'danger');
+      }
+    };
+
+    document
+      .querySelector('#btn-load-materials')
+      .addEventListener('click', loadMaterialsManageList);
+
+    document.querySelector('#btn-cancel-material-edit').addEventListener('click', () => {
+      materialEditForm.style.display = 'none';
+    });
+
+    document.querySelector('#btn-save-material-edit').addEventListener('click', async () => {
+      const materialId = document.querySelector('#edit-material-id').value;
+      const newTitle = document.querySelector('#edit-material-title').value;
+
+      if (!newTitle.trim()) {
+        showToast('اكتبي اسم المادة أولاً.', 'warning');
+        return;
+      }
+
+      try {
+        await fetchJson(`${API_BASE}/api/materials/${encodeURIComponent(materialId)}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...teacherAuthHeaders,
+          },
+          body: JSON.stringify({ title: newTitle }),
+        });
+        showToast('تم حفظ التعديلات بنجاح.', 'success');
+        materialEditForm.style.display = 'none';
+        loadMaterialsManageList();
+      } catch (error) {
+        showToast(error.message, 'danger');
+      }
+    });
+  }
 });
 

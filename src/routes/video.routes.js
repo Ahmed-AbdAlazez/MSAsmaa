@@ -30,7 +30,15 @@ const {
   generateSignedPlaybackUrl,
   getVideo,
   findVideoByLessonId,
+  findAllVideosByLessonId,
+  buildTitle,
+  parseLessonTitle: parseTitle,
 } = require("../services/bunny.service.js");
+
+// Sanitize user text before embedding it in the Bunny title:
+// "|" is our metadata separator and must never come from user input.
+const cleanTitlePart = (s) =>
+  String(s || "").replace(/\|/g, "/").replace(/\s+/g, " ").trim();
 
 // ⚠️ STUB imports — see "STUBS TO REPLACE LATER" in VIDEO_INTEGRATION_README.md
 const {
@@ -73,13 +81,23 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
   }
 
   const { lessonId } = req.params;
-  const customTitle = (req.body && req.body.title) || "شرح الدرس";
+  const rawTitle = ((req.body && req.body.title) || "شرح الدرس").trim();
+  const attachmentUrl = ((req.body && req.body.attachmentUrl) || "").trim();
+  const description = ((req.body && req.body.description) || "").trim();
 
-  // TITLE CONVENTION — this is how the platform remembers which video
-  // belongs to which lesson WITHOUT a database: the title always starts
-  // with the lesson ID, e.g. "lesson-1 | شرح الدعامة".
-  // findVideoByLessonId() relies on this at playback time.
-  const videoTitle = `${lessonId} | ${customTitle}`;
+  // Sanitize: "|" is our metadata separator inside the Bunny title.
+
+  // TITLE CONVENTION — the platform remembers a lesson's video AND its
+  // optional metadata WITHOUT a database (Bunny does not persist video
+  // descriptions, verified against their API):
+  //   "lesson-N | name"                               (minimum)
+  //   "lesson-N | name | attachmentUrl | description"  (optional extras)
+  const videoTitle = buildTitle(
+    lessonId,
+    cleanTitlePart(rawTitle),
+    cleanTitlePart(attachmentUrl),
+    cleanTitlePart(description)
+  );
 
   try {
     // Ask Bunny to reserve a slot for this video; Bunny returns its own ID
@@ -206,7 +224,7 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
 
     if (!videoId) {
       return res.status(404).json({
-        error: "No video has been uploaded for this lesson yet.",
+        error: "لم يتم رفع فيديو لهذا الدرس بعد.",
       });
     }
 
@@ -215,6 +233,8 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
     return res.json({
       lessonId: req.params.lessonId,
       videoId,
+      title: video.title,
+      ...parseTitle(video.title),
       status: video.status,
       encodeProgress: video.encodeProgress,
       lengthSeconds: video.length,
@@ -227,6 +247,55 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
     );
     return res.status(500).json({
       error: "Failed to check the video status. Please try again later.",
+    });
+  }
+});
+
+/**
+ * GET /api/lessons/:lessonId/videos
+ *
+ * Lists ALL videos of a lesson (a lesson may have several parts), each with
+ * its parsed metadata and a fresh signed playback URL. Gated by the same
+ * enrollment check as video-url.
+ */
+router.get("/:lessonId/videos", requireAuth, async (req, res) => {
+  const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
+    req.user.id,
+    req.params.lessonId
+  );
+  if (!studentIsEnrolled) {
+    return res.status(403).json({
+      error: "You are not enrolled in the course this lesson belongs to.",
+    });
+  }
+
+  try {
+    const items = await findAllVideosByLessonId(req.params.lessonId);
+
+    return res.json({
+      lessonId: req.params.lessonId,
+      videos: items.map((video) => ({
+        videoId: video.guid,
+        ...parseTitle(video.title),
+        status: video.status,
+        ready: video.status === 4,
+        encodeProgress: video.encodeProgress,
+        lengthSeconds: video.length,
+        dateUploaded: video.dateUploaded,
+        playbackUrl: generateSignedPlaybackUrl(
+          video.guid,
+          PLAYBACK_URL_LIFETIME_SECONDS
+        ),
+        expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
+      })),
+    });
+  } catch (error) {
+    console.error(
+      `[video.routes] Video list failed for lesson ${req.params.lessonId}:`,
+      error
+    );
+    return res.status(500).json({
+      error: "Failed to load the lesson videos. Please try again later.",
     });
   }
 });

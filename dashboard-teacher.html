@@ -7,6 +7,8 @@
   <title>لوحة تحكم المعلم | منصة المرسال</title>
   <meta name="description"
     content="لوحة التحكم الخاصة بمعلم المادة لمتابعة درجات طلاب الثانوية العامة ونسب حضورهم وتسليماتهم.">
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -113,27 +115,128 @@
       <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">رفع فيديوهات الشرح 🎬</h2>
       <div class="card" style="margin-bottom: 2.5rem;">
         <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
-          <div style="flex:1; min-width:180px;">
-            <label for="upload-lesson-id" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">معرف الدرس</label>
-            <input id="upload-lesson-id" type="text" placeholder="lesson-1"
-              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="upload-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
           </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="upload-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-top:1rem;">
           <div style="flex:2; min-width:220px;">
-            <label for="upload-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">عنوان الدرس (اختياري)</label>
+            <label for="upload-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم الفيديو *</label>
             <input id="upload-title" type="text" placeholder="شرح الدعامة في النبات"
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
           <div style="flex:2; min-width:220px;">
-            <label for="upload-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف الفيديو</label>
+            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط ملف إضافي PDF / وسائط (اختياري)</label>
+            <input id="upload-attachment" type="url" placeholder="https://drive.google.com/..."
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;" dir="ltr">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف الفيديو *</label>
             <input id="upload-file" type="file" accept="video/*"
               style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
-          <button id="btn-upload-video" class="btn btn-primary" style="min-width:140px;">⬆ رفع الفيديو</button>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-pdf-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف PDF للدرس (اختياري)</label>
+            <input id="upload-pdf-file" type="file" accept="application/pdf,.pdf"
+              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
         </div>
+
+        <div style="margin-top:1rem;">
+          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس (اختياري)</label>
+          <textarea id="upload-description" rows="3" placeholder="ملخص محتوى الشرح، المصادر، تعليمات للطلاب..."
+            style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
+          <button id="btn-upload-video" class="btn btn-primary" style="min-width:160px;">⬆ رفع الفيديو</button>
+          <button id="btn-upload-material" class="btn btn-secondary" style="min-width:170px;">رفع PDF فقط</button>
+        </div>
+
         <div id="upload-progress-area" style="display:none; margin-top:1.25rem;">
           <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-status-text">جاري الرفع...</div>
           <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
             <div id="upload-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Management Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">إدارة الفيديوهات المرفوعة 🛠️</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="manage-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="manage-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="manage-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="manage-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-videos" class="btn btn-secondary" style="min-width:130px;">📋 عرض الفيديوهات</button>
+        </div>
+
+        <div id="manage-videos-list" style="margin-top:1.25rem;"></div>
+
+        <!-- Edit form (hidden until تعديل is clicked) -->
+        <div id="video-edit-form" style="display:none; margin-top:1.25rem; padding:1.25rem; background-color:var(--color-bg); border-radius:var(--radius-md);">
+          <input type="hidden" id="edit-video-id">
+          <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+            <div style="flex:2; min-width:200px;">
+              <label for="edit-name" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم الفيديو</label>
+              <input id="edit-name" type="text" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+            </div>
+            <div style="flex:2; min-width:200px;">
+              <label for="edit-move-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">نقل إلى درس (اختياري)</label>
+              <select id="edit-move-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"><option value="">— إبقاء الدرس الحالي —</option></select>
+            </div>
+          </div>
+          <div style="margin-top:1rem;">
+            <label for="edit-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط الملف الإضافي</label>
+            <input id="edit-attachment" type="url" dir="ltr" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="margin-top:1rem;">
+            <label for="edit-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس</label>
+            <textarea id="edit-description" rows="3" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
+          </div>
+          <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
+            <button id="btn-save-edit" class="btn btn-primary">💾 حفظ التعديلات</button>
+            <button id="btn-cancel-edit" class="btn btn-light">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lesson PDF Materials Management Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">إدارة مواد الدرس PDF 📄</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="materials-manage-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="materials-manage-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="materials-manage-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="materials-manage-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-materials" class="btn btn-secondary" style="min-width:130px;">📋 عرض ملفات PDF</button>
+        </div>
+
+        <div id="manage-materials-list" style="margin-top:1.25rem;"></div>
+
+        <!-- Rename form (hidden until تعديل is clicked) -->
+        <div id="material-edit-form" style="display:none; margin-top:1.25rem; padding:1.25rem; background-color:var(--color-bg); border-radius:var(--radius-md);">
+          <input type="hidden" id="edit-material-id">
+          <label for="edit-material-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم المادة</label>
+          <input id="edit-material-title" type="text" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
+            <button id="btn-save-material-edit" class="btn btn-primary">💾 حفظ الاسم الجديد</button>
+            <button id="btn-cancel-material-edit" class="btn btn-light">إلغاء</button>
           </div>
         </div>
       </div>
@@ -264,6 +367,7 @@
     </div>
   </footer>
 
+  <script src="js/curriculum.js"></script>
   <script src="js/main.js"></script>
 </body>
 

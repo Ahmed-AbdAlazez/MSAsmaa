@@ -1,0 +1,267 @@
+# Sama — Mascot & Homepage Effects
+
+"Sama" is the friendly mascot of منصة المرسال: a flat vector character drawn as
+a **circle in the site's primary brand green** with a **white doctor figure**
+inside it (white coat, V-collar, teal stethoscope across the chest, round eyes,
+small smile). She lives in the hero section of the homepage and powers four
+lightweight effects inspired by Duolingo / Brilliant.org.
+
+All files are **frontend-only** (no backend/API changes) and each effect lives in
+its own file so any piece can be edited or deleted independently:
+
+| File | Purpose |
+|---|---|
+| `js/components/samaMascot.js` | Renders Sama's SVG + speech bubble + accessory badge |
+| `js/components/mascotEyeTracking.js` | Effect 1 — pupils follow the mouse cursor |
+| `js/components/mascotNavHover.js` | Effect 2 — mascot reacts to nav item hover |
+| `js/components/scrollBiology.js` | Effect 3 — scroll-linked biology decorations |
+| `css/mascot.css` | All mascot/effect styling, animations & theme tokens |
+
+Load order matters only for the first two: the mascot script must run before the
+effects that attach to it (`index.html`, bottom of `<body>`).
+
+---
+
+## 1. The mascot component
+
+**Where it lives:** `js/components/samaMascot.js` renders the whole SVG into the
+mount element in `index.html` (hero section):
+
+```html
+<div class="cell-art">
+  <div data-sama-mascot></div>   <!-- Sama appears here -->
+  ...
+</div>
+```
+
+**Changing colors:** open `css/mascot.css` and edit the theme tokens at the top
+(no SVG knowledge needed). Since the v2 redesign, every token **reuses an
+existing site variable**, so Sama always matches the palette exactly:
+
+```css
+.sama-mascot {
+  --sama-body:  var(--color-primary);       /* outer circle = brand green */
+  --sama-line:  var(--color-primary-dark);  /* face lines / eye rings */
+  --sama-tube:  var(--color-accent-blue);   /* teal stethoscope */
+}
+```
+
+**Changing the shape:** the outer body is a single `<circle class="sama-body">`
+inside `samaMascot.js`; the white coat/collar/stethoscope live in a group that
+is clipped by `#sama-circle-clip`. Edit those paths (220×220 viewBox) and the
+eyes keep working — they are separate elements carrying the `.sama-eye` /
+`.sama-pupil` hooks.
+
+---
+
+## 2. Hover-reveal navigation effect (Effect 2)
+
+The effect is **fully data-driven from HTML**. Any `.nav-link` with two data
+attributes participates automatically — no JS edits needed:
+
+```html
+<a href="assignments.html" class="nav-link"
+   data-mascot-icon="microscope"
+   data-mascot-caption="بنك أسئلة واجبات تحاكي نظام الامتحان">
+   الواجبات
+</a>
+```
+
+- `data-mascot-icon` → key of an icon in `ACCESSORY_ICONS` at the top of
+  `js/components/samaMascot.js` (`leaf`, `dna`, `microscope`, `chat`,
+  `chart`, `cap`). Add a new SVG string there to create new keys.
+- `data-mascot-caption` → the one-line text shown in the speech bubble.
+
+**To add a fourth/fifth nav section later:** just add those same two data
+attributes to the new link (and optionally register a new icon key). The hover,
+keyboard-focus and reverse-on-leave behavior is handled generically by
+`mascotNavHover.js`.
+
+Motion (fade/pop of bubble & badge) is pure CSS transitions in
+`css/mascot.css` (`.sama-bubble`, `.sama-accessory`) — tweak durations there.
+
+---
+
+## 3. Scroll-linked biology decorations (Effect 3)
+
+**Where:** the bottom of `index.html`. The CTA banner + footer are wrapped in a
+scope element:
+
+```html
+<div class="bottom-zone" data-samascroll>
+  <div class="scroll-decor" aria-hidden="true">
+    <div class="scroll-shape shape-cell"
+         data-drift-y="-70" data-drift-x="22" data-spin="16"
+         style="top:6%; left:5%; width:72px;"></div>
+    ...
+  </div>
+  <section class="cta-banner">...</section>
+  <footer class="footer">...</footer>
+</div>
+```
+
+**How it works** (`js/components/scrollBiology.js`): on each animation frame
+while scrolling, the wrapper's position is converted into a **footer-reveal
+progress** value `p = 0..1`:
+
+```
+p = clamp( (viewportHeight - rect.top) / rect.height , 0 , 1 )
+```
+
+`p = 0` when the zone's top edge appears at the viewport bottom; `p = 1` when
+the page is scrolled to its very end (true because this zone is the last
+element on the page). That becomes a centered value `c = p - 0.5` which drives,
+per shape:
+
+```
+translate3d(c × driftX, c × driftY) rotate(c × spin)
+```
+
+Negative values move opposite to positive ones, so shapes drift up/inward as
+you scroll down and perfectly reverse when scrolling up.
+
+**v2 fix:** the previous formula divided by `rect.height + viewportHeight`,
+which describes a zone traveling *through* the viewport — impossible for the
+last element on a page. Progress saturated around 0.5 before the footer was
+even visible and the drift was smeared over ~1700px of scroll, so the shapes
+looked frozen. The new mapping stays live for every remaining scroll pixel.
+
+On top of that raw mapping sits an **eased chase loop**: scroll events only set
+a target, and `current += (target - current) * 0.18` per frame glides the
+shapes toward it until they settle (< 0.1% away). Fast flicks therefore glide
+instead of jumping, slow scrolls track almost 1:1, and the lerp can never
+overshoot. The loop cancels itself once settled, so there is no idle CPU use.
+
+Only `transform` is ever written (one passive scroll listener + rAF batching,
+one layout read per recompute), so there is no layout thrash. The layer sits
+above section backgrounds but below real content, has `pointer-events: none`,
+and is clipped by `overflow: hidden` so it can never cover main content or the
+navbar.
+
+**Tuning intensity/speed once you see it live:**
+
+| What feels off | Change |
+|---|---|
+| Everything too fast/subtle overall | `INTENSITY` constant at top of `scrollBiology.js` (default `1.4`; try `2.0` or `0.8`) |
+| Motion feels laggy / too floaty after flicks | raise `EASE` (default `0.18`) in the same file |
+| One shape travels too far | its `data-drift-y` px value in `index.html` |
+| Rotation distracting | set `data-spin="0"` on that shape |
+| Too many shapes on phones | add/remove the `hide-mobile` class (shapes with it disappear under 600px) |
+| Shape position/size | the inline `style="top/left/right/width"` on each shape |
+
+Everything also switches itself off automatically for users with
+`prefers-reduced-motion: reduce`, and eye-tracking disables itself on touch
+devices where Sama instead runs a CSS idle blink/wander animation.
+
+---
+
+## 4. Scroll-built anatomy section (Effect 4)
+
+**Where:** `index.html` contains a single mount directly above the real footer:
+
+```html
+<div data-anatomy-scroll-section></div>
+<footer class="footer">...</footer>
+```
+
+`js/components/anatomyScrollSection.js` renders the SVG and controls the effect.
+This keeps the anatomy story independent from the footer element while still
+placing it at the end of the homepage, after the CTA banner and before the
+footer content.
+
+**Technique:** this effect uses GSAP with the ScrollTrigger plugin from the
+installed `gsap` package. The homepage loads:
+
+```html
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<script src="node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script src="js/components/anatomyScrollSection.js"></script>
+```
+
+There is no Intersection Observer and no hand-built scroll percentage mapping
+for this effect. `anatomyScrollSection.js` creates one GSAP master timeline with
+`scrollTrigger: { pin: ..., scrub: 1 }`, following GSAP's documented scrubbed
+timeline pattern. ScrollTrigger pins the anatomy panel, ties timeline progress
+to native scroll, smooths it with `scrub: 1`, and automatically reverses the
+same timeline when scrolling back up.
+
+**How the timeline is structured:** each layer is a separate tween inside the
+same timeline, with labels and overlapping starts:
+
+```js
+timeline
+  .addLabel('outline')
+  .to(outline, ...)
+  .addLabel('skeleton', 0.72)
+  .to(skeleton, ...)
+  .addLabel('ribs', 1.45)
+  .to(ribs, ...)
+  .addLabel('heart', 2.06)
+  .to(heart, ...)
+```
+
+The outline appears first, the skeleton fades/draws in over it, the rib cage has
+its own highlighted scale/emphasis beat, and the heart finishes last. Because
+these are overlapping tweens in one scrubbed timeline, the build feels
+continuous rather than like four hard steps.
+
+**How to tune pacing/overlap:** edit the label positions and tween durations in
+`anatomyScrollSection.js`.
+
+| What feels off | Change |
+|---|---|
+| A layer appears too early | Move its label later, e.g. `ribs` from `1.45` to `1.65` |
+| A layer appears too late | Move its label earlier |
+| A layer reveals too abruptly | Increase that tween's `duration` |
+| The build feels too slow overall | Lower the ScrollTrigger `end` distance |
+| The beats feel too separate | Move labels closer together so tweens overlap more |
+
+Desktop currently uses `end: '+=115%'`; mobile uses `end: '+=85%'` so touch
+scrolling stays compact. Raise those values for a longer storytelling section,
+or lower them if it still feels like it pauses too long before the footer.
+
+**Heart pulse speed:** the completed-state pulse is a separate GSAP tween, not
+tied to scroll:
+
+```js
+const heartPulse = gsap.to(heart, {
+  scale: 1.045,
+  duration: 0.72,
+  repeat: -1,
+  yoyo: true,
+  ease: 'sine.inOut',
+  paused: true,
+});
+```
+
+Lower `duration: 0.72` for a faster beat, raise it for a calmer beat. The pulse
+starts when ScrollTrigger leaves the pinned section at full completion and stops
+when the user scrolls back into/reverses the section.
+
+**Performance notes:** GSAP animates opacity and transforms only. ScrollTrigger
+uses native scroll, supports touch scrolling, recalculates on resize, and
+manages pin spacing so the section stays visually separate from the real footer.
+`prefers-reduced-motion: reduce` skips the scrubbed animation and shows the final
+combined anatomy state.
+
+---
+
+## Revision 2 changelog
+
+1. **Sama redesigned** (`samaMascot.js`, tokens in `mascot.css`):
+   outer blob replaced by a plain circle filled with `var(--color-primary)` —
+   the site's exact brand green, no new colors introduced; inside sits a white
+   doctor figure (coat + V-collar + teal stethoscope loop across the chest,
+   drawn with `var(--color-accent-blue)`), round ringed eyes and a small smile
+   line. The old "stethoscope-as-mouth" is gone.
+2. **Footer scroll effect fixed** (`scrollBiology.js`): new footer-reveal
+   progress formula + eased chase loop (see section 3). Shapes now move visibly
+   while approaching the footer, reverse smoothly when scrolling back up, work
+   at both fast and slow speeds without jumps or overshoot.
+3. **Interaction logic untouched:** eye tracking still moves only the
+   `.sama-pupil` groups (they were preserved verbatim in the new SVG), the nav
+   hover-reveal still calls the same `SamaMascot.reveal()/hide()` API, blink /
+   idle-wander CSS animations still hook the same classes, and the scroll
+   effect still reads the same `data-drift-*` attributes from `index.html`.
+   All three behaviors run together on the homepage with no duplicated
+   components.

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>عرض الدرس | الدعامة في النبات | منصة المرسال</title>
   <meta name="description" content="فيديو الشرح التفصيلي لدرس الدعامة في النبات والمصطلحات العلمية المرتبطة بها للصف الثالث الثانوي.">
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -79,7 +81,19 @@
               </svg>
             </button>
             <div class="video-title" id="lesson-video-title">شرح الدعامة الفسيولوجية والدعامة التركيبية في النبات</div>
-            <div class="video-duration">أ. أسماء مرسال | ⏱ 45 دقيقة</div>
+            <div class="video-duration" id="lesson-video-duration">أ. أسماء مرسال</div>
+          </div>
+        </div>
+
+        <!-- Inline PDF Viewer: same-origin backend proxy + native browser
+             PDF renderer, identical behaviour on desktop and mobile. -->
+        <div class="lesson-pdf-viewer" id="lesson-pdf-viewer" hidden>
+          <div class="lesson-pdf-viewer-header">
+            <span class="lesson-pdf-viewer-title" id="lesson-pdf-viewer-title"></span>
+            <button type="button" class="btn btn-secondary lesson-pdf-viewer-close" id="lesson-pdf-viewer-close">إغلاق ✕</button>
+          </div>
+          <div class="lesson-pdf-canvas-wrap">
+            <iframe id="lesson-pdf-frame" title="عرض الملف PDF" src="about:blank"></iframe>
           </div>
         </div>
 
@@ -164,27 +178,18 @@
           <a href="assignment-view.html" class="btn btn-primary" style="background-color: var(--color-accent); color: white; width: 100%; border: none;">الذهاب إلى صفحة الواجب</a>
         </div>
 
+        <!-- Lesson PDF Materials -->
+        <div class="lesson-sidebar-box">
+          <h3 class="lesson-sidebar-title">مواد الدرس PDF</h3>
+          <div id="lesson-materials-list" class="lesson-materials-list">
+            <p class="text-muted" style="font-size:0.9rem; margin:0;">جاري تحميل الملفات...</p>
+          </div>
+        </div>
+
         <!-- Sidebar Chapters list -->
         <div class="lesson-sidebar-box">
           <h3 class="lesson-sidebar-title">دروس هذا الباب</h3>
-          <div style="display:flex; flex-direction:column;">
-            <a href="lesson-view.html" class="sidebar-lesson-item active">
-              <span class="sidebar-lesson-icon">١</span>
-              <span class="sidebar-lesson-name">الدعامة في النبات</span>
-            </a>
-            <a href="#" class="sidebar-lesson-item" onclick="alert('هذا الدرس مغلق في النموذج البصري المؤقت. تصفح درس الدعامة في النبات للتحقق من العرض.')">
-              <span class="sidebar-lesson-icon">٢</span>
-              <span class="sidebar-lesson-name">الدعامة في الإنسان</span>
-            </a>
-            <a href="#" class="sidebar-lesson-item" onclick="alert('هذا الدرس مغلق في النموذج البصري المؤقت.')">
-              <span class="sidebar-lesson-icon">٣</span>
-              <span class="sidebar-lesson-name">الحركة في الكائنات الحية</span>
-            </a>
-            <a href="#" class="sidebar-lesson-item" onclick="alert('هذا الدرس مغلق في النموذج البصري المؤقت.')">
-              <span class="sidebar-lesson-icon">٤</span>
-              <span class="sidebar-lesson-name">التنسيق الهرموني في الكائنات</span>
-            </a>
-          </div>
+          <div id="sidebar-lessons-list" style="display:flex; flex-direction:column;"></div>
         </div>
 
       </div>
@@ -222,6 +227,10 @@
     </div>
   </footer>
 
+  <script src="js/curriculum.js"></script>
+  <!-- PDFs stream through the same-origin backend proxy
+       (GET /api/materials/:id/view) into a plain <iframe>, so the native
+       browser/OS PDF renderer handles display on every platform. -->
   <script src="js/main.js"></script>
 </body>
 </html>

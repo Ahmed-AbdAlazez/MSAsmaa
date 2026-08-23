@@ -24,6 +24,17 @@
 
 const crypto = require("crypto");
 
+// The Bunny calls below use the global fetch() API, which only exists on
+// Node.js >= 18. On older runtimes (e.g. an old Vercel Node version) this
+// would crash deep inside a route with a confusing TypeError — fail fast
+// here instead, with a message that names the actual fix.
+if (typeof fetch !== "function") {
+  throw new Error(
+    "global fetch() is not available. Bunny integration requires Node.js 18+. " +
+      "On Vercel: Settings -> General -> Node.js Version must be 18 or higher."
+  );
+}
+
 // Requiring this runs the dotenv load + validation immediately. If anything
 // is missing, the server crashes at startup with a clear error — which is
 // exactly what we want (fail fast, fail loudly).
@@ -193,45 +204,220 @@ async function getVideo(videoId) {
  *     "{lessonId} | {human readable name}"
  * e.g. "lesson-1 | الدعامة في الكائنات الحية".
  * Videos uploaded manually through the Bunny dashboard work too, as long as
- * the title starts with the lesson ID followed by a space.
+ * the title starts with the lesson ID followed by " " or "|".
  *
- * How the match works: Bunny's "search" query returns videos whose title
- * contains the term; we then keep only titles where the FIRST token equals
- * the lesson ID exactly, so "lesson-1 ..." never matches "lesson-10 ...".
- * The most recently uploaded match wins.
+ * Matching is done by scanning the full library and comparing titles
+ * locally — see findAllVideosByLessonId below for why Bunny's search
+ * endpoint is no longer used.
  *
  * @param {string} lessonId - The lesson whose video we want, e.g. "lesson-1".
  * @returns {Promise<string|null>} The video ID ("guid"), or null when no
  *                                 video for this lesson exists yet.
  * @throws {Error} If the network call fails or Bunny replies with an error.
  */
-async function findVideoByLessonId(lessonId) {
-  const url =
-    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos` +
-    `?search=${encodeURIComponent(lessonId)}&orderBy=date&itemsPerPage=100`;
 
-  const response = await fetch(url, {
-    headers: { AccessKey: bunnyEnv.apiKey },
+/**
+ * Finds ALL Bunny videos that belong to a lesson (a lesson can have several,
+ * e.g. "شرح" + "مراجعة"), ordered oldest-first so parts stay in upload order.
+ *
+ * WHY THIS WAS REWRITTEN (the "videos disappeared" bug):
+ * The lesson->video mapping lives ON BUNNY ITSELF inside the video title
+ * ("lesson-N | name | ...") because there is no database yet. Lookup used to
+ * rely on Bunny's "?search=lesson-N" query — but that endpoint is unreliable
+ * for this purpose: its search matches loosely across fields, and combined
+ * with itemsPerPage=100 + orderBy=date it only ever inspected the FIRST page
+ * of results. Once the library grew (or the in-memory stub map was wiped by a
+ * server restart / serverless cold start), yesterday's uploads fell outside
+ * that first page and the platform reported them as missing even though they
+ * were safe on Bunny.
+ *
+ * HOW IT WORKS NOW:
+ *   1. Paginate through the ENTIRE library (100 per page, up to 50 pages)
+ *      WITHOUT any search filter, so nothing can be missed.
+ *   2. Filter locally: a title belongs to the lesson when it equals the
+ *      lesson ID, or starts with "<lessonId> " / "<lessonId>|". Exact
+ *      first-token matching means "lesson-1" never matches "lesson-10".
+ *   3. Cache the result in memory for CACHE_TTL_MS (one process lifetime is
+ *      still not durable storage — the real fix is the Prisma lessons table,
+ *      see lesson.stub.service.js).
+ *
+ * @param {string} lessonId - e.g. "lesson-1".
+ * @returns {Promise<Array<Object>>} Full Bunny video objects (may be empty).
+ */
+
+/** In-process cache for title scans: lessonId -> { at, items }. */
+const _titleScanCache = new Map();
+const CACHE_TTL_MS = 60 * 1000;
+
+/**
+ * Fetches every video in the library, following pagination until done.
+ * Stable ascending date order keeps each page's contents predictable while
+ * we walk through all of them.
+ */
+async function listAllLibraryVideos() {
+  const pageSize = 100;
+  const maxPages = 50; // safety cap: 50 x 100 = 5000 videos
+  const all = [];
+
+  for (let page = 1; page <= maxPages; page++) {
+    const url =
+      `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos` +
+      `?page=${page}&itemsPerPage=${pageSize}&orderBy=date`;
+
+    const response = await fetch(url, {
+      headers: { AccessKey: bunnyEnv.apiKey },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(
+        `Bunny listAllLibraryVideos failed (HTTP ${response.status}): ${errorBody}`
+      );
+    }
+
+    const data = await response.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    all.push(...items);
+
+    // Stop when the page came back short or we reached Bunny's declared total.
+    const total = Number(data.totalItems);
+    const reachedTotal = Number.isFinite(total) && total > 0 && all.length >= total;
+    if (items.length < pageSize || reachedTotal) break;
+  }
+
+  return all;
+}
+
+async function findAllVideosByLessonId(lessonId) {
+  // Serve repeated lookups from the short-lived cache when possible.
+  const cached = _titleScanCache.get(lessonId);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.items;
+  }
+
+  const libraryVideos = await listAllLibraryVideos();
+
+  const matches = libraryVideos.filter((video) => {
+    const title = typeof video.title === "string" ? video.title : "";
+    return (
+      title === lessonId ||
+      title.startsWith(`${lessonId} `) ||
+      title.startsWith(`${lessonId}|`)
+    );
   });
+
+  // Oldest first so "part 1" plays before "part 2".
+  matches.sort((a, b) =>
+    String(a.dateUploaded || "").localeCompare(String(b.dateUploaded || ""))
+  );
+
+  _titleScanCache.set(lessonId, { at: Date.now(), items: matches });
+
+  return matches;
+}
+
+/**
+ * Finds the NEWEST video belonging to a lesson.
+ * Used where a single video is expected (legacy playback URL, upload polling).
+ */
+async function findVideoByLessonId(lessonId) {
+  const matches = await findAllVideosByLessonId(lessonId);
+  if (!matches.length) return null;
+
+  const newest = matches[matches.length - 1];
+  return newest.guid;
+}
+
+/**
+ * Renames a Bunny video (this is how editing metadata works — the platform
+ * stores name/attachment/description inside the title, see buildTitle).
+ *
+ * @param {string} videoId - The video's ID ("guid").
+ * @param {string} title   - The new full title (already built by buildTitle).
+ */
+async function updateVideoTitle(videoId, title) {
+  const response = await fetch(
+    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos/${videoId}`,
+    {
+      method: "POST",
+      headers: {
+        AccessKey: bunnyEnv.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title }),
+    }
+  );
 
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(
-      `Bunny findVideoByLessonId failed (HTTP ${response.status}): ${errorBody}`
+      `Bunny updateVideoTitle failed (HTTP ${response.status}): ${errorBody}`
     );
   }
 
-  const data = await response.json();
-  const items = Array.isArray(data.items) ? data.items : [];
+  return true;
+}
 
-  const match = items.find((video) => {
-    const title = typeof video.title === "string" ? video.title : "";
-    return (
-      title === lessonId || title.startsWith(`${lessonId} `)
+/**
+ * Permanently deletes a video from the Bunny library.
+ *
+ * @param {string} videoId - The video's ID ("guid").
+ */
+async function deleteVideo(videoId) {
+  const response = await fetch(
+    `${BUNNY_API_BASE_URL}/library/${bunnyEnv.libraryId}/videos/${videoId}`,
+    {
+      method: "DELETE",
+      headers: { AccessKey: bunnyEnv.apiKey },
+    }
+  );
+
+  if (!response.ok && response.status !== 404) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Bunny deleteVideo failed (HTTP ${response.status}): ${errorBody}`
     );
-  });
+  }
 
-  return match ? match.guid : null;
+  return true;
+}
+
+/**
+ * Parses a platform title back into its structured parts.
+ * Inverse of buildTitle — see its docs for the exact format.
+ *
+ * @param {string} title - A full Bunny video title.
+ * @returns {{lessonId: string, name: string, attachmentUrl: string, description: string}}
+ */
+function parseLessonTitle(title) {
+  const segs = String(title || "").split(" | ");
+  return {
+    lessonId: segs[0] || "",
+    name: segs[1] || "",
+    attachmentUrl: segs[2] || "",
+    description: segs.slice(3).join(" | "),
+  };
+}
+
+/**
+ * Builds the platform title from its structured parts.
+ *
+ * FORMAT: "lessonId | name [| attachmentUrl [| description]]"
+ *   - "|" typed by the user is replaced with "/" (sanitized upstream).
+ *   - Trailing empty segments are dropped; EMPTY MIDDLE segments are kept
+ *     so each value always lands back in the same slot when parsed.
+ *
+ * @returns {string} The title to store on Bunny.
+ */
+function buildTitle(lessonId, name, attachmentUrl, description) {
+  const segs = [
+    lessonId,
+    name || "شرح الدرس",
+    attachmentUrl || "",
+    description || "",
+  ];
+  while (segs.length > 2 && segs[segs.length - 1] === "") segs.pop();
+  return segs.join(" | ");
 }
 
 module.exports = {
@@ -240,4 +426,10 @@ module.exports = {
   generateSignedPlaybackUrl,
   getVideo,
   findVideoByLessonId,
+  findAllVideosByLessonId,
+  listAllLibraryVideos,
+  updateVideoTitle,
+  deleteVideo,
+  parseLessonTitle,
+  buildTitle,
 };

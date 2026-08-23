@@ -8,7 +8,7 @@
  *   - api/index.js   -> Vercel serverless function (production)
  *
  * Endpoints:
- *   POST /api/auth/login                      hardcoded dev accounts
+ *   POST /api/auth/login                      hardcoded code+password accounts
  *   POST /api/lessons/:lessonId/video         teacher upload prep (Bunny)
  *   GET  /api/lessons/:lessonId/video-url     signed playback URL
  *   POST /api/dev/lessons/:lessonId/video-id  dev helper to attach a video ID
@@ -20,6 +20,7 @@ const path = require("path");
 const express = require("express");
 
 const videoRoutes = require("./src/routes/video.routes.js");
+const materialsRoutes = require("./src/routes/materials.routes.js");
 const {
   saveLessonVideoId,
 } = require("./src/services/lesson.stub.service.js");
@@ -50,10 +51,77 @@ app.use(express.static(path.join(__dirname)));
 // Real video API (upload prep + signed playback URLs).
 app.use("/api/lessons", videoRoutes);
 
+// Teacher-only video management (edit metadata / delete).
+app.use("/api/videos", require("./src/routes/video-manage.routes.js"));
+
+// Lesson PDF materials stored on Supabase Storage:
+//   POST /api/lessons/:lessonId/materials          (teacher uploads a PDF)
+//   GET  /api/lessons/:lessonId/materials          (list for the lesson page)
+//   GET  /api/materials/:materialId/download       (signed, enrollment-gated)
+app.use("/api", require("./src/routes/materials.routes.js"));
+
+// PDF lesson materials API (teacher upload + enrolled student download).
+app.use("/api", materialsRoutes);
+
 /* ==========================================================================
- * DEV TEST ACCOUNTS and EMAIL‑BASED LOGIN removed.
- * Authentication now uses studentCode + password as per requirements.
- * ========================================================================= */
+ * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a
+ * real database + hashed passwords later).
+ *
+ * Login is now CODE + PASSWORD (no emails):
+ *   Student:  STU-2026-01   /  Stu@2026
+ *   Teacher:  TCH-2026-01   /  Tea@2026
+ * ========================================================================== */
+const DEV_ACCOUNTS = [
+  {
+    id: "student-1",
+    code: "STU-2026-01",
+    password: "Stu@2026",
+    name: "أحمد محمد",
+    role: "student",
+  },
+  {
+    id: "teacher-1",
+    code: "TCH-2026-01",
+    password: "Tea@2026",
+    name: "أ. أسماء مرسال",
+    role: "teacher",
+  },
+];
+
+/**
+ * POST /api/auth/login
+ * Body: { code, password }   ("email" is still accepted as a fallback key
+ * for older clients, but it must contain the login CODE)
+ * Returns the user profile when the credentials match one of the hardcoded
+ * dev accounts, otherwise 401.
+ */
+app.post("/api/auth/login", (req, res) => {
+  const { code, email, password } = req.body || {};
+
+  // Accept either body key, normalize to the canonical CODE format.
+  const identifier = String(code || email || "").trim().toUpperCase();
+
+  if (!identifier || !password) {
+    return res.status(400).json({ error: "كود الدخول وكلمة المرور مطلوبان." });
+  }
+
+  const account = DEV_ACCOUNTS.find(
+    (a) => a.code === identifier && a.password === password
+  );
+
+  if (!account) {
+    return res.status(401).json({
+      error: "كود الدخول أو كلمة المرور غير صحيحة.",
+    });
+  }
+
+  return res.json({
+    id: account.id,
+    name: account.name,
+    role: account.role,
+    code: account.code,
+  });
+});
 
 /**
  * DEV ONLY — attach an existing Bunny video ID to a lesson.
@@ -86,5 +154,24 @@ app.post("/api/dev/lessons/:lessonId/video-id", async (req, res) => {
     return res.status(500).json({ error: "Failed to attach the video." });
   }
 });
+
+/* ==========================================================================
+ * Adham's auth backend (merged from feat/user-auth-and-registration):
+ * JWT signup/login + registration requests, backed by Prisma/PostgreSQL.
+ *
+ * Mounted AFTER the dev login above, so:
+ *   - POST /api/auth/login        -> dev accounts above (frontend today)
+ *   - POST /api/v1/auth/login     -> REAL JWT auth (Prisma users)
+ *   - everything else under /api/v1/auth & /api/v1/registration-requests
+ * Switching the frontend to the real endpoints retires the dev block.
+ * ========================================================================== */
+const apiRoutes = require("./src/routes/index.js");
+app.use("/api", apiRoutes);
+
+// Adham's centralized error handlers (JSON 404 for unknown API paths +
+// formatted error responses). Mounted last on purpose.
+const { notFound, errorHandler } = require("./src/middlewares/errorMiddleware.js");
+app.use(notFound);
+app.use(errorHandler);
 
 module.exports = app;

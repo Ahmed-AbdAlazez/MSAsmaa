@@ -1,0 +1,650 @@
+/* ==========================================================================
+   mascot.css — "Sama" mascot + homepage effects
+   --------------------------------------------------------------------------
+   Contents:
+     1. Mascot theme tokens (change colors here)
+     2. Mascot stage / layout
+     3. Idle animations (blink + pupil wander for touch devices)
+     4. Speech bubble & accessory badge (nav hover-reveal)
+     5. Scroll-linked biology decorations (bottom of homepage)
+     6. Responsive tweaks
+     7. Reduced-motion accessibility
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1) THEME TOKENS — edit these to re-skin Sama without touching the SVG.
+   v2 design: every color REUSES an existing site variable (no new greens):
+     --sama-body  -> outer circle = site brand green (--color-primary)
+     --sama-line  -> face lines / eye rings
+     --sama-tube  -> stethoscope = existing teal accent
+   -------------------------------------------------------------------------- */
+.sama-mascot {
+  --sama-body: var(--color-primary);          /* #0F4C3A brand green disc */
+  --sama-line: var(--color-primary-dark);     /* facial features (#093327) */
+  --sama-pupil-color: var(--color-primary-dark);
+  --sama-cheek-color: rgba(15, 76, 58, 0.10);
+  --sama-tube: var(--color-accent-blue);      /* #14B8A6 teal stethoscope */
+}
+
+
+/* --------------------------------------------------------------------------
+   2) STAGE / LAYOUT
+   The mount lives inside .cell-art in the hero, centered like a friendly
+   nucleus sitting in a cell.
+   -------------------------------------------------------------------------- */
+.sama-mascot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sama-stage {
+  position: relative;
+  display: inline-block;
+}
+
+.sama-svg {
+  display: block;
+  width: clamp(150px, 22vw, 205px);
+  height: auto;
+
+  /* gentle float so the character feels alive even before any effect runs */
+  animation: sama-float 6s ease-in-out infinite alternate;
+}
+
+/* happy little bounce while a nav item is engaged */
+.sama-stage.is-engaged .sama-svg {
+  animation:
+    sama-float 6s ease-in-out infinite alternate,
+    sama-bounce 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sama-float {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-9px); }
+}
+
+@keyframes sama-bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06, 0.94); }
+  70%  { transform: scale(0.97, 1.04); }
+  100% { transform: scale(1); }
+}
+
+/* Eyes blink via scaleY on the whole eye group.
+   transform-box lets transform-origin refer to the element's own box,
+   which is required for correct SVG scaling around each eye center. */
+.sama-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sama-blink 5.4s infinite;
+}
+
+@keyframes sama-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(0.08); }
+  97%           { transform: scaleY(1); }
+}
+
+/* Idle pupil wander — this IS the mobile fallback for eye-tracking
+   (mascotEyeTracking.js disables itself on touch devices).
+   Once JS tracking is live it pauses this so inline transforms win. */
+.sama-pupil {
+  animation: sama-wander 9s ease-in-out infinite;
+}
+
+body.sama-eyes-live .sama-pupil {
+  animation: none;
+}
+
+@keyframes sama-wander {
+  0%, 100% { transform: translate(0, 0); }
+  20%      { transform: translate(3px, -2px); }
+  45%      { transform: translate(-3px, 1px); }
+  70%      { transform: translate(2px, 3px); }
+}
+
+
+/* --------------------------------------------------------------------------
+   4) SPEECH BUBBLE + ACCESSORY BADGE (Effect 2: nav hover-reveal)
+   Both animate with opacity + transform transitions only.
+   -------------------------------------------------------------------------- */
+.sama-bubble {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+
+  max-width: 240px;
+  padding: 0.65rem 1rem;
+  background: var(--color-primary-dark);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.5;
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 28px rgba(9, 51, 39, 0.25);
+
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* bubble tail */
+.sama-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+  border-top-color: var(--color-primary-dark);
+}
+
+.sama-bubble.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.sama-accessory {
+  position: absolute;
+  top: -10px;
+  inset-inline-end: -16px; /* logical property → flips correctly in RTL */
+
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #fff;
+  color: var(--color-primary-light);
+  border-radius: 50%;
+  border: 2px solid rgba(15, 76, 58, 0.14);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+
+  opacity: 0;
+  transform: scale(0.4) rotate(-18deg);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.sama-accessory svg {
+  width: 30px;
+  height: 30px;
+}
+
+.sama-accessory.pop {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+
+/* --------------------------------------------------------------------------
+   5) SCROLL-LINKED BIOLOGY DECOR (Effect 3)
+   Layering trick: the decor layer sits ABOVE the section backgrounds
+   (so shapes stay visible over the dark footer) but BELOW the actual
+   content containers, and never catches pointer events.
+   Motion values come from data-attributes read by scrollBiology.js.
+   -------------------------------------------------------------------------- */
+.bottom-zone {
+  position: relative;
+}
+
+.scroll-decor {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* real content stays above the decorations */
+.bottom-zone .cta-banner > .container,
+.bottom-zone .footer > .container {
+  position: relative;
+  z-index: 3;
+}
+
+.scroll-shape {
+  position: absolute;
+  will-change: transform; /* keep each shape on its own compositor layer */
+  opacity: 0.55;
+  /* light mint — readable against the dark CTA/footer backgrounds */
+  color: #6ee7b7;
+}
+
+.scroll-shape svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* simple flat cell: soft blob with an inner nucleus dot */
+.shape-cell {
+  background: radial-gradient(circle at 35% 35%, rgba(110, 231, 183, 0.35), rgba(110, 231, 183, 0.08));
+  border-radius: 58% 42% 61% 39% / 47% 56% 44% 53%;
+  aspect-ratio: 1;
+}
+
+.shape-cell::after {
+  content: '';
+  position: absolute;
+  top: 32%;
+  inset-inline-start: 34%;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.shape-molecule { opacity: 0.4; }
+.shape-dna      { opacity: 0.45; }
+.shape-leaf     { opacity: 0.4; }
+
+
+/* --------------------------------------------------------------------------
+   6) SCROLL-BUILT ANATOMY SECTION
+   Rendered by anatomyScrollSection.js into the mount directly above the real
+   footer. Scroll writes CSS custom properties only; this stylesheet maps those
+   values to opacity and transform.
+   -------------------------------------------------------------------------- */
+.bottom-zone .anatomy-scroll {
+  position: relative;
+  z-index: 3;
+}
+
+.anatomy-scroll {
+  --outline-p: 0;
+  --skeleton-p: 0;
+  --ribs-p: 0;
+  --heart-p: 0;
+  --outline-opacity: 0.16;
+  --skeleton-opacity: 0;
+  --ribs-opacity: 0;
+  --heart-opacity: 0;
+  --halo-opacity: 0.22;
+  --hospital-opacity: 0.82;
+  --outline-y: 14px;
+  --skeleton-y: 22px;
+  --ribs-y: 12px;
+  --heart-y: 18px;
+  --outline-scale: 0.985;
+  --skeleton-scale: 0.97;
+  --ribs-scale: 0.96;
+  --heart-scale: 0.72;
+  --halo-scale: 0.96;
+
+  min-height: 100vh;
+  padding: 0;
+  background:
+    radial-gradient(circle at 25% 18%, rgba(20, 184, 166, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 76%, rgba(16, 185, 129, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(232, 250, 247, 0.96) 18%, rgba(243, 255, 250, 0.98) 78%, rgba(248, 250, 252, 0) 100%);
+  overflow: clip;
+}
+
+.anatomy-scroll__sticky {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 0 1.5rem;
+}
+
+.anatomy-scroll__stage {
+  position: relative;
+  width: min(88vw, 500px);
+  aspect-ratio: 360 / 620;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.anatomy-scroll__halo {
+  position: absolute;
+  inset: 2% 0;
+  z-index: -1;
+  border: 1px solid rgba(15, 76, 58, 0.14);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(225, 250, 244, 0.8)),
+    linear-gradient(rgba(15, 76, 58, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 76, 58, 0.04) 1px, transparent 1px);
+  background-size: auto, 34px 34px, 34px 34px;
+  border-radius: 8px;
+  opacity: var(--halo-opacity);
+  transform: scale(var(--halo-scale));
+  box-shadow: 0 26px 70px rgba(9, 51, 39, 0.14);
+  will-change: opacity, transform;
+}
+
+.anatomy-scroll__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 28px 52px rgba(9, 51, 39, 0.12));
+  overflow: visible;
+}
+
+.anatomy-hospital {
+  opacity: var(--hospital-opacity);
+}
+
+.anatomy-room-wall {
+  fill: rgba(255, 255, 255, 0.76);
+  stroke: rgba(15, 76, 58, 0.12);
+  stroke-width: 2;
+}
+
+.anatomy-room-window {
+  fill: rgba(20, 184, 166, 0.14);
+  stroke: rgba(20, 184, 166, 0.32);
+  stroke-width: 2;
+}
+
+.anatomy-room-window-line,
+.anatomy-room-rail,
+.anatomy-room-bed-leg {
+  fill: none;
+  stroke: rgba(15, 76, 58, 0.16);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.anatomy-room-chart,
+.anatomy-room-monitor {
+  fill: #fff;
+  stroke: rgba(15, 76, 58, 0.14);
+  stroke-width: 2;
+}
+
+.anatomy-room-cross {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.anatomy-room-pulse {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.anatomy-room-floor {
+  fill: rgba(20, 184, 166, 0.11);
+}
+
+.anatomy-room-bed {
+  fill: rgba(20, 184, 166, 0.2);
+  stroke: rgba(15, 76, 58, 0.16);
+  stroke-width: 2;
+}
+
+.anatomy-layer {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.anatomy-layer--outline {
+  opacity: var(--outline-opacity);
+  transform: translate3d(0, var(--outline-y), 0) scale(var(--outline-scale));
+}
+
+.anatomy-outline-fill {
+  fill: rgba(20, 184, 166, 0.22);
+}
+
+.anatomy-outline-stroke {
+  fill: none;
+  stroke: rgba(15, 76, 58, 0.52);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.anatomy-lung {
+  fill: rgba(6, 182, 212, 0.2);
+  stroke: rgba(6, 182, 212, 0.32);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.anatomy-layer--skeleton {
+  opacity: var(--skeleton-opacity);
+  transform: translate3d(0, var(--skeleton-y), 0) scale(var(--skeleton-scale));
+}
+
+.anatomy-bone {
+  stroke: rgba(15, 76, 58, 0.82);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.anatomy-bone--filled {
+  fill: rgba(255, 255, 255, 0.86);
+  stroke-width: 5;
+}
+
+.anatomy-bone--line {
+  fill: none;
+  stroke-width: 5.5;
+}
+
+.anatomy-joint {
+  fill: #fff;
+  stroke: rgba(20, 184, 166, 0.9);
+  stroke-width: 4;
+}
+
+.anatomy-layer--ribs {
+  opacity: var(--ribs-opacity);
+  transform: translate3d(0, var(--ribs-y), 0) scale(var(--ribs-scale));
+}
+
+.anatomy-rib {
+  fill: none;
+  stroke: rgba(20, 184, 166, 0.95);
+  stroke-width: 6.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.anatomy-rib--sternum {
+  stroke: var(--color-accent);
+  stroke-width: 7.5;
+}
+
+.anatomy-layer--heart {
+  opacity: var(--heart-opacity);
+  transform: translate3d(0, var(--heart-y), 0) scale(var(--heart-scale));
+}
+
+.anatomy-heart-shadow {
+  fill: rgba(239, 68, 68, 0.16);
+}
+
+.anatomy-heart {
+  fill: #ef4444;
+  stroke: #be123c;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.anatomy-heart-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.74);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+@keyframes anatomy-heartbeat {
+  0%, 58%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  18% {
+    transform: translate3d(0, 0, 0) scale(1.045);
+  }
+  30% {
+    transform: translate3d(0, 0, 0) scale(0.992);
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   7) RESPONSIVE TWEAKS
+   -------------------------------------------------------------------------- */
+@media (max-width: 992px) {
+  .sama-svg {
+    width: clamp(130px, 30vw, 175px);
+  }
+
+  .sama-bubble {
+    font-size: 0.8rem;
+    max-width: 200px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .sama-accessory {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sama-accessory svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* hide half the scroll shapes on small screens to reduce clutter */
+  .scroll-shape.hide-mobile {
+    display: none;
+  }
+
+  .scroll-shape {
+    opacity: 0.4;
+  }
+
+  .sama-bubble {
+    bottom: calc(100% + 8px);
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   7) REDUCED MOTION — turn every effect off for users who ask for calm UI.
+   JS effects also check this, this covers pure-CSS motion.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .sama-svg,
+  .sama-eye,
+  .sama-pupil,
+  .sama-stage.is-engaged .sama-svg {
+    animation: none !important;
+  }
+
+  .sama-bubble,
+  .sama-accessory {
+    transition: none !important;
+  }
+
+  .scroll-shape {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .anatomy-scroll {
+    min-height: 92vh;
+    padding: 0;
+  }
+
+  .anatomy-scroll__sticky {
+    min-height: 92vh;
+    padding: 0 1rem;
+  }
+
+  .anatomy-scroll__stage {
+    width: min(92vw, 330px);
+  }
+
+  .anatomy-scroll__svg {
+    filter: drop-shadow(0 18px 34px rgba(9, 51, 39, 0.12));
+  }
+}
+
+/* Used when GSAP is unavailable and by reduced-motion users. */
+.anatomy-scroll--static {
+  min-height: auto;
+  padding: 4rem 0;
+  --outline-p: 1;
+  --skeleton-p: 1;
+  --ribs-p: 1;
+  --heart-p: 1;
+  --outline-opacity: 0.58;
+  --skeleton-opacity: 0.82;
+  --ribs-opacity: 0.94;
+  --heart-opacity: 1;
+  --halo-opacity: 0.4;
+  --hospital-opacity: 1;
+  --outline-y: 0px;
+  --skeleton-y: 0px;
+  --ribs-y: 0px;
+  --heart-y: 0px;
+  --outline-scale: 1;
+  --skeleton-scale: 1;
+  --ribs-scale: 1;
+  --heart-scale: 1;
+  --halo-scale: 1;
+}
+
+.anatomy-scroll--static .anatomy-scroll__sticky {
+  position: relative;
+  min-height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anatomy-scroll {
+    min-height: auto;
+    padding: 4rem 0;
+    --outline-p: 1;
+    --skeleton-p: 1;
+    --ribs-p: 1;
+    --heart-p: 1;
+    --outline-opacity: 0.58;
+    --skeleton-opacity: 0.82;
+    --ribs-opacity: 0.94;
+    --heart-opacity: 1;
+    --halo-opacity: 0.4;
+    --hospital-opacity: 1;
+    --outline-y: 0px;
+    --skeleton-y: 0px;
+    --ribs-y: 0px;
+    --heart-y: 0px;
+    --outline-scale: 1;
+    --skeleton-scale: 1;
+    --ribs-scale: 1;
+    --heart-scale: 1;
+    --halo-scale: 1;
+  }
+
+  .anatomy-scroll__sticky {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
+
+  .anatomy-layer,
+  .anatomy-scroll__halo {
+    transform: none !important;
+    animation: none !important;
+  }
+}
