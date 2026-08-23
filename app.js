@@ -28,6 +28,21 @@ const app = express();
 
 app.use(express.json());
 
+// Global UTF-8 guarantee for API responses.
+// Express already defaults res.json() to "application/json; charset=utf-8",
+// but this makes it explicit and immune to any route setting a bare
+// Content-Type later (garbled-Arabic defense in depth).
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = function patchedJson(body) {
+    if (!res.headersSent) {
+      res.set("Content-Type", "application/json; charset=utf-8");
+    }
+    return originalJson(body);
+  };
+  next();
+});
+
 // CORS (dev): allow the frontend when it is opened from a different origin
 // (VS Code Live Server, file://) while the API runs elsewhere.
 app.use((req, res, next) => {
