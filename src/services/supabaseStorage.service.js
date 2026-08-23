@@ -12,6 +12,7 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
 const MATERIALS_BUCKET_NAME = "lesson-materials";
+const QUIZ_IMAGES_BUCKET_NAME = "quiz-images";
 
 const requiredEnvironmentVariables = [
   "SUPABASE_URL",
@@ -360,6 +361,125 @@ async function downloadPdfBytes(filePath) {
   return Buffer.from(await data.arrayBuffer());
 }
 
+/* ==========================================================================
+ * QUIZ QUESTION IMAGES
+ * -------------------------------------------------------------------------
+ * Same service-role-key pattern as the PDF functions above, but for the
+ * "quiz-images" bucket. Images are stored PRIVATE like PDFs: questions keep
+ * only the object path, and every display (<img> tag) gets a short-lived
+ * signed URL generated on demand after an auth check.
+ *
+ * JPG / PNG / WEBP (anything a browser can decode) work as-is — the file
+ * bytes are stored untouched and rendered by a plain <img>, so no format
+ * conversion is needed anywhere.
+ * ========================================================================== */
+
+/** Image MIME types we accept for question images. */
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+/** Maps an allowed MIME type to its canonical file extension. */
+const IMAGE_EXTENSION_BY_MIME_TYPE = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+let quizImagesBucketVerified = false;
+
+/**
+ * Makes sure the private quiz-images bucket exists (same auto-create pattern
+ * as ensureMaterialsBucket, cached after first success).
+ */
+async function ensureQuizImagesBucket() {
+  if (quizImagesBucketVerified) return;
+
+  const { error } = await supabaseClient.storage.createBucket(
+    QUIZ_IMAGES_BUCKET_NAME,
+    { public: false }
+  );
+
+  // The bucket already exists in this project — that is fine.
+  if (error && !/already exists|409/i.test(error.message || "")) {
+    throw new Error(`Supabase quiz-image bucket setup failed: ${error.message}`);
+  }
+
+  quizImagesBucketVerified = true;
+}
+
+/**
+ * Validates that an uploaded question image has a type browsers can render.
+ *
+ * @param {object} uploadedFile - A multer file object.
+ * @returns {boolean} True when the MIME type is jpg/png/webp.
+ */
+function isAllowedQuizImage(uploadedFile) {
+  return Boolean(
+    uploadedFile &&
+      ALLOWED_IMAGE_MIME_TYPES.has(uploadedFile.mimetype)
+  );
+}
+
+/**
+ * Uploads one quiz-question image into the private quiz-images bucket.
+ *
+ * The extension comes from the VERIFIED MIME type (not from the original
+ * filename) so a mislabeled upload can never produce a broken path.
+ *
+ * @param {Buffer} fileBuffer - The raw image bytes.
+ * @param {string} mimeType   - Verified image MIME type.
+ * @param {string} quizId     - Folder segment, keeps images grouped per quiz.
+ * @returns {Promise<string>} The private object path to store on the question.
+ */
+async function uploadQuizImage(fileBuffer, mimeType, quizId) {
+  await ensureQuizImagesBucket();
+
+  const safeFolder = buildSafeLessonFolderName(quizId);
+  const extension = IMAGE_EXTENSION_BY_MIME_TYPE[mimeType] || "img";
+  const randomSuffix = Math.random().toString(36).slice(2, 10);
+  const filePath = `quizzes/${safeFolder}/${Date.now()}-${randomSuffix}.${extension}`;
+
+  const { error } = await supabaseClient.storage
+    .from(QUIZ_IMAGES_BUCKET_NAME)
+    .upload(filePath, fileBuffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Supabase quiz-image upload failed: ${error.message}`);
+  }
+
+  return filePath;
+}
+
+/**
+ * Creates a short-lived signed URL for displaying a stored question image
+ * in an <img src>. Call ONLY after the requester passed auth checks.
+ *
+ * @param {string} filePath       - The private path saved on the question.
+ * @param {number} expiresInSeconds - Signed URL lifetime.
+ * @returns {Promise<string>} A temporary display URL.
+ */
+async function getQuizImageSignedUrl(filePath, expiresInSeconds = 60 * 60) {
+  await ensureQuizImagesBucket();
+
+  const { data, error } = await supabaseClient.storage
+    .from(QUIZ_IMAGES_BUCKET_NAME)
+    .createSignedUrl(filePath, expiresInSeconds);
+
+  if (error || !data) {
+    throw new Error(
+      `Supabase quiz-image signed URL failed: ${error ? error.message : "empty response"}`
+    );
+  }
+
+  return data.signedUrl;
+}
+
 module.exports = {
   uploadPdf,
   listLessonPdfFiles,
@@ -369,4 +489,7 @@ module.exports = {
   createSignedUploadForLesson,
   overwritePdf,
   downloadPdfBytes,
+  uploadQuizImage,
+  getQuizImageSignedUrl,
+  isAllowedQuizImage,
 };

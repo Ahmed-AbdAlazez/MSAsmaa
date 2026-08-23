@@ -65,6 +65,11 @@ app.use("/api", materialsRoutes);
 const notificationsRoutes = require("./src/routes/notifications.routes.js");
 app.use("/api", notificationsRoutes);
 
+// Quiz feature (teacher creation + student taking + leaderboards + review).
+// See src/routes/quizzes/quiz.routes.js for the full endpoint list and
+// QUIZ_README.md for flows, stubs, and testing.
+app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
+
 /* ==========================================================================
  * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a
  * real database + hashed passwords later).

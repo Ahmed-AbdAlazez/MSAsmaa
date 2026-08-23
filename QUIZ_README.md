@@ -1,0 +1,400 @@
+# QUIZ_README.md — Complete Quiz Feature
+===========================================================================
+
+End-to-end quiz system for the MSAsmaa platform: teacher builds quizzes,
+students take them under a dual time limit (personal countdown + overall
+window), the server grades multiple-choice instantly, leaderboards unlock
+only after the quiz closes for everyone, and full answer review unlocks at
+the same moment.
+
+**Status: built, wired into `app.js`, and fully verified by an automated
+suite — `49 / 49` checks pass (`node src/scripts/test_quiz_workflow.js`).**
+
+---
+
+## 1. The flow in plain language
+
+### Teacher creates a quiz
+1. `POST /api/quizzes` — attaches a quiz to a lesson with a title, how many
+   questions it will have, when it opens (`startTime`), when it closes for
+   everyone (`endTime`), and each student's countdown length
+   (`durationMinutes`).
+2. For every question, `POST /api/quizzes/:quizId/questions`:
+   - **MCQ** — text + exactly 4 choices + which one is correct
+     (`correctIndex`). The server stores choices as `{id, text}` and keeps
+     the correct one as an internal ID.
+   - **Written** — text + a *model answer*. This is stored **purely for
+     display later**; nothing in the entire codebase ever grades it.
+   - Either type may include an image file (`image` field,
+     JPG/PNG/WEBP ≤ 5 MB). Only its Supabase Storage **path** is saved.
+
+### Student takes the quiz
+3. `POST /api/quizzes/:quizId/start` — allowed only if: enrolled in the
+   quiz's course (same enrollment stub as videos/materials), the window is
+   open, and they have attempts left. The server records the exact start
+   time and computes their personal cutoff = start + durationMinutes.
+   The response contains sanitized questions — **never** correct answers or
+   model answers — plus `remainingSeconds`.
+4. As the student answers, every change is autosaved via
+   `POST .../answers`. Close the tab, lose internet, whatever: reopening and
+   calling `/start` again finds the same attempt, restores the saved
+   answers pre-filled, and continues from the REDUCED remaining seconds
+   (server-computed). No teacher approval needed for this.
+5. Whichever limit hits first wins. If the personal countdown expires (even
+   while away) or the overall `end_time` arrives first, the attempt is
+   auto-submitted with whatever answers were saved. A student who reopens
+   too late gets `"status":"auto_submitted"` instead of a resume.
+
+### Grading & results
+6. On any submission (manual `/submit`, personal-timer expiry, or end-of-
+   window cut-off), ONLY MCQ questions are graded server-side by comparing
+   choice IDs. Score = correct MCQs; denominator = number of MCQs. Written
+   answers are saved but never scored.
+7. The student immediately sees their MCQ score only — no right/wrong
+   detail yet.
+8. After the quiz's `end_time`, two things unlock (checked fresh on EVERY
+   request against the server clock):
+   - `GET /api/quizzes/:quizId/leaderboard` (+ course cumulative board) —
+     ranked lists using each student's BEST attempt; students who never
+     attempted appear at the bottom with 0. Real names, intentionally.
+   - `GET /api/quiz-results/:resultId/review` — per-question breakdown.
+9. Teacher can grant ONE extra attempt per student per quiz
+   (`POST /api/quizzes/:quizId/students/:studentId/grant-retry`). Both
+   attempts stay stored and visible in `GET .../results`; only the better
+   score feeds the leaderboards.
+
+---
+
+## 2. Files added / changed
+
+```
+src/services/quiz.stub.service.js          ⚠️ STUB — all quiz data access (in-memory)
+src/services/quizGrading.service.js        pure MCQ grading logic
+src/services/supabaseStorage.service.js    +uploadQuizImage/getQuizImageSignedUrl/isAllowedQuizImage
+src/routes/quizzes/quiz.routes.js          main router (mounts the five below)
+src/routes/quizzes/quiz.helpers.js         shared gates, time math, sanitizing
+src/routes/quizzes/quizCreation.routes.js  teacher: create quiz & questions (+image)
+src/routes/quizzes/quizTaking.routes.js    student: start/resume/autosave/submit
+src/routes/quizzes/quizResults.routes.js   teacher: grant-retry + all attempts
+src/routes/quizzes/quizLeaderboard.routes.js  time-gated rankings (quiz + course)
+src/routes/quizzes/quizReview.routes.js    time-gated answer reveal
+src/scripts/test_quiz_workflow.js          automated verification suite
+app.js                                     +1 mount line (see §4)
+QUIZ_README.md                             this file
+```
+
+Not touched (per isolation rules): `schema.prisma`, `auth.middleware.js`,
+`server.js`.
+
+---
+
+## 3. Endpoints (all mounted under `/api`)
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| POST | `/quizzes` | teacher | create quiz shell |
+| GET | `/quizzes/:quizId` | teacher | quiz metadata |
+| GET | `/lessons/:lessonId/quizzes` | teacher | quizzes on a lesson |
+| POST | `/quizzes/:quizId/questions` | teacher | add question (multipart, optional `image`) |
+| GET | `/quizzes/:quizId/questions` | teacher | FULL questions incl. answers |
+| POST | `/quizzes/:quizId/start` | student | start OR auto-resume |
+| GET | `/quizzes/:quizId/attempt` | student | state probe (finalizes if expired) |
+| POST | `/quizzes/:quizId/answers` | student | autosave one answer `{questionId,value}` |
+| POST | `/quizzes/:quizId/submit` | student | submit (optional final `answers` flush) |
+| POST | `/quizzes/:quizId/students/:studentId/grant-retry` | teacher | +1 attempt |
+| GET | `/quizzes/:quizId/results` | teacher | every attempt of every student |
+| GET | `/quizzes/:quizId/leaderboard` | authed | ranking (gated until end_time) |
+| GET | `/courses/:courseId/leaderboard` | authed | cumulative ranking (time-gated) |
+| GET | `/quiz-results/:resultId/review` | owner/teacher | answer review (gated until end_time) |
+
+Auth = existing JWT middleware: `Authorization: Bearer <token>`; role comes
+from `req.user.role` set by `requireAuth`. No header-based role claims.
+
+> **Why per-route middleware:** all five sub-routers share the mount point
+> `/api`. A router-level `.use(requireTeacher)` in the creation router would
+> also intercept student requests flowing through Express toward the taking
+> router. Gates are therefore attached to each route definition.
+
+---
+
+## 4. Exact lines for server.js
+
+**None required.** All routes are mounted in `app.js`, which both
+`server.js` (local) and Vercel's `api/index.js` (production) load:
+
+```js
+// app.js — already added, right after the notifications router:
+app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
+```
+
+If you prefer an explicit import style, replace that line with:
+
+```js
+const quizRoutes = require("./src/routes/quizzes/quiz.routes.js");
+app.use("/api", quizRoutes);
+```
+
+Optional dev-only seeding in `server.js` (display names before the users
+table exists — remove once real DB lands):
+
+```js
+const { setStudentNameForTesting } = require("./src/services/quiz.stub.service.js");
+setStudentNameForTesting("student-a", "سارة أحمد"); // TEST-ONLY helper
+```
+
+⚠️ Repo hygiene note: an OLD duplicate pair `src/app.js` + `src/server.js`
+exists from before the restructure. Production does NOT use them
+(`api/index.js` → root `app.js`), and the pre-existing
+`src/scripts/test_workflow.js` points at the stale copy (it fails at health
+check even without this feature). Consider deleting the duplicates.
+
+---
+
+## 5. Stub functions → future database mapping
+
+All persistence lives in **one file**: `src/services/quiz.stub.service.js`
+(same "REPLACE THIS STUB" convention as the lesson/material stubs). Replace
+the bodies with Prisma calls, keeping names/signatures identical.
+
+### Suggested Prisma models
+
+```prisma
+model Quiz {
+  id              String   @id @default(uuid())
+  lessonId        String
+  courseId        String?
+  title           String
+  questionCount   Int
+  startTime       DateTime
+  endTime         DateTime
+  durationMinutes Float
+  createdAt       DateTime @default(now())
+  questions       Question[]
+}
+
+model Question {
+  id              String   @id @default(uuid())
+  quizId          String
+  quiz            Quiz     @relation(fields: [quizId], references: [id])
+  order           Int
+  type            String   // "mcq" | "written"
+  text            String
+  imagePath       String?  // Supabase quiz-images object path
+  correctChoiceId String?  // mcq only
+  modelAnswer     String?  // written only (display-only, never graded)
+  choices         Json?    // [{ id: "c1", text: "..." }, ...] or child table
+}
+
+model QuizAttempt {
+  id               String   @id @default(uuid())   // this is the "resultId"
+  quizId           String
+  studentId        String                          // users.id from JWT
+  attemptNumber    Int
+  status           String   // in_progress | submitted
+  startedAt        DateTime
+  personalDeadline DateTime
+  submittedAt      DateTime?
+  submissionReason String?  // manual | auto-personal-timer | auto-quiz-end
+  score            Int?     // MCQ-only
+  totalMcq         Int?
+  answers          Json     // { [questionId]: { value, updatedAt } }
+}
+```
+
+### Function-by-function mapping
+
+| Stub function | Future implementation |
+|---|---|
+| `createQuiz(input)` | `prisma.quiz.create(...)` |
+| `getQuizById(quizId)` | `prisma.quiz.findUnique` |
+| `getQuizzesForLesson(lessonId)` | `prisma.quiz.findMany({ where: { lessonId } })` |
+| `getQuizzesForCourse(courseId)` | join quizzes→lessons→course |
+| `addQuestionToQuiz(quizId, input)` | `prisma.question.create` (+ choices rows) |
+| `getQuestionsForQuiz(quizId)` | `prisma.question.findMany({ orderBy: { order } })` |
+| `createAttempt(quizId, studentId, personalDeadline)` | `prisma.quizAttempt.create` |
+| `getAttemptsForStudent(quizId, studentId)` | `findMany` ordered by attemptNumber |
+| `getAttemptById(resultId)` | `prisma.quizAttempt.findUnique` |
+| `saveInProgressAnswer(attemptId, questionId, value)` | upsert into answers JSON / child table; ignore if status ≠ in_progress |
+| `finalizeAttempt(attemptId, result)` | update status/score/submittedAt/submissionReason |
+| `countSubmittedAttempts(quizId, studentId)` | `count({ where: { status:"submitted" } })` |
+| `getAllowedAttemptCount(quizId, studentId)` | `1 + extra_attempts` column/table |
+| `grantAdditionalAttempt(quizId, studentId)` | increment that allowance row |
+| `getAllAttemptsForQuiz(quizId)` | `findMany({ where: { quizId } })` |
+| `getSubmittedResultsForQuiz(quizId)` | same + `status:"submitted"` filter |
+| `getStudentNameById(studentId)` | `prisma.user.findUnique` → name |
+| `getStudentIdsForCourse(courseId)` | `enrollments` table select studentId |
+| `setStudentNameForTesting` / `setCourseRosterForTesting` | DELETE when real DB lands |
+
+Enrollment ACCESS checks keep using the existing
+`isStudentEnrolledInLessonCourse()` (`src/services/enrollment.stub.service.js`)
+— reused, not duplicated.
+
+---
+
+## 6. How to test this (ACTUAL results)
+
+Run:
+
+```
+node src/scripts/test_quiz_workflow.js
+```
+
+The suite boots the real Express app on an ephemeral port, mints real JWTs
+(same `JWT_SECRET`), and exercises every rule over HTTP. Supabase Storage is
+the only stubbed dependency (network isolation); routing, timing, grading,
+gating and persistence logic all run for real.
+
+**Actual result of the last full run: `RESULT: 49 passed, 0 failed`**
+
+### Test 1 — Teacher creates a quiz with mixed types + an image
+Steps: login as teacher → create quiz → add 1 MCQ, 1 written, 1 MCQ with
+PNG upload → try a 4th question.
+```
+✓ create quiz -> 201
+✓ add MCQ -> 201
+✓ add WRITTEN -> 201
+✓ add MCQ with IMAGE -> 201 (path stored, no bytes)
+✓ adding beyond declared count -> 400
+✓ student cannot create quizzes -> 403
+✓ teacher sees FULL questions (answers included)
+```
+
+### Test 2 — Student starts & completes inside the window (+ leak scan)
+```
+✓ start WITHOUT token -> 401
+✓ NOT-enrolled student -> 403
+✓ enrolled student starts -> 201/started
+✓ server recorded start + personal deadline
+✓ taking view hides correctChoiceId/modelAnswer   ← leak scan on raw JSON
+✓ image exposed as signed URL
+✓ autosave wrong MCQ choice -> 200
+✓ autosave written text -> 200
+✓ manual submit -> 200
+```
+Manual check in the UI equivalent: the start response's questions contain
+`choices` but no `correctChoiceId`; written questions expose nothing but
+text.
+
+### Test 3 — Auto-submit when the PERSONAL countdown expires
+Quiz with `durationMinutes: 0.05` (=3 s) and a long overall window. The
+student answers one MCQ correctly, then "walks away" without submitting.
+Reopening later must show the attempt as already submitted with their saved
+answer graded:
+```
+✓ quiz2 started (3s personal timer)
+✓ remainingSeconds respects the SHORT personal limit
+✓ late reopen -> auto_submitted (cannot resume expired attempt)
+✓ auto-submitted with SAVED answers graded (1 of 1 MCQ; written excluded,
+  reason auto-personal-timer)
+✓ auto-submit consumed the attempt: another start -> 403
+```
+
+### Test 4 — Auto-submit when the OVERALL end_time hits FIRST
+Dedicated case (not assumed from Test 3): `durationMinutes: 60` but
+`endTime` only ~2.5 s away. The student's personal timer still shows
+~57 minutes of "credit" — the window must still cut them off:
+```
+✓ start honors the SMALLER limit (~2.5s despite 60min duration)
+✓ cut off by END TIME even though personal time remained
+  (submissionReason === "auto-quiz-end", submittedAt pinned to the moment
+   end_time arrived, saved correct answer scored 1/1)
+```
+
+### Test 5 — Immediate score reflects MCQ only
+Quiz = 2 MCQ + 1 written. Student answers 1 MCQ right, 1 MCQ wrong, writes
+an essay. Submit → score shown instantly:
+```
+✓ score 1 / totalMcq 2 (written excluded)
+✓ submission summary carries NO per-question detail
+```
+
+### Test 6 — Leaderboard hidden until end_time
+Called while the quiz window is still open:
+```
+✓ leaderboard locked (released:false, rankings:null)
+✓ course board shows student-a with ZERO until quiz releases
+  (score hidden, not excluded; quiz listed in pendingQuizzes)
+```
+
+### Test 7 — Direct review call before end_time rejected
+Bypassing any UI, straight HTTP:
+```
+✓ DIRECT review call before end_time -> 403 + availableAfter, no data
+  (response body: review:null, availableAfter:"...end_time ISO...")
+✓ another student cannot open someone else's result (403)
+```
+
+### Test 8 — Review after end_time: red/green data + written comparison
+Same endpoints called once `Date.now() > endTime`:
+```
+✓ review now opens -> 200 with review data
+✓ MCQ item exposes student choice + correct choice + flag
+✓ wrong MCQ: theirChoice≠correctChoice, wasCorrect=false (red/green inputs)
+✓ written item: student text + model answer, NO grading flag whatsoever
+✓ written never affected the score (still MCQ-only denominator)
+```
+Frontend rendering contract from these fields:
+- **MCQ right** (`wasCorrect:true`) → highlight ONLY the correct choice green.
+- **MCQ wrong** (`wasCorrect:false`) → student's choice red AND correct choice green.
+- **Written** → render `studentAnswer` and `modelAnswer` side by side / stacked,
+  plain styling; there is deliberately no correctness field to bind.
+
+### Test 9 — Granted retry: both results kept, best counts
+```
+✓ second try WITHOUT grant -> 403
+✓ teacher grants retry -> allowance 2
+✓ retry start succeeds (attempt #2)
+✓ BOTH attempts stored & visible to teacher (0 then 1)
+✓ released:true and best score (1) ranked, worst (0) ignored
+✓ real names shown; rank computed
+```
+
+### Test 10 — Resume after closing the tab
+**(a) Happy path — time still remaining:** student starts a 10-minute quiz,
+autosaves one answer, "closes the tab" for ~2 s, reopens:
+```
+✓ reopen -> status 'resumed' (no teacher approval needed)
+✓ SAME attempt continues (not a fresh one)
+✓ saved answer restored pre-filled
+✓ timer REDUCED by time away (not reset)   [600s full → ~598s on reopen]
+✓ question order/content identical on resume
+```
+Manual UI check: reopen shows the previously selected radio/textarea filled
+in and the countdown continuing from the reduced value.
+
+**(b) Timer expired while away:** covered in Test 3 — reopening returns
+`auto_submitted` with the saved answers graded; the attempt is consumed and
+a new one still requires the teacher grant (also asserted).
+
+### Course cumulative board (final state of the run)
+```
+✓ student-a sums best scores across RELEASED quizzes only (=2)
+✓ student-c present with retry-best counted (=1)
+✓ still-open quiz5 listed as pending, NOT summed
+✓ roster student with zero appears at bottom (not excluded)
+```
+
+---
+
+## 7. Security properties enforced server-side
+
+| Threat | Defense | Where |
+|---|---|---|
+| Student claims teacher via headers | role comes ONLY from verified JWT (`req.user.role`) | auth.middleware + per-route gates |
+| Correct answers leak while taking | `sanitizeQuestionForStudent()` strips `correctChoiceId`/`modelAnswer`; leak-scan test proves it | quiz.helpers.js |
+| Client lies about elapsed time | start time & personal deadline recorded server-side; all remaining-time math is server-side | quizTaking.routes.js |
+| Solving past the deadline | every mutating endpoint re-checks expiry; late autosave triggers finalize instead | quizTaking.routes.js |
+| Early leaderboard/review peek | fresh `Date.now() vs endTime` gate on EVERY call, no stored flag | leaderboard + review routes |
+| Reading someone else's result | ownership check against JWT id | review route |
+| Image access without context | private bucket; signed URLs minted post-auth, 1 h TTL | supabaseStorage.service.js |
+
+## 8. Known stub limitations (by design)
+
+- All quiz data is **in-memory**: a server restart or Vercel cold start wipes
+  quizzes/attempts. Replace the stub before real classroom use.
+- One-process assumption: multiple instances would disagree about attempts
+  (same limitation as the existing lesson/material stubs).
+- `durationMinutes` accepts fractional minutes — handy for timing tests,
+  harmless in production.
+- The old duplicate `src/app.js` / `src/server.js` pair predates this
+  feature; production never loads them.
