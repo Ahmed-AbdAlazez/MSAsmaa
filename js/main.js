@@ -1310,7 +1310,8 @@ document.addEventListener('DOMContentLoaded', () => {
           button.disabled = false;
           button.textContent = 'عرض';
         }
-      };
+      });
+
 
       if (viewerClose && viewerPanel) {
         viewerClose.addEventListener('click', closePdfViewer);
