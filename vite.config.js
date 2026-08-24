@@ -42,6 +42,7 @@ export default defineConfig({
         exams: 'exams.html',
         'dashboard-student': 'dashboard-student.html',
         'dashboard-teacher': 'dashboard-teacher.html',
+        'registration-requests': 'registration-requests.html',
       },
     },
   },

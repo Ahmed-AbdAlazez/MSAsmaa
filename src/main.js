@@ -1,6 +1,16 @@
 import { initNavbar } from './components/navbar.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+  const isRegistrationRequestsPage = window.location.pathname.includes('registration-requests.html');
+  if (isRegistrationRequestsPage) {
+    const role = String(localStorage.getItem('userRole') || '').toLowerCase();
+    const token = localStorage.getItem('token');
+    if (role !== 'teacher' || !token) {
+      window.location.replace('index.html');
+      return;
+    }
+  }
+
   initNavbar();
   // --- Dark / light theme toggle --------------------------------------------
   // The inline bootstrap script in <head> already applied data-theme
@@ -366,6 +376,120 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     return data;
   };
+
+  // --- Teacher registration requests --------------------------------------
+  // This page uses the existing fetchJson/authHeaders/toast helpers. Its
+  // count is always derived from the single GET response; no count endpoint
+  // is requested.
+  const requestsPage = document.querySelector('#registration-requests-page');
+  if (requestsPage) {
+    const list = document.querySelector('#registration-requests-list');
+    const count = document.querySelector('#pending-requests-count');
+    let requests = [];
+    let activeRequestId = '';
+
+    const renderRequests = () => {
+      count.textContent = String(requests.length);
+      list.replaceChildren();
+
+      if (!requests.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-muted registration-requests-empty';
+        empty.textContent = 'No pending registration requests.';
+        list.appendChild(empty);
+        return;
+      }
+
+      const table = document.createElement('table');
+      table.className = 'table registration-requests-table';
+      table.innerHTML = '<thead><tr><th>Student Name</th><th>Student Code</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>';
+      const body = document.createElement('tbody');
+
+      requests.forEach((request) => {
+        const row = document.createElement('tr');
+        const date = request.createdAt ? new Date(request.createdAt) : null;
+        const displayDate = date && !Number.isNaN(date.getTime())
+          ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
+          : '—';
+
+        const cells = [request.name || '—', request.studentCode || '—', displayDate];
+        cells.forEach((value) => {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+
+        const statusCell = document.createElement('td');
+        const status = document.createElement('span');
+        status.className = 'badge badge-warning';
+        status.textContent = request.status || 'PENDING';
+        statusCell.appendChild(status);
+        row.appendChild(statusCell);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'registration-request-actions';
+        const approve = document.createElement('button');
+        approve.className = 'btn btn-primary';
+        approve.type = 'button';
+        approve.textContent = activeRequestId === request.id ? 'Approving...' : 'Approve';
+        approve.disabled = Boolean(activeRequestId);
+        approve.addEventListener('click', () => processRequest(request.id, 'approve'));
+
+        const reject = document.createElement('button');
+        reject.className = 'btn btn-danger';
+        reject.type = 'button';
+        reject.textContent = activeRequestId === request.id ? 'Rejecting...' : 'Reject';
+        reject.disabled = Boolean(activeRequestId);
+        reject.addEventListener('click', () => processRequest(request.id, 'reject'));
+        actionsCell.append(approve, reject);
+        row.appendChild(actionsCell);
+        body.appendChild(row);
+      });
+
+      table.appendChild(body);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'table-responsive';
+      wrapper.appendChild(table);
+      list.appendChild(wrapper);
+    };
+
+    const loadRequests = async () => {
+      list.innerHTML = '<p class="text-muted registration-requests-loading">Loading registration requests...</p>';
+      try {
+        const data = await fetchJson(`${API_BASE}/registration-requests`, {
+          headers: authHeaders(),
+        });
+        requests = Array.isArray(data?.data?.requests) ? data.data.requests : [];
+        renderRequests();
+      } catch (error) {
+        requests = [];
+        count.textContent = '0';
+        list.innerHTML = '<p class="text-muted registration-requests-empty">Unable to load registration requests.</p>';
+        showToast(error.message, 'danger');
+      }
+    };
+
+    const processRequest = async (id, action) => {
+      if (activeRequestId) return;
+      activeRequestId = id;
+      renderRequests();
+      try {
+        const data = await fetchJson(`${API_BASE}/registration-requests/${encodeURIComponent(id)}/${action}`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+        });
+        showToast(data.message || `Registration request ${action}d successfully.`, 'success');
+        activeRequestId = '';
+        await loadRequests();
+      } catch (error) {
+        activeRequestId = '';
+        renderRequests();
+        showToast(error.message, 'danger');
+      }
+    };
+
+    loadRequests();
+  }
 
   // --- Tab Switcher Logic (e.g., Lesson Page) ---
   const tabBtns = document.querySelectorAll('.tab-btn');
