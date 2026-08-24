@@ -37,6 +37,13 @@ export function initNavbar() {
     mobileDashboardLink = `<li><a href="dashboard-student.html" class="mobile-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
   }
 
+  const registrationRequestsLink = isTeacher
+    ? `<li><a href="registration-requests.html" class="nav-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
+    : '';
+  const mobileRegistrationRequestsLink = isTeacher
+    ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
+    : '';
+
   // Generate navbar inner HTML
   navbarElement.innerHTML = `
     <div class="container">
@@ -51,6 +58,7 @@ export function initNavbar() {
         <li><a href="assignments.html" class="nav-link ${getActive(['assignments.html', 'assignment-view.html'])}">الواجبات</a></li>
         <li><a href="chatbots.html" class="nav-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
         ${dashboardLink}
+        ${registrationRequestsLink}
       </ul>
       <div class="nav-actions">
         <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
@@ -95,6 +103,7 @@ export function initNavbar() {
       <li><a href="assignments.html" class="mobile-link ${getActive(['assignments.html', 'assignment-view.html'])}">الواجبات</a></li>
       <li><a href="chatbots.html" class="mobile-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
       ${mobileDashboardLink}
+      ${mobileRegistrationRequestsLink}
     </ul>
     <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
   `;

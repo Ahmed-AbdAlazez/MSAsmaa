@@ -1195,6 +1195,45 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
 }
 
+/* Teacher registration requests */
+.registration-requests-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.registration-requests-summary .badge {
+  font-size: 0.95rem;
+}
+
+.registration-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.registration-request-actions .btn {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.registration-requests-empty,
+.registration-requests-loading {
+  margin: 0;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .registration-requests-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .quiz-workspace {
   margin-bottom: 2rem;
   padding: 1.5rem;
