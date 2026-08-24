@@ -91,6 +91,22 @@ const STATUS_LABELS = {
   ended: "انتهى",
 };
 
+/* Per-student attempt state keyed by quizId, filled by loadHub() from
+   GET /api/quizzes/my-attempts. Lets each card show its real state:
+   not attempted -> Start; attempted & exhausted -> score / submitted;
+   attempted with a granted retry -> score + Start again. */
+let myAttempts = {};
+
+function attemptFor(examId) {
+  return myAttempts[examId] || null;
+}
+
+/** Compact green chip showing this student's MCQ score on one exam. */
+function scoreChipHtml(result) {
+  if (!result || result.score == null) return "";
+  return `<div class="score-chip">🎯 درجتك: ${result.score}/${result.totalMcq ?? "?"}</div>`;
+}
+
 function examCardHtml(exam) {
   const lessonName =
     window.CURRICULUM &&
@@ -104,18 +120,49 @@ function examCardHtml(exam) {
       return null;
     })();
 
-  const action =
-    exam.status === "active"
-      ? `<button class="btn btn-primary btn-take" data-id="${exam.id}">ابدئي الحل</button>`
-      : exam.status === "ended"
-        ? `<button class="btn btn-secondary btn-result" data-id="${exam.id}">النتيجة والمراجعة</button>`
-        : `<span class="muted">تبدأ ${formatDateTime(exam.startTime)}</span>`;
+  const att = attemptFor(exam.id);
+  const submitted = att && att.latestSubmitted ? att.latestSubmitted : null;
+  const remaining = att ? att.remainingAttempts : 1;
+  const canResume = Boolean(att && att.status === "in_progress");
+  const exhausted = Boolean(submitted) && remaining <= 0;
+
+  let badgeLabel = STATUS_LABELS[exam.status];
+  if (exam.status === "active" && submitted && !canResume) {
+    badgeLabel = exhausted ? "تم التسليم ✓" : "تم التسليم — إعادة متاحة";
+  }
+  const badge = `<span class="exam-status ${exam.status}${submitted ? " submitted" : ""}">${badgeLabel}</span>`;
+
+  let action;
+  if (exam.status === "active") {
+    if (exhausted) {
+      // Attempt already used and no retry granted: NEVER render an active
+      // Start button here — clicking it could only fail server-side.
+      action =
+        scoreChipHtml(submitted) +
+        `<button class="btn btn-secondary btn-result" data-id="${exam.id}">النتيجة والمراجعة</button>`;
+    } else {
+      const startLabel = canResume
+        ? "كمّلي الحل"
+        : submitted
+          ? "ابدئي الحل (محاولة إضافية)"
+          : "ابدئي الحل";
+      action =
+        scoreChipHtml(submitted) +
+        `<button class="btn btn-primary btn-take" data-id="${exam.id}">${startLabel}</button>`;
+    }
+  } else if (exam.status === "ended") {
+    action =
+      scoreChipHtml(submitted) +
+      `<button class="btn btn-secondary btn-result" data-id="${exam.id}">النتيجة والمراجعة</button>`;
+  } else {
+    action = `<span class="muted">تبدأ ${formatDateTime(exam.startTime)}</span>`;
+  }
 
   return `
-  <article class="exam-card" data-exam-id="${exam.id}">
+  <article class="exam-card${submitted ? " is-attempted" : ""}" data-exam-id="${exam.id}">
     <div class="exam-card-top">
       <div class="exam-title">${escapeHtml(exam.title)}</div>
-      <span class="exam-status ${exam.status}">${STATUS_LABELS[exam.status]}</span>
+      ${badge}
     </div>
     <div class="exam-meta">
       <span>📘 ${escapeHtml(lessonName || exam.lessonId)}</span>
@@ -184,10 +231,21 @@ async function loadHub() {
   // One course per page: ask the backend for THIS course's exams only, so
   // rows from other courses (e.g. synthetic data used by automated tests)
   // can never appear here no matter what is in the database.
-  const { ok, status, data } = await api(
-    "GET",
-    `/api/quizzes/available?courseId=${encodeURIComponent(COURSE_ID)}`
-  );
+  const [feed, mine] = await Promise.all([
+    api("GET", `/api/quizzes/available?courseId=${encodeURIComponent(COURSE_ID)}`),
+    api("GET", "/api/quizzes/my-attempts"),
+  ]);
+  const { ok, status, data } = feed;
+
+  // Attempt state is an enhancement: if it fails we degrade gracefully to
+  // the old behavior (every active exam shows Start) instead of breaking.
+  if (mine.ok && mine.data && mine.data.attempts) {
+    myAttempts = mine.data.attempts;
+  } else if (!mine.ok && mine.status !== 401) {
+    console.error("[exams] failed to load /api/quizzes/my-attempts:", mine.status);
+    myAttempts = {};
+  }
+
   if (!ok) {
     // Surface the REAL failure (status + backend message) to the console
     // so a generic "confirm login" message never hides the actual cause.
@@ -224,6 +282,8 @@ const runState = {
   starting: false,   // double-click guard for "Start Exam"
   submitting: false, // double-click guard for submit
   answers: {}, // questionId -> value (client mirror for the final flush)
+  inFullscreen: false, // tracking fullscreen mode
+  fullscreenExitCount: 0, // track accidental exits (don't auto-submit)
 };
 
 function stopTimer() {
@@ -311,6 +371,8 @@ function openRun(payload, quizTitle, quizId) {
   runState.quizId = quizId;
   runState.attemptId = payload.attemptId;
   runState.answers = { ...(payload.savedAnswers || {}) };
+  runState.inFullscreen = false;
+  runState.fullscreenExitCount = 0;
 
   document.getElementById("run-title").textContent = quizTitle;
   document.getElementById("run-meta").textContent =
@@ -327,6 +389,15 @@ function openRun(payload, quizTitle, quizId) {
   document.getElementById("quiz-run-overlay").style.display = "flex";
   startTimer(payload.remainingSeconds);
 
+  // Request fullscreen mode for focused exam taking
+  const runOverlay = document.getElementById("quiz-run-overlay");
+  if (runOverlay && runOverlay.requestFullscreen) {
+    runOverlay.requestFullscreen().catch((err) => {
+      console.log("Fullscreen request failed:", err);
+      showToast("تعذّر فتح وضع الملء الشاشة. يمكنك المتابعة عادياً.", "info");
+    });
+  }
+
   // Autosave on EVERY change so an interrupted session resumes pre-filled.
   document.getElementById("run-questions").onchange = async (event) => {
     const target = event.target;
@@ -342,13 +413,23 @@ function openRun(payload, quizTitle, quizId) {
       // Server says time is up - it already auto-submitted us.
       showToast(save.data.error, "warning");
       closeRun();
-      openResult(runState.quizIdForLookup || runState.quizId, save.data.result.resultId);
+      openResult(
+        runState.quizIdForLookup || runState.quizId,
+        save.data.result.resultId,
+        save.data.result
+      );
     }
   };
 }
 
 function closeRun() {
   stopTimer();
+  // Exit fullscreen when closing the quiz (after submission)
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {
+      // Ignore errors if already exited
+    });
+  }
   document.getElementById("quiz-run-overlay").style.display = "none";
 }
 
@@ -376,7 +457,7 @@ async function beginQuiz(quizId, quizTitle) {
     if (data.status === "auto_submitted") {
       // Their personal countdown expired while away.
       showToast("انتهى وقت المحاولة وتم التسليم التلقائي.", "warning");
-      openResult(quizId, data.result.resultId);
+      openResult(quizId, data.result.resultId, data.result);
       return;
     }
 
@@ -404,7 +485,8 @@ async function submitQuiz(auto = false) {
       return;
     }
     showToast(auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅", "success");
-    openResult(runState.quizId, data.result.resultId);
+    // data.result carries the graded MCQ score — show it right now.
+    openResult(runState.quizId, data.result.resultId, data.result);
   } finally {
     runState.submitting = false;
   }
@@ -414,19 +496,44 @@ async function submitQuiz(auto = false) {
  * RESULT VIEW: score banner + THIS quiz's leaderboard + gated review
  * ===================================================================== */
 
-async function openResult(quizId, resultId) {
+/**
+ * The numeric MCQ score is visible IMMEDIATELY after submission (it always
+ * travels on the submit/attempt responses) — only the per-question right/
+ * wrong breakdown waits for end_time. This banner is therefore rendered
+ * straight from the submit response, never from the gated review endpoint.
+ */
+function renderScoreBanner(result) {
+  const summary = document.getElementById("result-summary");
+  if (!summary || !result || result.score == null) return;
+  summary.innerHTML = `<div class="score-banner">درجتك: ${result.score} من ${result.totalMcq ?? "?"}
+    <span class="muted" style="font-weight:400;">(أسئلة الاختيارات فقط)</span></div>`;
+}
+
+async function openResult(quizId, resultId, summaryData = null) {
   document.getElementById("quiz-result-overlay").style.display = "flex";
 
-  const summary = document.getElementById("result-summary");
   const lbBody = document.getElementById("quiz-leaderboard-body");
   const reviewBody = document.getElementById("review-body");
 
+  // The score shows instantly — even before end_time releases the review.
+  if (summaryData) {
+    renderScoreBanner(summaryData);
+    document.getElementById("review-body").innerHTML =
+      '<div class="loading">جارٍ التحميل…</div>';
+  }
+
   // Opening an ENDED exam from the hub has no resultId yet - ask the
-  // backend for this student's latest submitted attempt first.
+  // backend for this student's latest submitted attempt first. Its summary
+  // carries the score too, so the banner fills without waiting for review.
   if (!resultId) {
     const attempt = await api("GET", `/api/quizzes/${quizId}/attempt`);
     if (attempt.ok && attempt.data.result) {
       resultId = attempt.data.result.resultId;
+      if (!summaryData) {
+        renderScoreBanner(attempt.data.result);
+        document.getElementById("review-body").innerHTML =
+          '<div class="loading">جارٍ التحميل…</div>';
+      }
     }
   }
 
@@ -464,8 +571,9 @@ async function openResult(quizId, resultId) {
   }
 
   const r = review.data.review;
-  summary.innerHTML = `<div class="score-banner">درجتك: ${r.score} من ${r.totalMcq}
-    <span class="muted" style="font-weight:400;">(أسئلة الاختيارات فقط)</span></div>`;
+  // Review (released after end_time) re-renders the banner from the
+  // authoritative record — same numbers, now alongside the breakdown.
+  renderScoreBanner(r);
   reviewBody.innerHTML = r.questions.map(reviewQuestionHtml).join("");
 }
 
@@ -557,6 +665,38 @@ async function loadCourseLeaderboard() {
 }
 
 /* =====================================================================
+ * FULLSCREEN EXIT HANDLER
+ * ===================================================================== */
+
+function setupFullscreenHandler() {
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && runState.quizId) {
+      // User exited fullscreen while a quiz is active
+      runState.fullscreenExitCount++;
+      showToast(
+        "⚠️ يجب البقاء في وضع ملء الشاشة أثناء الامتحان (خروج من ملء الشاشة: " +
+          runState.fullscreenExitCount +
+          ")",
+        "warning"
+      );
+      // Log to console for teacher review (multiple exits indicate cheating)
+      console.warn(
+        `[QUIZ INTEGRITY] Student exited fullscreen ${runState.fullscreenExitCount} time(s) during quiz ${runState.quizId}`
+      );
+      // Attempt to re-enter fullscreen
+      const runOverlay = document.getElementById("quiz-run-overlay");
+      if (runOverlay && runOverlay.requestFullscreen) {
+        setTimeout(() => {
+          runOverlay.requestFullscreen().catch(() => {
+            // User may have disabled fullscreen re-request; allow to continue
+          });
+        }, 500);
+      }
+    }
+  });
+}
+
+/* =====================================================================
  * BOOTSTRAP & EVENTS
  * ===================================================================== */
 
@@ -575,6 +715,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadHub();
   loadCourseLeaderboard();
+  setupFullscreenHandler();
 
   document.querySelectorAll(".exam-tab").forEach((button) => {
     button.addEventListener("click", () => showTab(button.dataset.tab));

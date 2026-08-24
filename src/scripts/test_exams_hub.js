@@ -112,10 +112,47 @@ async function main() {
   console.error = (...args) => errorsSeen.push(args.join(" "));
 
   const startCalls = [];
+  // Mutable so later phases can simulate submitted / retry-granted /
+  // in-progress states coming back from GET /quizzes/my-attempts.
+  let myAttemptsResponse = { attempts: {} };
   global.fetch = async (url, options = {}) => {
     const target = String(url);
     if (target.includes("/api/quizzes/available")) {
       return { ok: true, status: 200, json: async () => ({ exams: EXAMS }) };
+    }
+    if (target.includes("/api/quizzes/my-attempts")) {
+      return { ok: true, status: 200, json: async () => myAttemptsResponse };
+    }
+    if (/\/api\/quizzes\/q-on\/attempt$/.test(target)) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          result: { resultId: "res-q-on", score: 2, totalMcq: 2 },
+        }),
+      };
+    }
+    if (/\/api\/quizzes\/q-on\/leaderboard$/.test(target)) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          released: false,
+          availableAfter: new Date(Date.now() + 36e5).toISOString(),
+          rankings: null,
+        }),
+      };
+    }
+    if (target.includes("/api/quiz-results/res-q-on/review")) {
+      return {
+        ok: false,
+        status: 403,
+        json: async () => ({
+          message: "تُفتح المراجعة بعد انتهاء وقت الاختبار للجميع.",
+          availableAfter: new Date(Date.now() + 36e5).toISOString(),
+          review: null,
+        }),
+      };
     }
     if (target.includes("/api/courses/biology/leaderboard")) {
       return {
@@ -250,6 +287,136 @@ async function main() {
       document.getElementById("run-title").textContent === "اختبار جاري الآن"
     );
   }
+
+  /* ================= PHASE 2: attempt-state cards ====================
+     my-attempts now reports q-on as SUBMITTED & exhausted and q-end with
+     a score: the active card must NEVER offer Start again. */
+  const exhaustedQon = {
+    status: "submitted",
+    usedAttempts: 1,
+    allowedAttempts: 1,
+    remainingAttempts: 0,
+    latestSubmitted: { resultId: "res-q-on", score: 2, totalMcq: 2 },
+  };
+  myAttemptsResponse = {
+    attempts: {
+      "q-on": exhaustedQon,
+      "q-end": {
+        status: "submitted",
+        usedAttempts: 1,
+        allowedAttempts: 1,
+        remainingAttempts: 0,
+        latestSubmitted: { score: 3, totalMcq: 4 },
+      },
+    },
+  };
+  await window.eval("loadHub()");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  const onCard = document.querySelector('.exam-card[data-exam-id="q-on"]');
+  check(
+    "exhausted active card has NO start button",
+    !onCard.querySelector(".btn-take")
+  );
+  check(
+    "exhausted active card offers result button",
+    Boolean(onCard.querySelector(".btn-result"))
+  );
+  check(
+    "score chip shows the MCQ score (2/2)",
+    onCard.querySelector(".score-chip") &&
+      onCard.querySelector(".score-chip").textContent.includes("2/2"),
+    onCard.querySelector(".score-chip") &&
+      onCard.querySelector(".score-chip").textContent
+  );
+  const onBadge = onCard.querySelector(".exam-status");
+  check(
+    "badge switches to submitted variant",
+    onBadge.classList.contains("submitted") &&
+      onBadge.textContent.includes("تم التسليم")
+  );
+  check("card flagged is-attempted", onCard.classList.contains("is-attempted"));
+  check(
+    "ended card shows its score too",
+    document
+      .querySelector('.exam-card[data-exam-id="q-end"] .score-chip')
+      ?.textContent.includes("3/4")
+  );
+  check(
+    "upcoming card has no score chip",
+    !document.querySelector('.exam-card[data-exam-id="q-up"] .score-chip')
+  );
+
+  /* ---- RESULT BUTTON opens the overlay WITHOUT touching /start ------- */
+  startCalls.length = 0;
+  onCard.querySelector(".btn-result").dispatchEvent(
+    new window.MouseEvent("click", { bubbles: true })
+  );
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  check(
+    "result button never calls the start endpoint",
+    startCalls.length === 0,
+    JSON.stringify(startCalls.map((c) => c.url))
+  );
+  check(
+    "result overlay opened",
+    document.getElementById("quiz-result-overlay").style.display === "flex"
+  );
+  check(
+    "score banner rendered BEFORE review release",
+    document
+      .getElementById("result-summary")
+      .innerHTML.includes("درجتك: 2 من 2")
+  );
+  check(
+    "review body shows the locked note pre-end_time",
+    document
+      .getElementById("review-body")
+      .innerHTML.includes("المراجعة غير متاحة بعد") ||
+      document
+        .getElementById("review-body")
+        .innerHTML.includes("تُفتح المراجعة")
+  );
+
+  /* ================= PHASE 3: granted retry ========================== */
+  myAttemptsResponse.attempts["q-on"] = { ...exhaustedQon, remainingAttempts: 1 };
+  await window.eval("loadHub()");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const retryCard = document.querySelector('.exam-card[data-exam-id="q-on"]');
+  const retryBtn = retryCard.querySelector(".btn-take");
+  check(
+    "retry-granted card offers start again",
+    Boolean(retryBtn)
+  );
+  check(
+    "retry start label mentions extra attempt",
+    retryBtn && retryBtn.textContent.includes("محاولة إضافية")
+  );
+  check(
+    "retry card keeps the score chip",
+    Boolean(retryCard.querySelector(".score-chip"))
+  );
+
+  /* ================= PHASE 4: in-progress resume ===================== */
+  myAttemptsResponse.attempts["q-on"] = {
+    status: "in_progress",
+    usedAttempts: 1,
+    allowedAttempts: 1,
+    remainingAttempts: 1,
+    latestSubmitted: null,
+  };
+  await window.eval("loadHub()");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const resumeCard = document.querySelector('.exam-card[data-exam-id="q-on"]');
+  const resumeBtn = resumeCard.querySelector(".btn-take");
+  check(
+    "in_progress card offers resume",
+    Boolean(resumeBtn) && resumeBtn.textContent.includes("كمّلي الحل")
+  );
+  check(
+    "resume state shows no score chip yet",
+    !resumeCard.querySelector(".score-chip")
+  );
 
   realError.call(console, ...[]);
   console.error = realError;

@@ -1,6 +1,7 @@
 /**
  * Shared Navbar Component
  * Dynamically builds and injects the unified navbar and mobile drawer across all pages.
+ * Conditionally renders MINIMAL navbar for logged-out users and FULL navbar for logged-in users.
  */
 
 export function initNavbar() {
@@ -11,7 +12,9 @@ export function initNavbar() {
   navbarElement.className = 'navbar';
 
   const currentPath = window.location.pathname;
+  const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
+  const isLoggedIn = !!token;
   const isTeacher = userRole === 'teacher';
   const isStudent = userRole === 'student';
 
@@ -26,85 +29,138 @@ export function initNavbar() {
     return isMatch ? 'active' : '';
   };
 
-  // Build dashboard link based on role
-  let dashboardLink = '';
-  let mobileDashboardLink = '';
-  if (isTeacher) {
-    dashboardLink = `<li><a href="dashboard-teacher.html" class="nav-link ${getActive(['dashboard-teacher.html'])}">لوحة المعلمة</a></li>`;
-    mobileDashboardLink = `<li><a href="dashboard-teacher.html" class="mobile-link ${getActive(['dashboard-teacher.html'])}">لوحة المعلمة</a></li>`;
-  } else if (isStudent) {
-    dashboardLink = `<li><a href="dashboard-student.html" class="nav-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
-    mobileDashboardLink = `<li><a href="dashboard-student.html" class="mobile-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
-  }
+  if (!isLoggedIn) {
+    // LOGGED OUT STATE: Show minimal navbar with only logo, dark mode toggle, and login/signup buttons
+    navbarElement.innerHTML = `
+      <div class="container">
+        <a href="index.html" class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </a>
+        <div class="nav-actions">
+          <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+            <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+          </button>
+          <a href="login.html" class="btn-login-minimal">تسجيل الدخول</a>
+          <a href="login.html?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+        </div>
+      </div>
+    `;
 
-  const registrationRequestsLink = isTeacher
-    ? `<li><a href="registration-requests.html" class="nav-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
-    : '';
-  const mobileRegistrationRequestsLink = isTeacher
-    ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
-    : '';
+    // Mobile drawer for logged-out state
+    let overlay = document.querySelector('.drawer-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'drawer-overlay';
+      document.body.appendChild(overlay);
+    }
 
-  // Generate navbar inner HTML
-  navbarElement.innerHTML = `
-    <div class="container">
-      <a href="index.html" class="brand">
-        <span class="brand-icon">🧬</span>
-        <span>المرسال</span>
-      </a>
-      <ul class="nav-links">
-        <li><a href="index.html" class="nav-link ${getActive(['index.html'])}">الرئيسية</a></li>
-        <li><a href="course-biology.html" class="nav-link ${getActive(['course-biology.html', 'lessons.html', 'lesson-view.html'])}">الأحياء (3ث)</a></li>
-        <li><a href="exams.html" class="nav-link ${getActive(['exams.html'])}">الاختبارات</a></li>
-        <li><a href="assignments.html" class="nav-link ${getActive(['assignments.html', 'assignment-view.html'])}">الواجبات</a></li>
-        <li><a href="chatbots.html" class="nav-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
-        ${dashboardLink}
-        ${registrationRequestsLink}
-      </ul>
-      <div class="nav-actions">
+    let drawer = document.querySelector('.mobile-drawer');
+    if (!drawer) {
+      drawer = document.createElement('div');
+      drawer.className = 'mobile-drawer';
+      document.body.appendChild(drawer);
+    }
+
+    drawer.innerHTML = `
+      <div class="mobile-drawer-header">
+        <div class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </div>
         <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
           <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
         </button>
-        <div class="nav-auth-container"></div>
-        <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+        <button class="mobile-drawer-close">✕</button>
       </div>
-    </div>
-  `;
-
-  // Inject Mobile Drawer Overlay & Sidebar if they are not already in the DOM
-  let overlay = document.querySelector('.drawer-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.className = 'drawer-overlay';
-    document.body.appendChild(overlay);
-  }
-
-  let drawer = document.querySelector('.mobile-drawer');
-  if (!drawer) {
-    drawer = document.createElement('div');
-    drawer.className = 'mobile-drawer';
-    document.body.appendChild(drawer);
-  }
-
-  drawer.innerHTML = `
-    <div class="mobile-drawer-header">
-      <div class="brand">
-        <span class="brand-icon">🧬</span>
-        <span>المرسال</span>
+      <div class="mobile-auth-minimal" style="padding: 1rem 0;">
+        <a href="login.html" class="btn btn-primary btn-full">تسجيل الدخول</a>
+        <a href="login.html?mode=signup" class="btn btn-light btn-full">حساب جديد</a>
       </div>
-      <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
-        <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
-      </button>
-      <button class="mobile-drawer-close">✕</button>
-    </div>
-    <ul class="mobile-links">
-      <li><a href="index.html" class="mobile-link ${getActive(['index.html'])}">الرئيسية</a></li>
-      <li><a href="course-biology.html" class="mobile-link ${getActive(['course-biology.html', 'lessons.html', 'lesson-view.html'])}">الأحياء (3ث)</a></li>
-      <li><a href="exams.html" class="mobile-link ${getActive(['exams.html'])}">الاختبارات</a></li>
-      <li><a href="assignments.html" class="mobile-link ${getActive(['assignments.html', 'assignment-view.html'])}">الواجبات</a></li>
-      <li><a href="chatbots.html" class="mobile-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
-      ${mobileDashboardLink}
-      ${mobileRegistrationRequestsLink}
-    </ul>
-    <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
-  `;
+    `;
+  } else {
+    // LOGGED IN STATE: Show full navbar with all navigation links
+
+    // Build dashboard link based on role
+    let dashboardLink = '';
+    let mobileDashboardLink = '';
+    if (isTeacher) {
+      dashboardLink = `<li><a href="dashboard-teacher.html" class="nav-link ${getActive(['dashboard-teacher.html'])}">لوحة المعلمة</a></li>`;
+      mobileDashboardLink = `<li><a href="dashboard-teacher.html" class="mobile-link ${getActive(['dashboard-teacher.html'])}">لوحة المعلمة</a></li>`;
+    } else if (isStudent) {
+      dashboardLink = `<li><a href="dashboard-student.html" class="nav-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
+      mobileDashboardLink = `<li><a href="dashboard-student.html" class="mobile-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
+    }
+
+    const registrationRequestsLink = isTeacher
+      ? `<li><a href="registration-requests.html" class="nav-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
+      : '';
+    const mobileRegistrationRequestsLink = isTeacher
+      ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
+      : '';
+
+    // Generate navbar inner HTML
+    navbarElement.innerHTML = `
+      <div class="container">
+        <a href="index.html" class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="index.html" class="nav-link ${getActive(['index.html'])}">الرئيسية</a></li>
+          <li><a href="course-biology.html" class="nav-link ${getActive(['course-biology.html', 'lessons.html', 'lesson-view.html'])}">الأحياء (3ث)</a></li>
+          <li><a href="exams.html" class="nav-link ${getActive(['exams.html'])}">الاختبارات</a></li>
+          <li><a href="assignments.html" class="nav-link ${getActive(['assignments.html', 'assignment-view.html'])}">الواجبات</a></li>
+          <li><a href="chatbots.html" class="nav-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
+          ${dashboardLink}
+          ${registrationRequestsLink}
+        </ul>
+        <div class="nav-actions">
+          <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+            <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+          </button>
+          <div class="nav-auth-container"></div>
+          <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+        </div>
+      </div>
+    `;
+
+    // Inject Mobile Drawer Overlay & Sidebar if they are not already in the DOM
+    let overlay = document.querySelector('.drawer-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'drawer-overlay';
+      document.body.appendChild(overlay);
+    }
+
+    let drawer = document.querySelector('.mobile-drawer');
+    if (!drawer) {
+      drawer = document.createElement('div');
+      drawer.className = 'mobile-drawer';
+      document.body.appendChild(drawer);
+    }
+
+    drawer.innerHTML = `
+      <div class="mobile-drawer-header">
+        <div class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </div>
+        <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+          <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+        </button>
+        <button class="mobile-drawer-close">✕</button>
+      </div>
+      <ul class="mobile-links">
+        <li><a href="index.html" class="mobile-link ${getActive(['index.html'])}">الرئيسية</a></li>
+        <li><a href="course-biology.html" class="mobile-link ${getActive(['course-biology.html', 'lessons.html', 'lesson-view.html'])}">الأحياء (3ث)</a></li>
+        <li><a href="exams.html" class="mobile-link ${getActive(['exams.html'])}">الاختبارات</a></li>
+        <li><a href="assignments.html" class="mobile-link ${getActive(['assignments.html', 'assignment-view.html'])}">الواجبات</a></li>
+        <li><a href="chatbots.html" class="mobile-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
+        ${mobileDashboardLink}
+        ${mobileRegistrationRequestsLink}
+      </ul>
+      <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
+    `;
+  }
 }

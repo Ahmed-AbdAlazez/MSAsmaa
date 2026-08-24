@@ -107,6 +107,20 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Student's own MCQ score, shown on cards for exams they already submitted */
+.score-chip {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--color-accent-dark);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .exam-status {
@@ -120,6 +134,7 @@
 }
 .exam-status.upcoming { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
 .exam-status.active   { background: rgba(16, 185, 129, 0.16); color: var(--color-accent-dark); }
+.exam-status.submitted { background: rgba(20, 184, 166, 0.16); color: #0f766e; }
 .exam-status.ended    { background: var(--color-border); color: var(--color-text-muted); }
 
 /* ---------- Overlays ---------- */
@@ -239,9 +254,31 @@
   padding: 1rem 1.1rem;
   margin-bottom: 1rem;
 }
-.review-choice { padding: 0.45rem 0.7rem; border-radius: var(--radius-sm); margin-bottom: 0.35rem; }
-.review-choice.correct { background: rgba(16, 185, 129, 0.16); color: var(--color-accent-dark); }
-.review-choice.wrong-pick { background: rgba(239, 68, 68, 0.13); color: var(--color-danger); }
+.review-question .q-text {
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  color: var(--color-heading);
+  font-size: 1rem;
+}
+.review-choice { 
+  padding: 0.45rem 0.7rem; 
+  border-radius: var(--radius-sm); 
+  margin-bottom: 0.35rem;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.review-choice.correct { 
+  background: rgba(16, 185, 129, 0.16); 
+  color: var(--color-accent-dark);
+  border-color: rgba(16, 185, 129, 0.4);
+  font-weight: 600;
+}
+.review-choice.wrong-pick { 
+  background: rgba(239, 68, 68, 0.13); 
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.4);
+  font-weight: 600;
+}
 .written-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.6rem; }
 @media (max-width: 600px) { .written-compare { grid-template-columns: 1fr; } }
 .written-box { border-radius: var(--radius-sm); padding: 0.75rem 0.85rem; font-size: 0.93rem; }

@@ -11,21 +11,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  initNavbar();
-  // --- Dark / light theme toggle --------------------------------------------
-  // The inline bootstrap script in <head> already applied data-theme
-  // (stored choice, else OS preference). Here we only flip it and persist;
-  // the sun/moon icon swap itself is pure CSS.
-  const themeRoot = document.documentElement;
-  document.querySelectorAll('.theme-toggle').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const next = themeRoot.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      themeRoot.setAttribute('data-theme', next);
-      try {
-        localStorage.setItem('theme', next);
-      } catch (_) { /* storage unavailable — theme still applies for this visit */ }
+  // --- Helper function to reinitialize navbar UI (called on initial load and after auth state changes) ---
+  const reinitializeNavbarUI = () => {
+    initNavbar();
+
+    // --- Dark / light theme toggle ---
+    const themeRoot = document.documentElement;
+    document.querySelectorAll('.theme-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const next = themeRoot.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        themeRoot.setAttribute('data-theme', next);
+        try {
+          localStorage.setItem('theme', next);
+        } catch (_) { /* storage unavailable — theme still applies for this visit */ }
+      });
     });
-  });
+
+    // --- Mobile Drawer Menu ---
+    const navToggle = document.querySelector('.nav-toggle');
+    const drawerClose = document.querySelector('.mobile-drawer-close');
+    const drawer = document.querySelector('.mobile-drawer');
+    const overlay = document.querySelector('.drawer-overlay');
+
+    if (navToggle && drawer && overlay) {
+      navToggle.addEventListener('click', () => {
+        drawer.classList.add('open');
+        overlay.classList.add('show');
+      });
+    }
+
+    const closeDrawer = () => {
+      if (drawer && overlay) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('show');
+      }
+    };
+
+    if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+    if (overlay) overlay.addEventListener('click', closeDrawer);
+  };
+
+  reinitializeNavbarUI();
 
   // --- Authentication (REAL BACKEND ONLY) ----------------------------------
   // Login/signup go to the real backend (VITE_API_URL). There are NO
@@ -42,29 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     window.location.href = 'login.html';
   });
-
-  // --- Mobile Drawer Menu ---
-  const navToggle = document.querySelector('.nav-toggle');
-  const drawerClose = document.querySelector('.mobile-drawer-close');
-  const drawer = document.querySelector('.mobile-drawer');
-  const overlay = document.querySelector('.drawer-overlay');
-
-  if (navToggle && drawer && overlay) {
-    navToggle.addEventListener('click', () => {
-      drawer.classList.add('open');
-      overlay.classList.add('show');
-    });
-  }
-
-  const closeDrawer = () => {
-    if (drawer && overlay) {
-      drawer.classList.remove('open');
-      overlay.classList.remove('show');
-    }
-  };
-
-  if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
-  if (overlay) overlay.addEventListener('click', closeDrawer);
 
   // --- Dynamic Toast System ---
   window.showToast = (message, type = 'success') => {
@@ -1072,6 +1075,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Populate auth placeholders dynamically
   const updateAuthUI = () => {
+    // Reinitialize the entire navbar (switches between minimal and full navbar)
+    reinitializeNavbarUI();
+
     const userRole = localStorage.getItem('userRole');
     const username = localStorage.getItem('username') || '';
 

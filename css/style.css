@@ -362,6 +362,54 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.75rem;
 }
 
+.mobile-auth-minimal {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* Minimal navbar login/signup buttons (shown when logged out) */
+.btn-login-minimal,
+.btn-signup-minimal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  text-decoration: none;
+  text-align: center;
+}
+
+.btn-login-minimal {
+  background-color: var(--color-primary-ink);
+  color: white;
+}
+
+.btn-login-minimal:hover {
+  background-color: var(--color-primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 76, 58, 0.25);
+}
+
+.btn-signup-minimal {
+  background-color: var(--color-surface);
+  color: var(--color-primary-ink);
+  border: 1px solid var(--color-primary-ink);
+}
+
+.btn-signup-minimal:hover {
+  background-color: var(--color-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 76, 58, 0.15);
+}
+
 .mobile-link {
   font-size: 1.1rem;
   font-weight: 500;
@@ -2336,6 +2384,12 @@ h1, h2, h3, h4, h5, h6 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Hide login/signup buttons in navbar on mobile, show them in drawer instead */
+  .btn-login-minimal,
+  .btn-signup-minimal {
+    display: none;
   }
 }
 

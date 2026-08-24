@@ -78,7 +78,11 @@ may reference JWT subjects that predate their `users` row.
    choice IDs. Score = correct MCQs; denominator = number of MCQs. Written
    answers are saved but never scored.
 7. The student immediately sees their MCQ score only — no right/wrong
-   detail yet.
+   detail yet. The frontend takes the score straight from the submit
+   response (`result.score`) and renders it in the result overlay's banner;
+   it never waits for the gated review endpoint. The Exams Hub cards read
+   the same numbers from `GET /api/quizzes/my-attempts`, so an exhausted
+   quiz shows a score chip + "النتيجة والمراجعة" instead of a Start button.
 8. After the quiz's `end_time`, two things unlock (checked fresh on EVERY
    request against the server clock):
    - `GET /api/quizzes/:quizId/leaderboard` (+ course cumulative board) —
@@ -123,6 +127,7 @@ QUIZ_README.md                             this file
 |---|---|---|---|
 | POST | `/quizzes` | teacher | create quiz shell |
 | GET | `/quizzes/available?courseId=` | authed | Exams Hub feed; optional `courseId` filters one course (legacy no-param call still lists everything) |
+| GET | `/quizzes/my-attempts` | student | per-student attempt map `{[quizId]: {status, usedAttempts, allowedAttempts, remainingAttempts, latestSubmitted}}`; `latestSubmitted` carries the MCQ `score`/`totalMcq` (never per-question detail); expired in-progress attempts are finalized on read; absent key = never started. Powers the hub's real card states: Start / كمّلي الحل / score chip + "النتيجة والمراجعة" |
 | GET | `/quizzes/:quizId` | teacher | quiz metadata |
 | GET | `/lessons/:lessonId/quizzes` | teacher | quizzes on a lesson |
 | POST | `/quizzes/:quizId/questions` | teacher | add question (multipart, optional `image`) |

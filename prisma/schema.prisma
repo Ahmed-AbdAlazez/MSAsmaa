@@ -113,6 +113,7 @@ model QuizAttempt {
   /// Server-generated per-attempt shuffle (question + choice orders) so a
   /// resume replays the exact same arrangement. Null for legacy rows.
   ordering         Json?
+  fullscreenExits  Int       @default(0) @map("fullscreen_exits")
 
   quiz    Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers StudentAnswer[]

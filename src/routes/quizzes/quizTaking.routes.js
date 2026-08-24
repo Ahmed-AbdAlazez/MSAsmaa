@@ -7,6 +7,7 @@
  *   GET  /api/quizzes/:quizId/attempt    current attempt state (re-entry check)
  *   POST /api/quizzes/:quizId/answers    save ONE answer as it is changed
  *   POST /api/quizzes/:quizId/submit     submit (manual or already-expired)
+ *   GET  /api/quizzes/my-attempts        per-student attempt map for the hub
  *
  * TIMING CONTRACT (all server-side, client values never trusted):
  *   personal cutoff = attempt.startedAt + quiz.durationMinutes
@@ -42,6 +43,7 @@ const {
   listAllQuizzes,
   createAttempt,
   getAttemptsForStudent,
+  listAttemptsForStudent,
   setAttemptOrdering,
   saveInProgressAnswer,
   finalizeAttempt,
@@ -171,6 +173,61 @@ router.get("/quizzes/available", requireAuth, async (req, res) => {
   });
 
   return res.json({ exams });
+});
+
+/* ------------------------------------------------------------------ *
+ * GET /quizzes/my-attempts - per-student attempt feed for the hub.
+ * The available feed intentionally contains NO student data, so the UI
+ * needs one cheap call to know, PER QUIZ, whether this student already
+ * submitted (and with which score) or still has attempts left. Returns
+ * a map keyed by quizId; quizzes without attempts are simply absent
+ * (= "not started"). Literal path defined in the taking router BEFORE
+ * quizCreation's parameterized GET /quizzes/:quizId can see it.
+ *
+ * Expired in-progress attempts are finalized lazily here too, so a
+ * student returning to the hub sees their auto-submitted score without
+ * having to open the quiz first.
+ * ------------------------------------------------------------------ */
+router.get("/quizzes/my-attempts", requireAuth, requireStudent, async (req, res) => {
+  const attempts = await listAttemptsForStudent(req.user.id);
+
+  // Group by quiz and lazily finalize expired in-progress attempts.
+  const byQuiz = new Map();
+  const expiredToFinalize = [];
+  for (const attempt of attempts) {
+    if (!byQuiz.has(attempt.quizId)) byQuiz.set(attempt.quizId, []);
+    byQuiz.get(attempt.quizId).push(attempt);
+    if (attempt.status === "in_progress") expiredToFinalize.push(attempt);
+  }
+
+  for (const attempt of expiredToFinalize) {
+    const quiz = await getQuizById(attempt.quizId);
+    if (quiz && isAttemptExpired(attempt, quiz)) {
+      const finalized = await autoSubmitExpiredAttempt(attempt, quiz).catch(() => null);
+      if (finalized) Object.assign(attempt, finalized);
+    }
+  }
+
+  const result = {};
+  for (const [quizId, quizAttempts] of byQuiz.entries()) {
+    const used = quizAttempts.filter((a) => a.status === "submitted").length;
+    const allowed = await getAllowedAttemptCount(quizId, req.user.id);
+    const inProgress = quizAttempts.find((a) => a.status === "in_progress");
+    const latestSubmitted = quizAttempts
+      .filter((a) => a.status === "submitted")
+      .sort((a, b) => String(b.submittedAt || "").localeCompare(String(a.submittedAt || "")))
+      [0] || null;
+
+    result[quizId] = {
+      status: inProgress ? "in_progress" : "submitted",
+      usedAttempts: used,
+      allowedAttempts: allowed,
+      remainingAttempts: Math.max(0, allowed - used),
+      latestSubmitted: latestSubmitted ? submittedSummary(latestSubmitted) : null,
+    };
+  }
+
+  return res.json({ attempts: result });
 });
 
 /* ------------------------------------------------------------------ *

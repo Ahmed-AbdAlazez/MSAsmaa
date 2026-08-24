@@ -379,6 +379,23 @@ async function getAttemptsForStudent(quizId, studentId) {
 }
 
 /**
+ * All attempts (any status, any quiz) for ONE student, oldest first.
+ * Powers the Exams Hub per-student attempt feed (GET /quizzes/my-attempts)
+ * so the UI can distinguish not-attempted / attempted exams without N
+ * per-quiz probes.
+ * @param {string} studentId
+ * @returns {Promise<object[]>}
+ */
+async function listAttemptsForStudent(studentId) {
+  const rows = await getPrisma().quizAttempt.findMany({
+    where: { studentId: String(studentId) },
+    orderBy: { startedAt: "asc" },
+    include: ATTEMPT_INCLUDE,
+  });
+  return rows.map(mapAttempt);
+}
+
+/**
  * Finds one attempt by its ID (the "result id" of review endpoints).
  * @param {string} resultId
  * @returns {Promise<object|null>}
@@ -614,6 +631,7 @@ const service = {
   getQuestionsForQuiz,
   createAttempt,
   getAttemptsForStudent,
+  listAttemptsForStudent,
   getAttemptById,
   setAttemptOrdering,
   saveInProgressAnswer,
