@@ -76,23 +76,32 @@ function getPrisma() {
   return _client;
 }
 
-/** Runs a Prisma call once more when Neon's cold start drops the first try. */
+/**
+ * Runs a Prisma call again when Neon's cold start / transient networking
+ * drops it. Up to RETRY_ATTEMPTS tries with linear backoff — a single retry
+ * proved insufficient during real connection blips, which students
+ * experienced as exams randomly failing to load.
+ */
+const RETRYABLE_FRAGMENTS = [
+  "Can't reach database server",
+  "Timed out fetching",
+];
+
 async function withColdStartRetry(operation) {
-  try {
-    return await operation();
-  } catch (error) {
-    const message = String(error && error.message);
-    if (
-      error &&
-      typeof error.code === "string" &&
-      error.code.startsWith("P") &&
-      (message.includes("Can't reach database server") ||
-        message.includes("Timed out fetching"))
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      return operation();
+  const MAX_TRIES = 3;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      const message = String(error && error.message);
+      const retryable =
+        error &&
+        typeof error.code === "string" &&
+        error.code.startsWith("P") &&
+        RETRYABLE_FRAGMENTS.some((fragment) => message.includes(fragment));
+      if (!retryable || attempt >= MAX_TRIES) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
     }
-    throw error;
   }
 }
 
@@ -202,11 +211,19 @@ async function createQuiz(input) {
 }
 
 /**
- * Lists every quiz (Exams Hub feed source), soonest-starting first.
+ * Lists quizzes (Exams Hub feed source), soonest-starting first.
+ *
+ * @param {object} [options]
+ * @param {string} [options.courseId] - Optional filter. The hub passes its
+ *   course so rows from other courses (e.g. synthetic data created by
+ *   automated tests) can never leak into a course page.
  * @returns {Promise<object[]>}
  */
-async function listAllQuizzes() {
-  const rows = await getPrisma().quiz.findMany({ orderBy: { startTime: "asc" } });
+async function listAllQuizzes({ courseId } = {}) {
+  const rows = await getPrisma().quiz.findMany({
+    where: courseId ? { courseId: String(courseId) } : undefined,
+    orderBy: { startTime: "asc" },
+  });
   return rows.map(mapQuiz);
 }
 
@@ -604,6 +621,7 @@ const service = {
   getAllAttemptsForQuiz,
   getSubmittedResultsForQuiz,
   getStudentNameById,
+  getStudentIdsForCourse,
 };
 
 // Every DB-backed function gains cold-start resilience transparently;

@@ -98,6 +98,19 @@ async function main() {
     );
   } catch (error) {
     console.error("[test_exams_feed] error:", error);
+  } finally {
+    // Self-cleanup: this script publishes into the REAL "biology" course;
+    // delete its row so repeated runs never pollute the live exams feed.
+    try {
+      const { PrismaClient } = require("@prisma/client");
+      const prisma = new PrismaClient();
+      await prisma.quiz.deleteMany({
+        where: { courseId: "biology", title: "اختبار تغذية الراجعة للـ Hub", lessonId: "lesson-1" },
+      });
+      await prisma.$disconnect();
+    } catch (_) {
+      /* best-effort */
+    }
   }
   // NOTE: intentionally no server.close() — closing mid-teardown trips a
   // libuv assertion on Windows (same pattern as test_quiz_workflow.js).

@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Student-facing Exams Hub. Talks ONLY to the already-built quiz backend:
  *
- *   GET  /api/quizzes/available                     hub feed (server status)
+ *   GET  /api/quizzes/available?courseId=biology    hub feed (server status)
  *   POST /api/quizzes/:id/start                     start OR auto-resume
  *   POST /api/quizzes/:id/answers                   autosave on every change
  *   POST /api/quizzes/:id/submit                    manual submit
@@ -32,11 +32,19 @@ function getRole() {
 async function api(method, path, body) {
   const headers = { Authorization: `Bearer ${getToken()}` };
   if (body) headers["Content-Type"] = "application/json";
-  const res = await fetch(`${API}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (_) {
+    /* Network/DNS failure: normalize to status 0 so every caller's existing
+       !ok branch handles it instead of dying as an unhandled rejection
+       (which is what made buttons like "Start Exam" silently do nothing). */
+    return { ok: false, status: 0, data: null };
+  }
   let data = null;
   try {
     data = await res.json();
@@ -173,7 +181,13 @@ function showTab(tab) {
 }
 
 async function loadHub() {
-  const { ok, status, data } = await api("GET", "/api/quizzes/available");
+  // One course per page: ask the backend for THIS course's exams only, so
+  // rows from other courses (e.g. synthetic data used by automated tests)
+  // can never appear here no matter what is in the database.
+  const { ok, status, data } = await api(
+    "GET",
+    `/api/quizzes/available?courseId=${encodeURIComponent(COURSE_ID)}`
+  );
   if (!ok) {
     // Surface the REAL failure (status + backend message) to the console
     // so a generic "confirm login" message never hides the actual cause.
@@ -207,6 +221,8 @@ const runState = {
   timerInterval: null,
   warned5min: false,
   warned1min: false,
+  starting: false,   // double-click guard for "Start Exam"
+  submitting: false, // double-click guard for submit
   answers: {}, // questionId -> value (client mirror for the final flush)
 };
 
@@ -337,42 +353,61 @@ function closeRun() {
 }
 
 async function beginQuiz(quizId, quizTitle) {
-  const { ok, status, data } = await api(
-    "POST",
-    `/api/quizzes/${quizId}/start`
-  );
+  if (runState.starting) return; // ignore rapid double-clicks
+  runState.starting = true;
+  try {
+    const { ok, status, data } = await api(
+      "POST",
+      `/api/quizzes/${quizId}/start`
+    );
 
-  if (!ok) {
-    showToast(data && data.error ? data.error : "تعذر بدء الاختبار.", "danger");
-    return;
+    if (!ok) {
+      showToast(
+        data && data.error
+          ? data.error
+          : status === 0
+            ? "تعذر الوصول للسيرفر. تأكدي من الاتصال ثم أعيدي المحاولة."
+            : "تعذر بدء الاختبار.",
+        "danger"
+      );
+      return;
+    }
+
+    if (data.status === "auto_submitted") {
+      // Their personal countdown expired while away.
+      showToast("انتهى وقت المحاولة وتم التسليم التلقائي.", "warning");
+      openResult(quizId, data.result.resultId);
+      return;
+    }
+
+    runState.quizIdForLookup = quizId;
+    openRun({ ...data }, quizTitle, quizId);
+  } finally {
+    runState.starting = false;
   }
-
-  if (data.status === "auto_submitted") {
-    // Their personal countdown expired while away.
-    showToast("انتهى وقت المحاولة وتم التسليم التلقائي.", "warning");
-    openResult(quizId, data.result.resultId);
-    return;
-  }
-
-  runState.quizIdForLookup = quizId;
-  openRun({ ...data }, quizTitle, quizId);
 }
 
 async function submitQuiz(auto = false) {
-  const { ok, data } = await api(
-    "POST",
-    `/api/quizzes/${runState.quizId}/submit`,
-    { answers: runState.answers }
-  );
-  closeRun();
-  loadHub(); // refresh statuses
+  if (runState.submitting) return; // ignore double submit
+  runState.submitting = true;
+  try {
+    const { ok, data } = await api(
+      "POST",
+      `/api/quizzes/${runState.quizId}/submit`,
+      { answers: runState.answers }
+    );
+    closeRun();
+    loadHub(); // refresh statuses
 
-  if (!ok) {
-    showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
-    return;
+    if (!ok) {
+      showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
+      return;
+    }
+    showToast(auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅", "success");
+    openResult(runState.quizId, data.result.resultId);
+  } finally {
+    runState.submitting = false;
   }
-  showToast(auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅", "success");
-  openResult(runState.quizId, data.result.resultId);
 }
 
 /* =====================================================================

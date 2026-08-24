@@ -127,6 +127,17 @@ function tokenFor(id, role) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Sleeps until `ts` (epoch ms) has passed by a small safety pad. Used by the
+ * expiry tests so they stay CORRECT at any database latency: the pre-expiry
+ * requests may take a variable amount of time over a remote connection
+ * (Neon), and a fixed sleep() could either fire too early or waste minutes.
+ */
+const sleepUntil = async (ts, padMs = 750) => {
+  const waitMs = ts + padMs - Date.now();
+  if (waitMs > 0) await sleep(waitMs);
+};
+
 /* ================================================================== */
 async function runTests() {
   await new Promise((resolve) => {
@@ -159,8 +170,11 @@ async function runTests() {
         courseId: COURSE,
         title: "اختبار الدعامة والحركة",
         questionCount: 3,
+        // Wide enough that TEST 2's whole flow fits even over a slow remote
+        // DB connection, yet short enough that later release-gated tests
+        // (9 / cumulative / 11) only wait briefly via sleepUntil().
         startTime: iso(-60_000),
-        endTime: iso(+4000),
+        endTime: iso(+45_000),
         durationMinutes: 60,
       },
     });
@@ -261,16 +275,18 @@ async function runTests() {
     const attempt1 = start1.data.attemptId;
 
     // Autosave as she goes: wrong MCQ choice...
+    // (Use the CREATION-response ids, NOT positions in the taking view —
+    // per-attempt shuffling makes positional picks random.)
     const wrongSave = await req("POST", `/api/quizzes/${quiz1}/answers`, {
       token: studentA,
-      body: { questionId: start1.data.questions[0].id, value: "c1" }, // wrong
+      body: { questionId: q1.data.question.id, value: "c1" }, // wrong
     });
     check("autosave wrong MCQ choice -> 200", wrongSave.status === 200);
     // ...written text...
     const writtenSave = await req("POST", `/api/quizzes/${quiz1}/answers`, {
       token: studentA,
       body: {
-        questionId: start1.data.questions[1].id,
+        questionId: q2.data.question.id,
         value: "النواة (إجابة خاطئة لكن تُحفظ فقط)",
       },
     });
@@ -280,7 +296,7 @@ async function runTests() {
     const submit1 = await req("POST", `/api/quizzes/${quiz1}/submit`, {
       token: studentA,
       body: {
-        answers: { [start1.data.questions[2].id]: "c1" }, // correct (index0->c1)
+        answers: { [q3.data.question.id]: "c1" }, // correct (index0->c1)
       },
     });
     check("manual submit -> 200", submit1.status === 200);
@@ -361,8 +377,10 @@ async function runTests() {
         courseId: COURSE,
         title: "اختبار سريع للمحاولتين",
         questionCount: 1,
+        // Same reasoning as quiz1: survives slow requests, ends before the
+        // release-gated assertions (sleepUntil tops up the wait).
         startTime: iso(-1000),
-        endTime: iso(+3000),
+        endTime: iso(+45_000),
         durationMinutes: 30,
       },
     });
@@ -592,9 +610,11 @@ async function runTests() {
         courseId: COURSE,
         title: "اختبار انقطاع النافذة",
         questionCount: 1,
+        // Window must outlive the setup requests even on a slow connection,
+        // then expire via sleepUntil() below.
         startTime: iso(-500),
-        endTime: iso(+2500),   // window dies FIRST
-        durationMinutes: 60,   // personal timer would allow much more
+        endTime: iso(+15_000),   // window dies FIRST
+        durationMinutes: 60,     // personal timer would allow much more
       },
     });
     const quiz3 = created3.data.quiz.id;
@@ -610,8 +630,10 @@ async function runTests() {
 
     const s3 = await req("POST", `/api/quizzes/${quiz3}/start`, { token: studentA });
     check(
-      "start honors the SMALLER limit (~2.5s despite 60min duration)",
-      s3.status === 201 && s3.data.remainingSeconds <= 3,
+      "start honors the SMALLER limit (window, not 60min duration)",
+      s3.status === 201 &&
+        s3.data.remainingSeconds > 0 &&
+        s3.data.remainingSeconds <= 16,
       `got ${s3.data.remainingSeconds}s`
     );
 
@@ -620,7 +642,7 @@ async function runTests() {
       body: { questionId: q3b.data.question.id, value: "c2" }, // correct
     });
 
-    await sleep(3000); // end_time passes; her personal timer still had ~57min
+    await sleepUntil(Date.parse(created3.data.quiz.endTime)); // end_time passes; her personal timer still had ~59min
 
     const probe3 = await req("GET", `/api/quizzes/${quiz3}/attempt`, {
       token: studentA,
@@ -662,8 +684,10 @@ async function runTests() {
         courseId: COURSE,
         title: "اختبار المراجعة الملونة",
         questionCount: 2,
+        // Wide enough for the setup requests on a slow connection; expiry is
+        // awaited precisely with sleepUntil() below.
         startTime: iso(-500),
-        endTime: iso(+2500),
+        endTime: iso(+30_000),
         durationMinutes: 30,
       },
     });
@@ -696,7 +720,7 @@ async function runTests() {
       token: studentC,
       body: { questionId: q4b.data.question.id, value: "تشابه شكل الجسم" }, // saved, never scored
     });
-    await sleep(2800); // let end_time pass
+    await sleepUntil(Date.parse(created4.data.quiz.endTime)); // let end_time pass
 
     const probe4 = await req("GET", `/api/quizzes/${quiz4}/attempt`, {
       token: studentC,
@@ -731,6 +755,9 @@ async function runTests() {
 
     /* ---- TEST 6 (post): leaderboard RELEASED with best-attempt rule -- */
     section("TEST 9 verdict: leaderboard uses the BEST attempt");
+    // quiz6's leaderboard is time-gated: wait until its window has REALLY
+    // passed instead of assuming the requests above took long enough.
+    await sleepUntil(Date.parse(created6.data.quiz.endTime));
     const lb6 = await req("GET", `/api/quizzes/${quiz6}/leaderboard`, {
       token: teacher,
     });
@@ -751,6 +778,15 @@ async function runTests() {
 
     /* ---- Final course leaderboard ------------------------------------ */
     section("Course cumulative leaderboard (all released except quiz5)");
+    // The cumulative board only sums quizzes whose windows have ended, so
+    // wait for quiz1 + quiz3 + quiz6 to be genuinely over at ANY latency.
+    await sleepUntil(
+      Math.max(
+        Date.parse(created.data.quiz.endTime),
+        Date.parse(created3.data.quiz.endTime),
+        Date.parse(created6.data.quiz.endTime)
+      )
+    );
     const courseLb = await req("GET", `/api/courses/${COURSE}/leaderboard`, {
       token: teacher,
     });
@@ -937,6 +973,23 @@ async function runTests() {
     );
   } finally {
     server.close();
+
+    // Self-cleanup: TEST 12 publishes a quiz into the REAL "biology" course
+    // (required by the notifications stub's hardcoded roster). Delete it so
+    // repeated runs never leave residue in the live exams feed.
+    try {
+      const { PrismaClient } = require("@prisma/client");
+      const prisma = new PrismaClient();
+      if (typeof notifQuiz === "string" && notifQuiz) {
+        const removed = await prisma.quiz
+          .deleteMany({ where: { id: notifQuiz, courseId: "biology", title: "اختبار الإشعارات" } })
+          .catch(() => ({ count: 0 }));
+        if (removed.count) console.log("[cleanup] removed TEST 12 quiz from biology course");
+      }
+      await prisma.$disconnect();
+    } catch (_) {
+      /* cleanup is best-effort; never mask test results */
+    }
   }
 
   console.log("\n==============================================");

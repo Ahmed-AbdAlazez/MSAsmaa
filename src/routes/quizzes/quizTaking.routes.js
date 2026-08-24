@@ -140,7 +140,15 @@ async function autoSubmitExpiredAttempt(attempt, quiz) {
  * enrolled courses are returned; today the enrollment stub passes.
  * ------------------------------------------------------------------ */
 router.get("/quizzes/available", requireAuth, async (req, res) => {
-  const quizzes = await listAllQuizzes();
+  // Optional ?courseId= filter: a single-course hub page asks for its own
+  // course so quizzes from other courses (or synthetic test data) never
+  // appear. Omitting the parameter keeps the legacy "list everything".
+  const rawCourseId = req.query.courseId;
+  const courseId =
+    typeof rawCourseId === "string" && rawCourseId.trim()
+      ? rawCourseId.trim()
+      : null;
+  const quizzes = await listAllQuizzes(courseId ? { courseId } : {});
   const now = Date.now();
 
   const exams = quizzes.map((quiz) => {

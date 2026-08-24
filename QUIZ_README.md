@@ -7,8 +7,35 @@ window), the server grades multiple-choice instantly, leaderboards unlock
 only after the quiz closes for everyone, and full answer review unlocks at
 the same moment.
 
-**Status: built, wired into `app.js`, and fully verified by an automated
-suite — `49 / 49` checks pass (`node src/scripts/test_quiz_workflow.js`).**
+**Status: built, wired into `app.js`, backed by REAL DATABASE PERSISTENCE
+(Neon Postgres via Prisma), and fully verified by an automated suite —
+`58 / 58` checks pass (`node src/scripts/test_quiz_workflow.js`).**
+
+---
+
+## ⚠️ NOTE FOR COLLABORATORS (schema.prisma ownership)
+
+`schema.prisma` is shared. The quiz feature ADDED the following models at the
+bottom of the file (below the marker comment). **No pre-existing model was
+modified, renamed, or removed** — everything above the marker belongs to the
+original author and was left byte-for-byte identical.
+
+| Model (Prisma) | Table (Postgres) | Purpose |
+|---|---|---|
+| `Quiz` | `quizzes` | one row per exam (title, lesson/course, window, duration) |
+| `QuizQuestion` | `quiz_questions` | questions of a quiz (`type` mcq/written, order, image path) |
+| `QuizChoice` | `quiz_choices` | the 4 MCQ options per question |
+| `QuizAttempt` | `quiz_attempts` | one row per student attempt; submitted rows ARE the results (score, totalMcq, submissionReason, ordering JSON) |
+| `StudentAnswer` | `student_answers` | autosaved answer per (attempt, question) |
+| `QuizExtraAttempt` | `quiz_extra_attempts` | teacher-granted retry allowance per (quiz, student) |
+
+Migrations creating them:
+- `20260823230613_add_quiz_tables`
+- `20260823235007_add_attempt_ordering_fields`
+
+`lessonId`, `courseId`, and `studentId` are plain string columns with **no
+foreign keys** on purpose: lessons/courses have no tables yet, and attempts
+may reference JWT subjects that predate their `users` row.
 
 ---
 
@@ -68,7 +95,9 @@ suite — `49 / 49` checks pass (`node src/scripts/test_quiz_workflow.js`).**
 ## 2. Files added / changed
 
 ```
-src/services/quiz.stub.service.js          ⚠️ STUB — all quiz data access (in-memory)
+src/services/quiz.stub.service.js          ALL quiz data access (REAL Prisma/Neon
+                                           persistence; legacy filename kept so
+                                           imports didn't change)
 src/services/quizGrading.service.js        pure MCQ grading logic
 src/services/supabaseStorage.service.js    +uploadQuizImage/getQuizImageSignedUrl/isAllowedQuizImage
 src/routes/quizzes/quiz.routes.js          main router (mounts the five below)
@@ -79,12 +108,12 @@ src/routes/quizzes/quizResults.routes.js   teacher: grant-retry + all attempts
 src/routes/quizzes/quizLeaderboard.routes.js  time-gated rankings (quiz + course)
 src/routes/quizzes/quizReview.routes.js    time-gated answer reveal
 src/scripts/test_quiz_workflow.js          automated verification suite
+prisma/schema.prisma                       quiz models ADDED (see notice above)
 app.js                                     +1 mount line (see §4)
 QUIZ_README.md                             this file
 ```
 
-Not touched (per isolation rules): `schema.prisma`, `auth.middleware.js`,
-`server.js`.
+`auth.middleware.js` and `server.js` were not touched.
 
 ---
 
@@ -93,6 +122,7 @@ Not touched (per isolation rules): `schema.prisma`, `auth.middleware.js`,
 | Method | Path | Who | Purpose |
 |---|---|---|---|
 | POST | `/quizzes` | teacher | create quiz shell |
+| GET | `/quizzes/available?courseId=` | authed | Exams Hub feed; optional `courseId` filters one course (legacy no-param call still lists everything) |
 | GET | `/quizzes/:quizId` | teacher | quiz metadata |
 | GET | `/lessons/:lessonId/quizzes` | teacher | quizzes on a lesson |
 | POST | `/quizzes/:quizId/questions` | teacher | add question (multipart, optional `image`) |
@@ -150,84 +180,26 @@ check even without this feature). Consider deleting the duplicates.
 
 ---
 
-## 5. Stub functions → future database mapping
+## 5. Database persistence (IMPLEMENTED — was previously a stub)
 
-All persistence lives in **one file**: `src/services/quiz.stub.service.js`
-(same "REPLACE THIS STUB" convention as the lesson/material stubs). Replace
-the bodies with Prisma calls, keeping names/signatures identical.
+All persistence lives in **one file**: `src/services/quiz.stub.service.js`.
+The filename keeps the word "stub" only so every existing import kept
+working; the implementation is now **real Prisma against Neon Postgres**.
+Every function name and signature is unchanged, so routes/controllers never
+noticed the switch.
 
-### Suggested Prisma models
-
-```prisma
-model Quiz {
-  id              String   @id @default(uuid())
-  lessonId        String
-  courseId        String?
-  title           String
-  questionCount   Int
-  startTime       DateTime
-  endTime         DateTime
-  durationMinutes Float
-  createdAt       DateTime @default(now())
-  questions       Question[]
-}
-
-model Question {
-  id              String   @id @default(uuid())
-  quizId          String
-  quiz            Quiz     @relation(fields: [quizId], references: [id])
-  order           Int
-  type            String   // "mcq" | "written"
-  text            String
-  imagePath       String?  // Supabase quiz-images object path
-  correctChoiceId String?  // mcq only
-  modelAnswer     String?  // written only (display-only, never graded)
-  choices         Json?    // [{ id: "c1", text: "..." }, ...] or child table
-}
-
-model QuizAttempt {
-  id               String   @id @default(uuid())   // this is the "resultId"
-  quizId           String
-  studentId        String                          // users.id from JWT
-  attemptNumber    Int
-  status           String   // in_progress | submitted
-  startedAt        DateTime
-  personalDeadline DateTime
-  submittedAt      DateTime?
-  submissionReason String?  // manual | auto-personal-timer | auto-quiz-end
-  score            Int?     // MCQ-only
-  totalMcq         Int?
-  answers          Json     // { [questionId]: { value, updatedAt } }
-}
-```
-
-### Function-by-function mapping
-
-| Stub function | Future implementation |
-|---|---|
-| `createQuiz(input)` | `prisma.quiz.create(...)` |
-| `getQuizById(quizId)` | `prisma.quiz.findUnique` |
-| `getQuizzesForLesson(lessonId)` | `prisma.quiz.findMany({ where: { lessonId } })` |
-| `getQuizzesForCourse(courseId)` | join quizzes→lessons→course |
-| `addQuestionToQuiz(quizId, input)` | `prisma.question.create` (+ choices rows) |
-| `getQuestionsForQuiz(quizId)` | `prisma.question.findMany({ orderBy: { order } })` |
-| `createAttempt(quizId, studentId, personalDeadline)` | `prisma.quizAttempt.create` |
-| `getAttemptsForStudent(quizId, studentId)` | `findMany` ordered by attemptNumber |
-| `getAttemptById(resultId)` | `prisma.quizAttempt.findUnique` |
-| `saveInProgressAnswer(attemptId, questionId, value)` | upsert into answers JSON / child table; ignore if status ≠ in_progress |
-| `finalizeAttempt(attemptId, result)` | update status/score/submittedAt/submissionReason |
-| `countSubmittedAttempts(quizId, studentId)` | `count({ where: { status:"submitted" } })` |
-| `getAllowedAttemptCount(quizId, studentId)` | `1 + extra_attempts` column/table |
-| `grantAdditionalAttempt(quizId, studentId)` | increment that allowance row |
-| `getAllAttemptsForQuiz(quizId)` | `findMany({ where: { quizId } })` |
-| `getSubmittedResultsForQuiz(quizId)` | same + `status:"submitted"` filter |
-| `getStudentNameById(studentId)` | `prisma.user.findUnique` → name |
-| `getStudentIdsForCourse(courseId)` | `enrollments` table select studentId |
-| `setStudentNameForTesting` / `setCourseRosterForTesting` | DELETE when real DB lands |
-
-Enrollment ACCESS checks keep using the existing
-`isStudentEnrolledInLessonCourse()` (`src/services/enrollment.stub.service.js`)
-— reused, not duplicated.
+- Models & tables added: see the collaborator notice at the top of this
+  file (`Quiz`, `QuizQuestion`, `QuizChoice`, `QuizAttempt`,
+  `StudentAnswer`, `QuizExtraAttempt`).
+- The lazy Prisma client in this file adds transparent **cold-start retry**
+  for serverless (first request after a Vercel cold start may need to
+  re-establish the DB connection).
+- Submitted `QuizAttempt` rows double as "results" (`resultId` === attempt
+  id) — there is deliberately no separate results table.
+- `setStudentNameForTesting` / `setCourseRosterForTesting` remain
+  process-local TEST-ONLY overlays: display names resolve from `users` when
+  present, and the leaderboard roster stays empty on fresh instances until
+  a real enrollments table exists.
 
 ---
 
@@ -244,7 +216,11 @@ The suite boots the real Express app on an ephemeral port, mints real JWTs
 the only stubbed dependency (network isolation); routing, timing, grading,
 gating and persistence logic all run for real.
 
-**Actual result of the last full run: `RESULT: 49 passed, 0 failed`**
+**Actual result of the last full run: `RESULT: 58 passed, 0 failed`**
+(windows inside the suite are sized and awaited via `sleepUntil()` so the
+suite is stable against remote-database latency; it also self-cleans every
+row it creates, including its TEST-12 publish into the real "biology"
+course).
 
 ### Test 1 — Teacher creates a quiz with mixed types + an image
 Steps: login as teacher → create quiz → add 1 MCQ, 1 written, 1 MCQ with
@@ -388,12 +364,19 @@ a new one still requires the teacher grant (also asserted).
 | Reading someone else's result | ownership check against JWT id | review route |
 | Image access without context | private bucket; signed URLs minted post-auth, 1 h TTL | supabaseStorage.service.js |
 
-## 8. Known stub limitations (by design)
+## 8. Known limitations (current state)
 
-- All quiz data is **in-memory**: a server restart or Vercel cold start wipes
-  quizzes/attempts. Replace the stub before real classroom use.
-- One-process assumption: multiple instances would disagree about attempts
-  (same limitation as the existing lesson/material stubs).
+- Quiz data now **survives restarts and cold starts** (real Neon
+  persistence) — the old in-memory wipe problem is gone.
+- Leaderboard "never attempted" students come from a process-local roster
+  overlay, so they appear only when a test seeds it; production leaderboards
+  list students who attempted. This resolves automatically once the real
+  `enrollments` table lands (single function to swap:
+  `getStudentIdsForCourse`).
+- Enrollment ACCESS checks still use `enrollment.stub.service.js`
+  (`isStudentEnrolledInLessonCourse`): everyone passes except id
+  "student-2". Untouched here because no enrollments/lessons tables exist
+  yet in `schema.prisma`.
 - `durationMinutes` accepts fractional minutes — handy for timing tests,
   harmless in production.
 - The old duplicate `src/app.js` / `src/server.js` pair predates this
