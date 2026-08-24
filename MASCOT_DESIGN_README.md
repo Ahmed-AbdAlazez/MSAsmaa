@@ -3,7 +3,7 @@
 "Sama" is the friendly mascot of منصة المرسال: a flat vector character drawn as
 a **circle in the site's primary brand green** with a **white doctor figure**
 inside it (white coat, V-collar, teal stethoscope across the chest, round eyes,
-small smile). She lives in the hero section of the homepage and powers four
+small smile). She lives in the hero section of the homepage and powers three
 lightweight effects inspired by Duolingo / Brilliant.org.
 
 All files are **frontend-only** (no backend/API changes) and each effect lives in
@@ -19,6 +19,12 @@ its own file so any piece can be edited or deleted independently:
 
 Load order matters only for the first two: the mascot script must run before the
 effects that attach to it (`index.html`, bottom of `<body>`).
+
+Sama also appears on the dedicated auth page `login.html`: the left visual panel
+mounts her with the same `[data-sama-mascot]` selector (plus
+`mascotEyeTracking.js`), and the warm tagline next to her swaps between
+"أهلاً بيك تاني! 👋" (sign in) and "أهلاً بيك معانا! 🌱" (sign up) as the tabs
+switch — see `css/login.css` and `src/loginPage.js`.
 
 ---
 
@@ -152,97 +158,6 @@ navbar.
 Everything also switches itself off automatically for users with
 `prefers-reduced-motion: reduce`, and eye-tracking disables itself on touch
 devices where Sama instead runs a CSS idle blink/wander animation.
-
----
-
-## 4. Scroll-built anatomy section (Effect 4)
-
-**Where:** `index.html` contains a single mount directly above the real footer:
-
-```html
-<div data-anatomy-scroll-section></div>
-<footer class="footer">...</footer>
-```
-
-`js/components/anatomyScrollSection.js` renders the SVG and controls the effect.
-This keeps the anatomy story independent from the footer element while still
-placing it at the end of the homepage, after the CTA banner and before the
-footer content.
-
-**Technique:** this effect uses GSAP with the ScrollTrigger plugin from the
-installed `gsap` package. The homepage loads:
-
-```html
-<script src="node_modules/gsap/dist/gsap.min.js"></script>
-<script src="node_modules/gsap/dist/ScrollTrigger.min.js"></script>
-<script src="js/components/anatomyScrollSection.js"></script>
-```
-
-There is no Intersection Observer and no hand-built scroll percentage mapping
-for this effect. `anatomyScrollSection.js` creates one GSAP master timeline with
-`scrollTrigger: { pin: ..., scrub: 1 }`, following GSAP's documented scrubbed
-timeline pattern. ScrollTrigger pins the anatomy panel, ties timeline progress
-to native scroll, smooths it with `scrub: 1`, and automatically reverses the
-same timeline when scrolling back up.
-
-**How the timeline is structured:** each layer is a separate tween inside the
-same timeline, with labels and overlapping starts:
-
-```js
-timeline
-  .addLabel('outline')
-  .to(outline, ...)
-  .addLabel('skeleton', 0.72)
-  .to(skeleton, ...)
-  .addLabel('ribs', 1.45)
-  .to(ribs, ...)
-  .addLabel('heart', 2.06)
-  .to(heart, ...)
-```
-
-The outline appears first, the skeleton fades/draws in over it, the rib cage has
-its own highlighted scale/emphasis beat, and the heart finishes last. Because
-these are overlapping tweens in one scrubbed timeline, the build feels
-continuous rather than like four hard steps.
-
-**How to tune pacing/overlap:** edit the label positions and tween durations in
-`anatomyScrollSection.js`.
-
-| What feels off | Change |
-|---|---|
-| A layer appears too early | Move its label later, e.g. `ribs` from `1.45` to `1.65` |
-| A layer appears too late | Move its label earlier |
-| A layer reveals too abruptly | Increase that tween's `duration` |
-| The build feels too slow overall | Lower the ScrollTrigger `end` distance |
-| The beats feel too separate | Move labels closer together so tweens overlap more |
-
-Desktop currently uses `end: '+=115%'`; mobile uses `end: '+=85%'` so touch
-scrolling stays compact. Raise those values for a longer storytelling section,
-or lower them if it still feels like it pauses too long before the footer.
-
-**Heart pulse speed:** the completed-state pulse is a separate GSAP tween, not
-tied to scroll:
-
-```js
-const heartPulse = gsap.to(heart, {
-  scale: 1.045,
-  duration: 0.72,
-  repeat: -1,
-  yoyo: true,
-  ease: 'sine.inOut',
-  paused: true,
-});
-```
-
-Lower `duration: 0.72` for a faster beat, raise it for a calmer beat. The pulse
-starts when ScrollTrigger leaves the pinned section at full completion and stops
-when the user scrolls back into/reverses the section.
-
-**Performance notes:** GSAP animates opacity and transforms only. ScrollTrigger
-uses native scroll, supports touch scrolling, recalculates on resize, and
-manages pin spacing so the section stays visually separate from the real footer.
-`prefers-reduced-motion: reduce` skips the scrubbed animation and shows the final
-combined anatomy state.
 
 ---
 

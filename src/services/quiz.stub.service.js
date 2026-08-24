@@ -1,4 +1,4 @@
-﻿/**
+/**
  * quiz.service.js  (was quiz.stub.service.js)
  * ===========================================================================
  * REAL DATABASE PERSISTENCE for every read/write the QUIZ feature needs.
@@ -96,9 +96,12 @@ async function withColdStartRetry(operation) {
       const message = String(error && error.message);
       const retryable =
         error &&
-        typeof error.code === "string" &&
-        error.code.startsWith("P") &&
-        RETRYABLE_FRAGMENTS.some((fragment) => message.includes(fragment));
+        (
+          (typeof error.code === "string" && error.code.startsWith("P")) ||
+          error.name === "PrismaClientInitializationError" ||
+          message.includes("connection pool") ||
+          RETRYABLE_FRAGMENTS.some((fragment) => message.includes(fragment))
+        );
       if (!retryable || attempt >= MAX_TRIES) throw error;
       await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
     }

@@ -70,6 +70,17 @@ function remainingSeconds(attempt, quiz) {
 }
 
 /**
+ * Whether the attempt has passed its effective deadline.
+ *
+ * @param {object} attempt - The attempt.
+ * @param {object} quiz    - The quiz.
+ * @returns {boolean} True if expired.
+ */
+function isAttemptExpired(attempt, quiz) {
+  return Date.now() >= effectiveDeadlineMs(attempt, quiz);
+}
+
+/**
  * Whether "now" is inside the quiz's visibility/attempt window.
  *
  * @param {object} quiz - The quiz.
@@ -255,6 +266,7 @@ module.exports = {
   requireStudent,
   effectiveDeadlineMs,
   remainingSeconds,
+  isAttemptExpired,
   isWithinQuizWindow,
   expiryReason,
   sanitizeQuestionForStudent,

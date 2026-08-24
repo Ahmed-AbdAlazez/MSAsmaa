@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Theme bootstrap: runs before first paint so there is no flash of the
+    // wrong theme. Stored choice wins; otherwise follow the OS preference.
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <title>تسجيل الدخول | منصة المرسال</title>
+  <meta name="description" content="بوابة الدخول وإنشاء الحساب لمنصة المرسال لتدريس مادة الأحياء للثانوية العامة بإشراف الأستاذة أسماء مرسال.">
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/mascot.css">
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body data-page="login">
+
+  <!-- Navigation Bar -->
+  <nav class="navbar"></nav>
+
+  <main class="auth-page">
+    <div class="container">
+      <div class="auth-split">
+
+        <!-- ===== LEFT VISUAL PANEL: Sama mascot on brand green ===== -->
+        <section class="auth-visual" aria-hidden="false">
+          <div class="auth-visual-inner">
+            <div class="auth-mascot-wrap">
+              <!-- "Sama" mascot (js/components/samaMascot.js renders the SVG here),
+                   the same component that lives in the homepage hero. -->
+              <div data-sama-mascot></div>
+            </div>
+            <h2 class="auth-visual-title" id="auth-welcome-title">أهلاً بيك تاني! 👋</h2>
+            <p class="auth-visual-sub" id="auth-welcome-sub">سجّلي الدخول وكمّلي رحلتك في عالم الأحياء.</p>
+            <div class="auth-visual-brand">
+              <span class="brand-icon">🧬</span>
+              <span>منصة المرسال — أحياء الثانوية العامة</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== RIGHT FORM COLUMN: tabs + sign in / sign up form ===== -->
+        <section class="auth-form-col">
+          <div class="card auth-card">
+
+            <!-- Tab control (site-wide tab style, replaces the old modal pills) -->
+            <div class="auth-tabs" role="tablist" aria-label="خيارات الحساب">
+              <button type="button" class="auth-tab active" data-auth-mode="signin" role="tab" aria-selected="true">تسجيل الدخول</button>
+              <button type="button" class="auth-tab" data-auth-mode="signup" role="tab" aria-selected="false">إنشاء حساب</button>
+            </div>
+
+            <h1 id="auth-title">تسجيل الدخول</h1>
+            <p id="auth-desc" class="auth-description">استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.</p>
+
+            <form id="auth-form" novalidate>
+              <div class="form-group" style="margin-bottom: 1rem; text-align: right;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">نوع الحساب</label>
+                <select id="login-role" class="form-input" style="width: 100%;">
+                  <option value="student">👨‍🎓 طالب (لوحة الطالب)</option>
+                  <option value="teacher">👩‍🏫 معلمة أحياء (أ. أسماء مرسال)</option>
+                </select>
+              </div>
+              <div class="form-group" id="auth-name-group" style="margin-bottom: 1rem; text-align: right;" hidden>
+                <label for="login-username" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">الاسم</label>
+                <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">👤</span><input type="text" id="login-username" class="form-input" placeholder="اكتب اسمك" style="width: 100%;"></div>
+              </div>
+              <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
+                <label for="login-code" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كود الدخول</label>
+                <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="أدخل كود الدخول الخاص بك" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
+              </div>
+              <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
+                <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
+                <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">🔒</span><input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" required style="width: 100%;"><button type="button" class="password-toggle" aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">◉</button></div>
+              </div>
+              <p id="password-requirements" class="password-requirements" hidden>يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.</p>
+              <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full" style="padding: 0.8rem;"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
+            </form>
+
+            <a href="index.html" class="auth-back-link">← الرجوع للصفحة الرئيسية</a>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>🧬 منصة المرسال</h3>
+          <p>منصة تعليمية متطورة لتدريس مادة الأحياء لطلاب الثانوية العامة في جمهورية مصر العربية. نسعى لتبسيط العلوم الحيوية وبناء عقول علمية تعتمد على الفهم وليس التلقين.</p>
+        </div>
+        <div>
+          <h4 class="footer-links-title">أقسام المنهج</h4>
+          <ul class="footer-links">
+            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="exams.html" class="footer-link">الاختبارات</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">روابط سريعة</h4>
+          <ul class="footer-links">
+            <li><a href="index.html" class="footer-link">الصفحة الرئيسية</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Sama mascot + eye tracking (mascot must load before its effects) -->
+  <script src="/js/components/samaMascot.js"></script>
+  <script src="/js/components/mascotEyeTracking.js"></script>
+
+  <script src="/js/profile-menu.js"></script>
+  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/loginPage.js"></script>
+</body>
+</html>

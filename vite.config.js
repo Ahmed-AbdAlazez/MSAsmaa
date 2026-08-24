@@ -33,6 +33,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: 'index.html',
+        login: 'login.html',
         'course-biology': 'course-biology.html',
         lessons: 'lessons.html',
         'lesson-view': 'lesson-view.html',

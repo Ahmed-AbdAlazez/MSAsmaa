@@ -978,45 +978,10 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
-/* Front-end sign in / sign up modal */
-.auth-modal-description {
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.auth-mode-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-  padding: 0.35rem;
-  border-radius: var(--radius-md);
-  background: var(--soft-tint);
-}
-
-.auth-mode-btn {
-  border: 0;
-  border-radius: calc(var(--radius-md) - 2px);
-  background: transparent;
-  color: var(--color-text-muted);
-  padding: 0.65rem 0.4rem;
-  font-family: var(--font-family);
-  font-weight: 700;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.auth-mode-btn:hover,
-.auth-mode-btn.active {
-  background: var(--color-surface);
-  color: var(--color-primary-ink);
-  box-shadow: var(--shadow-sm);
-}
-
-.auth-mode-btn.active {
-  border: 1px solid rgba(16, 185, 129, 0.12);
-}
+/* NOTE: The old modal-only styles (.auth-modal-description,
+   .auth-mode-switch / .auth-mode-btn) were removed — the sign in / sign up
+   tab control now lives on login.html and is styled in css/login.css
+   (.auth-description / .auth-tabs / .auth-tab). */
 
 .auth-input-wrap {
   position: relative;
@@ -2123,82 +2088,9 @@ h1, h2, h3, h4, h5, h6 {
   border-inline-start-color: var(--color-danger);
 }
 
-/* Interactive Welcome Modal */
-.welcome-modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(8px);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s ease;
-}
-
-.welcome-modal-backdrop.show {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.welcome-modal {
-  background:
-    var(--surface-glass);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 500px;
-  padding: 2.5rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  transform: translateY(-50px);
-  opacity: 0;
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
-  text-align: center;
-}
-
-.welcome-modal-backdrop.show .welcome-modal {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.welcome-modal-logo {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  animation: pulse 2s infinite alternate;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 4rem;
-  height: 4rem;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(6, 182, 212, 0.12));
-  margin-inline: auto;
-}
-
-.welcome-modal h2 {
-  font-size: 1.75rem;
-  color: var(--color-heading);
-  margin-bottom: 0.75rem;
-}
-
-.welcome-modal p {
-  color: var(--color-text-muted);
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
-}
-
-.welcome-modal .form-input {
-  margin-bottom: 1.25rem;
-  font-size: 1.05rem;
-  padding: 0.875rem 1.25rem;
-  text-align: center;
-  border-width: 2px;
-}
+/* NOTE: The old interactive welcome/login modal styles
+   (.welcome-modal-backdrop / .welcome-modal*) were removed — login and
+   signup now live on the dedicated auth page (login.html, css/login.css). */
 
 /* Teacher Section on Index & About Photo Styling */
 .teacher-profile-img {
@@ -2430,24 +2322,6 @@ h1, h2, h3, h4, h5, h6 {
   background-color: rgba(239, 68, 68, 0.05);
 }
 
-/* Modal Close Button */
-.modal-close-btn {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  cursor: pointer;
-  color: var(--color-text-muted);
-  transition: var(--transition);
-}
-
-.modal-close-btn:hover {
-  color: var(--color-danger);
-  transform: scale(1.1);
-}
-
 /* Responsive Refinements */
 @media (max-width: 1100px) {
   .navbar {
@@ -2602,10 +2476,6 @@ h1, h2, h3, h4, h5, h6 {
 
   .option-label {
     align-items: flex-start;
-  }
-
-  .welcome-modal {
-    padding: 2rem 1.2rem;
   }
 }
 

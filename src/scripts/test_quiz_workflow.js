@@ -174,7 +174,7 @@ async function runTests() {
         // DB connection, yet short enough that later release-gated tests
         // (9 / cumulative / 11) only wait briefly via sleepUntil().
         startTime: iso(-60_000),
-        endTime: iso(+45_000),
+        endTime: iso(+90_000),
         durationMinutes: 60,
       },
     });
@@ -281,7 +281,7 @@ async function runTests() {
       token: studentA,
       body: { questionId: q1.data.question.id, value: "c1" }, // wrong
     });
-    check("autosave wrong MCQ choice -> 200", wrongSave.status === 200);
+    check("autosave wrong MCQ choice -> 200", wrongSave.status === 200, `status: ${wrongSave.status}, data: ${JSON.stringify(wrongSave.data)}`);
     // ...written text...
     const writtenSave = await req("POST", `/api/quizzes/${quiz1}/answers`, {
       token: studentA,
@@ -290,7 +290,7 @@ async function runTests() {
         value: "النواة (إجابة خاطئة لكن تُحفظ فقط)",
       },
     });
-    check("autosave written text -> 200", writtenSave.status === 200);
+    check("autosave written text -> 200", writtenSave.status === 200, `status: ${writtenSave.status}, data: ${JSON.stringify(writtenSave.data)}`);
 
     // ...and final flush with the right image-question answer.
     const submit1 = await req("POST", `/api/quizzes/${quiz1}/submit`, {
@@ -299,7 +299,7 @@ async function runTests() {
         answers: { [q3.data.question.id]: "c1" }, // correct (index0->c1)
       },
     });
-    check("manual submit -> 200", submit1.status === 200);
+    check("manual submit -> 200", submit1.status === 200, `status: ${submit1.status}, data: ${JSON.stringify(submit1.data)}`);
 
     /* ---- TEST 5 folded here: immediate score = MCQ only -------------- */
     section("TEST 5: immediate score counts MCQ only");
@@ -380,7 +380,7 @@ async function runTests() {
         // Same reasoning as quiz1: survives slow requests, ends before the
         // release-gated assertions (sleepUntil tops up the wait).
         startTime: iso(-1000),
-        endTime: iso(+45_000),
+        endTime: iso(+90_000),
         durationMinutes: 30,
       },
     });
@@ -538,10 +538,10 @@ async function runTests() {
         questionCount: 2,
         startTime: iso(-1000),
         endTime: iso(+10 * 60_000), // overall window LONG -> personal wins
-        durationMinutes: 0.05,       // = 3 seconds!
+        durationMinutes: 0.1,        // = 6 seconds!
       },
     });
-    // NOTE: quiz2's 3-second personal duration means we start it NOW and
+    // NOTE: quiz2's 6-second personal duration means we start it NOW and
     // wait for its own expiry below.
     const quiz2 = created2.data.quiz.id;
     const q2mcq = await req("POST", `/api/quizzes/${quiz2}/questions`, {
@@ -559,10 +559,10 @@ async function runTests() {
     });
 
     const s2 = await req("POST", `/api/quizzes/${quiz2}/start`, { token: studentA });
-    check("quiz2 started (3s personal timer)", s2.status === 201);
+    check("quiz2 started (6s personal timer)", s2.status === 201);
     check(
       "remainingSeconds respects the SHORT personal limit",
-      s2.data.remainingSeconds <= 3,
+      s2.data.remainingSeconds <= 6,
       `got ${s2.data.remainingSeconds}`
     );
 
@@ -572,7 +572,7 @@ async function runTests() {
       body: { questionId: q2mcq.data.question.id, value: "c2" },
     });
 
-    await sleep(3500); // personal countdown dies while she is gone
+    await sleep(6500); // personal countdown dies while she is gone
 
     const s2back = await req("POST", `/api/quizzes/${quiz2}/start`, {
       token: studentA,

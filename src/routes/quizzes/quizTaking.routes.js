@@ -27,6 +27,7 @@ const { requireAuth } = require("../../middleware/auth.middleware.js");
 const { requireStudent } = require("./quiz.helpers.js");
 const {
   remainingSeconds,
+  isAttemptExpired,
   expiryReason,
   isWithinQuizWindow,
   sanitizeQuestionForStudent,
@@ -207,7 +208,7 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
   /* ---- RESUME PATH: an unfinished attempt exists ------------------- */
   const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
   if (inProgress) {
-    if (remainingSeconds(inProgress, quiz) <= 0 || !isWithinQuizWindow(quiz)) {
+    if (isAttemptExpired(inProgress, quiz) || !isWithinQuizWindow(quiz)) {
       // Time ran out while they were away -> treat like any other
       // auto-submit; do NOT let them keep solving.
       const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
@@ -297,7 +298,7 @@ router.get("/quizzes/:quizId/attempt", requireAuth, requireStudent, async (req, 
   const attempts = await getAttemptsForStudent(quiz.id, req.user.id);
   const inProgress = attempts.find((a) => a.status === "in_progress");
 
-  if (inProgress && remainingSeconds(inProgress, quiz) <= 0) {
+  if (inProgress && isAttemptExpired(inProgress, quiz)) {
     const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
     return res.json({
       status: "submitted",
@@ -346,7 +347,7 @@ router.post("/quizzes/:quizId/answers", requireAuth, requireStudent, async (req,
 
   // Deadline enforcement: once time is up we stop accepting changes and
   // flip the attempt to submitted immediately (lazy auto-submit).
-  if (remainingSeconds(inProgress, quiz) <= 0) {
+  if (isAttemptExpired(inProgress, quiz)) {
     const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
     return res.status(409).json({
       error: "انتهى الوقت وتم تسليم إجاباتك المحفوظة.",
@@ -385,7 +386,7 @@ router.post("/quizzes/:quizId/submit", requireAuth, requireStudent, async (req, 
       .json({ error: "لا توجد محاولة جارية لتسليمها." });
   }
 
-  const expired = remainingSeconds(inProgress, quiz) <= 0;
+  const expired = isAttemptExpired(inProgress, quiz);
   let answersMap = { ...inProgress.answers };
 
   if (!expired && req.body && req.body.answers) {

@@ -32,16 +32,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // hardcoded accounts and NO localStorage fallback: the backend is the
   // single source of truth for credentials, roles and account status.
 
-  const openLoginModal = () => {
-    document.querySelector('#login-modal-backdrop')?.classList.add('show');
-  };
-
+  // Login/signup now live on the dedicated auth page (login.html) instead of
+  // a modal dialog. Every trigger navigates there; ?mode=signup deep-links
+  // straight to the signup tab.
   document.addEventListener('click', (event) => {
     const loginTrigger = event.target.closest('.js-login-trigger');
     if (!loginTrigger) return;
 
     event.preventDefault();
-    openLoginModal();
+    window.location.href = 'login.html';
   });
 
   // --- Mobile Drawer Menu ---
@@ -604,63 +603,10 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('جاري تصدير درجات الطلاب بصيغة Excel...', 'success');
     });
   }
-  // --- Dynamic Client-Side Auth Modal & Login Icon Logic ---
+  // NOTE: The login/signup form used to be a modal injected here
+  // (#login-modal-backdrop). It was replaced by the dedicated auth page:
+  //   login.html + css/login.css + src/loginPage.js
 
-  // Inject Login Modal HTML on load if not already present
-  if (!document.querySelector('#login-modal-backdrop')) {
-    const loginModalHTML = `
-      <div id="login-modal-backdrop" class="welcome-modal-backdrop">
-        <div class="welcome-modal">
-          <button id="login-modal-close" class="modal-close-btn">✕</button>
-          <div class="welcome-modal-logo">🔐</div>
-          <h2 id="auth-modal-title">تسجيل الدخول</h2>
-          <p id="auth-modal-description" class="auth-modal-description">استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.</p>
-          <div class="auth-mode-switch" role="tablist" aria-label="خيارات الحساب">
-            <button type="button" class="auth-mode-btn active" data-auth-mode="signin"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
-            <button type="button" class="auth-mode-btn" data-auth-mode="signup"><span aria-hidden="true">✚</span> إنشاء حساب</button>
-          </div>
-          <form id="login-modal-form" novalidate>
-            <div class="form-group" style="margin-bottom: 1rem; text-align: right;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 700;">نوع الحساب</label>
-              <select id="login-role" class="form-input" style="width: 100%;">
-                <option value="student">👨‍🎓 طالب (لوحة الطالب)</option>
-                <option value="teacher">👩‍🏫 معلمة أحياء (أ. أسماء مرسال)</option>
-              </select>
-            </div>
-            <div class="form-group" id="auth-name-group" style="margin-bottom: 1rem; text-align: right;" hidden>
-              <label for="login-username" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">الاسم</label>
-              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">👤</span><input type="text" id="login-username" class="form-input" placeholder="اكتب اسمك" style="width: 100%;"></div>
-            </div>
-            <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
-              <label for="login-code" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كود الدخول</label>
-              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="أدخل كود الدخول الخاص بك" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
-            </div>
-            <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
-              <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
-              <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">🔒</span><input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" required style="width: 100%;"><button type="button" class="password-toggle" aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">◉</button></div>
-            </div>
-            <p id="password-requirements" class="password-requirements" hidden>يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.</p>
-            <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full" style="padding: 0.8rem;"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
-          </form>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', loginModalHTML);
-  }
-
-  const loginModal = document.querySelector('#login-modal-backdrop');
-  const loginForm = document.querySelector('#login-modal-form');
-  const loginClose = document.querySelector('#login-modal-close');
-  const authModeButtons = document.querySelectorAll('.auth-mode-btn');
-  const authNameGroup = document.querySelector('#auth-name-group');
-  const passwordRequirements = document.querySelector('#password-requirements');
-  const authSubmitButton = document.querySelector('#auth-submit-btn');
-  const loginCode = document.querySelector('#login-code');
-  const loginPassword = document.querySelector('#login-password');
-  let authMode = 'signin';
-
-  const normalizeCode = (value = '') => value.trim().toUpperCase();
-  const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
   const QUIZZES_STORAGE_KEY = 'frontEndQuizzes';
   const NOTIFICATIONS_STORAGE_KEY = 'frontEndNotifications';
 
@@ -1124,30 +1070,6 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   `;
 
-  const setAuthMode = (mode) => {
-    authMode = mode;
-    const isSignUp = mode === 'signup';
-    document.querySelector('#auth-modal-title').textContent = isSignUp ? 'إنشاء حساب' : 'تسجيل الدخول';
-    document.querySelector('#auth-modal-description').textContent = isSignUp
-      ? 'أنشئ حساباً باختيار كود خاص بك (4 أحرف على الأقل) مع كلمة مرور آمنة.'
-      : 'استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.';
-    authNameGroup.hidden = !isSignUp;
-    document.querySelector('#login-username').required = isSignUp;
-    passwordRequirements.hidden = !isSignUp;
-    loginPassword.autocomplete = isSignUp ? 'new-password' : 'current-password';
-    authSubmitButton.innerHTML = isSignUp ? '<span aria-hidden="true">✚</span> إنشاء حساب' : '<span aria-hidden="true">↪</span> تسجيل الدخول';
-    authModeButtons.forEach((button) => button.classList.toggle('active', button.dataset.authMode === mode));
-  };
-
-  authModeButtons.forEach((button) => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
-  document.querySelector('.password-toggle')?.addEventListener('click', (event) => {
-    const willShowPassword = loginPassword.type === 'password';
-    loginPassword.type = willShowPassword ? 'text' : 'password';
-    event.currentTarget.setAttribute('aria-label', willShowPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
-    event.currentTarget.setAttribute('title', willShowPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
-    event.currentTarget.textContent = willShowPassword ? '◉' : '◌';
-  });
-
   // Populate auth placeholders dynamically
   const updateAuthUI = () => {
     const userRole = localStorage.getItem('userRole');
@@ -1256,12 +1178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mobileLoginBtn = document.querySelector('#mobile-login-btn');
     if (mobileLoginBtn) {
       mobileLoginBtn.addEventListener('click', () => {
-        if (loginModal) loginModal.classList.add('show');
-        // Close mobile drawer if open
-        const drawer = document.querySelector('.mobile-drawer');
-        const overlay = document.querySelector('.drawer-overlay');
-        if (drawer) drawer.classList.remove('open');
-        if (overlay) overlay.classList.remove('show');
+        window.location.href = 'login.html';
       });
     }
 
@@ -1282,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userRole) {
       handleLogout();
     } else {
-      if (loginModal) loginModal.classList.add('show');
+      window.location.href = 'login.html';
     }
   };
 
@@ -1301,131 +1218,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Close login modal handlers
-  if (loginClose) {
-    loginClose.addEventListener('click', () => {
-      if (loginModal) loginModal.classList.remove('show');
-    });
-  }
-
-  // Close modal when clicking backdrop
-  if (loginModal) {
-    loginModal.addEventListener('click', (e) => {
-      if (e.target === loginModal) {
-        loginModal.classList.remove('show');
-      }
-    });
-  }
-
-  // Handle Login / Signup submission (REAL BACKEND ONLY)
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const usernameInput = document.querySelector('#login-username').value.trim();
-      const code = normalizeCode(loginCode.value);
-      const password = loginPassword.value;
-
-      if (!code || code.length < 4) {
-        showToast('يرجى إدخال كود الدخول (4 أحرف على الأقل).', 'warning');
-        loginCode.focus();
-        return;
-      }
-
-      if (!isStrongPassword(password)) {
-        showToast('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 'warning');
-        loginPassword.focus();
-        return;
-      }
-
-      // --- Sign in: POST ${API_BASE}/auth/login ----------------------------
-      // Body fields match the backend authController exactly:
-      //   { studentCode, password }
-      // Response: { status, token, data: { user: { id, name, role, ... } } }
-      // The role ALWAYS comes from the backend — never from the UI select.
-      if (authMode === 'signin') {
-        try {
-          const data = await fetchJson(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ studentCode: code, password }),
-          });
-
-          const user = data && data.data && data.data.user;
-          if (!data || !data.token || !user) {
-            throw new Error('رد غير متوقع من السيرفر أثناء تسجيل الدخول.');
-          }
-
-          completeLogin(user.role, user.name, user.id, data.token);
-          return;
-        } catch (error) {
-          // Real backend error (invalid credentials / pending / rejected).
-          // No fallback to any local account is allowed.
-          showToast(error.message, 'danger');
-          loginPassword.focus();
-          return;
-        }
-      }
-
-      // --- Sign up: POST ${API_BASE}/auth/signup ---------------------------
-      // Body: { studentCode, name, password } -> creates a PENDING request
-      // that the teacher approves. No JWT is issued at signup; the user must
-      // log in AFTER approval.
-      if (authMode === 'signup') {
-        if (!usernameInput) {
-          showToast('يرجى إدخال الاسم لإنشاء الحساب.', 'warning');
-          return;
-        }
-
-        try {
-          const data = await fetchJson(`${API_BASE}/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              studentCode: code,
-              name: usernameInput,
-              password,
-            }),
-          });
-
-          showToast(
-            (data && data.message) ||
-              'تم إرسال طلب التسجيل بنجاح. بانتظار موافقة المعلمة ثم سجّل الدخول.',
-            'success'
-          );
-          loginForm.reset();
-          setAuthMode('signin');
-        } catch (error) {
-          showToast(error.message, 'danger');
-        }
-      }
-    });
-  }
-
-  /**
-   * Shared finish-login routine: stores the JWT + non-sensitive session
-   * info, closes the modal, shows the welcome toast and redirects to the
-   * dashboard matching the role returned by the BACKEND.
-   */
-  function completeLogin(role, displayName, userId, token) {
-    localStorage.setItem('userRole', String(role || 'student').toLowerCase());
-    localStorage.setItem('username', displayName != null ? String(displayName) : '');
-    localStorage.setItem('userId', userId != null ? String(userId) : '');
-    if (token) localStorage.setItem('token', token);
-
-    if (loginModal) loginModal.classList.remove('show');
-
-    showToast(`مرحباً بك يا ${displayName}! تم تسجيل الدخول بنجاح. 🎉`, 'success');
-    updateAuthUI();
-
-    // Redirect depending on the backend-provided role
-    setTimeout(() => {
-      if (String(role).toLowerCase() === 'teacher') {
-        window.location.href = 'dashboard-teacher.html';
-      } else {
-        window.location.href = 'dashboard-student.html';
-      }
-    }, 1000);
-  }
+  // NOTE: Login/signup submission now lives on the dedicated auth page
+  // (src/loginPage.js) with identical endpoints, payloads and validation.
 
   // Initialize Auth UI
   updateAuthUI();
