@@ -57,14 +57,6 @@ async function main() {
         durationMinutes: 15,
         startTime: new Date(Date.now() - 3600e3).toISOString(),
         endTime: new Date(Date.now() + 3600e3).toISOString(),
-        questions: [
-          {
-            type: "mcq",
-            text: "أين تحدث عملية التمثيل الضوئي؟",
-            choices: ["الميتوكوندريا", "الكلوروبلاست", "النواة", "الرايبوسوم"],
-            correctIndex: 1,
-          },
-        ],
       }),
     });
     const createdBody = await created.json().catch(() => null);

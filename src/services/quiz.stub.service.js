@@ -1,68 +1,180 @@
-/**
- * quiz.stub.service.js
+﻿/**
+ * quiz.service.js  (was quiz.stub.service.js)
  * ===========================================================================
- * ⚠️⚠️⚠️  REPLACE THIS STUB — DO NOT SHIP TO PRODUCTION  ⚠️⚠️⚠️
- * ===========================================================================
+ * REAL DATABASE PERSISTENCE for every read/write the QUIZ feature needs.
  *
- * TEMPORARY stand-ins for every database read/write the QUIZ feature needs.
- * Everything lives in plain in-memory Maps, exactly like the video/material
- * stubs this project already uses. QUIZ_README.md contains the full
- * "stub function -> future Prisma table/columns" mapping table.
+ * The former in-memory Maps are gone: quizzes survive server restarts and
+ * serverless cold starts, and all server instances see the same data via
+ * Neon Postgres through Prisma.
  *
- * WHAT IS FAKE RIGHT NOW:
- *   quizzesById           quiz metadata (title, times, duration...)
- *   questionsByQuizId     questions incl. correct answers (NEVER send those
- *                         to students while taking — see helpers file)
- *   attemptsByQuizAndStudent  ONE ENTRY PER ATTEMPT (in-progress OR submitted).
- *                         In-progress attempts keep partially-saved answers so
- *                         a student can resume after closing the tab.
- *   extraAttemptsByKey    how many ADDITIONAL attempts a teacher granted.
- *   studentNamesById      fake display names (real version reads users table)
- *   courseRosterByCourseId  fake "students enrolled in course" roster.
+ * CONTRACT (unchanged): names, parameters and return shapes are IDENTICAL
+ * to the stub this file replaced â€” routes/tests import from THIS path and
+ * required zero changes. Every returned record still exposes ISO strings
+ * for timestamps (Date.parse-friendly), questions carry choices with stable
+ * ids ("c1".."c4"), attempts double as results (resultId == attempt id),
+ * and attempt.answers keeps the { [questionId]: { value, updatedAt } } map.
  *
- * HOW TO REPLACE IT (this file only):
- *   Rewrite each function body as Prisma calls. Keep NAMES, parameters and
- *   return contracts identical — every route imports from THIS file, so no
- *   route changes are needed when the real database lands.
+ * PRISMA TABLES (prisma/schema.prisma):
+ *   Quiz           -> quizzes               (quiz metadata)
+ *   QuizQuestion   -> questions             (+ correctChoiceId/modelAnswer)
+ *   QuizChoice     -> choices               (stable key "c1".."c4" per question)
+ *   QuizAttempt    -> quiz_attempts         (in_progress OR submitted = result)
+ *   StudentAnswer  -> student_answers       (autosave/resume rows)
+ *   QuizExtraAttempt -> quiz_extra_attempts (teacher-granted retries)
  *
- * WHAT BREAKS IF YOU NEVER REPLACE IT:
- *   - Server restart / serverless freeze wipes ALL quizzes, answers, scores.
- *   - Two server instances would disagree about who already attempted what.
+ * Deliberately NOT foreign keys: lessonId/courseId/studentId are plain
+ * strings because lessons/courses tables do not exist yet and attempt rows
+ * may reference JWT subjects that predate a users row (test rosters).
+ *
+ * Test-only helpers kept from the stub era (documented below):
+ *   setStudentNameForTesting  - display-name overlay used by the suites
+ *   setCourseRosterForTesting - roster overlay used by the suites
  * ===========================================================================
  */
 
-const crypto = require("crypto");
+const { PrismaClient } = require("@prisma/client");
 
 /* ------------------------------------------------------------------ *
- * IN-MEMORY STORAGE
+ * PRISMA CLIENT (lazy)
+ * Some entry points require this service before ANY dotenv.run() has
+ * populated process.env (script require-order quirks). Building the
+ * client lazily on first QUERY guarantees the environment is settled,
+ * and we fall back to reading .env ourselves if nobody else did.
+ * Neon serverless can also refuse connections right after a cold
+ * start -> generous connect timeout + one transparent retry below.
+ * ------------------------------------------------------------------ */
+let _client = null;
+
+function buildClient() {
+  let url = process.env.DATABASE_URL;
+  console.error(
+    "[svc][debug] buildClient sees:",
+    url ? new URL(url).host : JSON.stringify(process.env.DATABASE_URL),
+    "| dotenv-loaded:",
+    Boolean(process.env.JWT_SECRET)
+  );
+  if (!url) {
+    try {
+      require("dotenv").config();
+    } catch (_) {}
+    url = process.env.DATABASE_URL;
+  }
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has("connect_timeout")) {
+      parsed.searchParams.set("connect_timeout", "15");
+    }
+    url = parsed.toString();
+  } catch (_) {
+    /* leave as-is; Prisma will surface a clear validation error */
+  }
+  return new PrismaClient({ datasources: { db: { url } } });
+}
+
+function getPrisma() {
+  if (!_client) _client = buildClient();
+  return _client;
+}
+
+/** Runs a Prisma call once more when Neon's cold start drops the first try. */
+async function withColdStartRetry(operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    const message = String(error && error.message);
+    if (
+      error &&
+      typeof error.code === "string" &&
+      error.code.startsWith("P") &&
+      (message.includes("Can't reach database server") ||
+        message.includes("Timed out fetching"))
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return operation();
+    }
+    throw error;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * TEST-ONLY OVERLAYS (in-memory, process-local, suite seeding only)
  * ------------------------------------------------------------------ */
 
-/** quizId -> quiz record (metadata only; questions live separately). */
-const quizzesById = new Map();
-
-/** quizId -> array of question records, in teacher-added order. */
-const questionsByQuizId = new Map();
-
-/** `${quizId}:${studentId}` -> array of attempts ordered by attemptNumber.
- *  An attempt is EITHER 'in_progress' OR 'submitted' — never both. */
-const attemptsByQuizAndStudent = new Map();
-
-/** resultId (== attempt id) -> attempt record, for direct lookups by ID. */
-const attemptsById = new Map();
-
-/** `${quizId}:${studentId}` -> number of EXTRA granted attempts (default 0). */
-const extraAttemptsByKey = new Map();
-
-/** studentId -> display name (stub only; real version joins users table). */
+/** Display-name overlay consulted BEFORE the users table fallback. */
 const studentNamesById = new Map();
 
-/** courseId -> array of enrolled studentIds (roster for leaderboards). */
+/** Roster overlay for leaderboards ("never attempted" students at zero). */
 const courseRosterByCourseId = new Map();
 
-/** Generates a unique ID (quizzes, questions, attempts). */
-function newId() {
-  return crypto.randomUUID();
+/* ------------------------------------------------------------------ *
+ * ROW -> RECORD MAPPERS (preserve the stub's ISO-string contracts)
+ * ------------------------------------------------------------------ */
+
+function mapQuiz(row) {
+  return {
+    id: row.id,
+    lessonId: row.lessonId,
+    courseId: row.courseId,
+    title: row.title,
+    questionCount: row.questionCount,
+    startTime: row.startTime.toISOString(),
+    endTime: row.endTime.toISOString(),
+    durationMinutes: row.durationMinutes,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
+
+function mapQuestion(row) {
+  const question = {
+    id: row.id,
+    quizId: row.quizId,
+    order: row.order,
+    type: row.type,
+    text: row.text,
+    imagePath: row.imagePath,
+  };
+  if (row.type === "mcq") {
+    question.choices = [...row.choices]
+      .sort(
+        (a, b) =>
+          Number(a.key.slice(1)) - Number(b.key.slice(1))
+      )
+      .map((choice) => ({ id: choice.key, text: choice.text }));
+    question.correctChoiceId = row.correctChoiceId;
+  } else {
+    question.modelAnswer = row.modelAnswer;
+  }
+  return question;
+}
+
+function mapAttempt(row) {
+  const answers = {};
+  for (const answer of row.answers || []) {
+    answers[answer.questionId] = {
+      value: answer.value,
+      updatedAt: answer.updatedAt.toISOString(),
+    };
+  }
+  return {
+    id: row.id,
+    quizId: row.quizId,
+    studentId: row.studentId,
+    attemptNumber: row.attemptNumber,
+    status: row.status,
+    startedAt: row.startedAt.toISOString(),
+    personalDeadline: row.personalDeadline.toISOString(),
+    submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
+    submissionReason: row.submissionReason,
+    score: row.score,
+    totalMcq: row.totalMcq,
+    // Persisted server-side shuffle (question/choice order); the taking
+    // routes read this on resume so students see their exact arrangement.
+    ordering: row.ordering === null ? undefined : row.ordering,
+    answers,
+  };
+}
+
+const ATTEMPT_INCLUDE = { answers: true };
 
 /* ------------------------------------------------------------------ *
  * QUIZZES
@@ -70,86 +182,68 @@ function newId() {
 
 /**
  * Creates and stores a quiz attached to a lesson.
- *
- * FUTURE DB: INSERT INTO quizzes (...) — columns per the object below.
- * `courseId` is optional because there is no real lessons/courses table yet;
- * with a real schema derive it from lesson -> unit -> course server-side,
- * never from the client.
- *
  * @param {object} input - { lessonId, courseId?, title, questionCount,
  *                          startTime, endTime, durationMinutes }
  * @returns {Promise<object>} The stored quiz record.
  */
 async function createQuiz(input) {
-  const quiz = {
-    id: newId(),
-    lessonId: String(input.lessonId),
-    courseId: input.courseId ? String(input.courseId) : null,
-    title: String(input.title).trim(),
-    // How many questions the teacher DECLARED. Adding more than this is
-    // rejected so the declared number stays meaningful to students.
-    questionCount: Number(input.questionCount),
-    // ISO strings — compared with Date.parse everywhere else.
-    startTime: new Date(input.startTime).toISOString(),
-    endTime: new Date(input.endTime).toISOString(),
-    // Per-student countdown length in minutes (fractional allowed for tests).
-    durationMinutes: Number(input.durationMinutes),
-    createdAt: new Date().toISOString(),
-  };
-
-  quizzesById.set(quiz.id, quiz);
-  questionsByQuizId.set(quiz.id, []);
-  return quiz;
+  const row = await getPrisma().quiz.create({
+    data: {
+      lessonId: String(input.lessonId),
+      courseId: input.courseId ? String(input.courseId) : null,
+      title: String(input.title).trim(),
+      questionCount: Number(input.questionCount),
+      startTime: new Date(input.startTime),
+      endTime: new Date(input.endTime),
+      durationMinutes: Number(input.durationMinutes),
+    },
+  });
+  return mapQuiz(row);
 }
 
 /**
- * Lists every quiz in storage (Exams Hub feed source).
- *
- * FUTURE DB: prisma.quiz.findMany({ orderBy: { startTime: "asc" } }) joined
- * to enrollments so students only see quizzes of their courses.
- *
- * @returns {Promise<object[]>} All quizzes, soonest-starting first.
+ * Lists every quiz (Exams Hub feed source), soonest-starting first.
+ * @returns {Promise<object[]>}
  */
 async function listAllQuizzes() {
-  return [...quizzesById.values()].sort((a, b) =>
-    a.startTime.localeCompare(b.startTime)
-  );
+  const rows = await getPrisma().quiz.findMany({ orderBy: { startTime: "asc" } });
+  return rows.map(mapQuiz);
 }
 
 /**
  * Reads one quiz by ID.
- *
- * @param {string} quizId - The quiz to find.
- * @returns {Promise<object|null>} The quiz record, or null when missing.
+ * @param {string} quizId
+ * @returns {Promise<object|null>}
  */
 async function getQuizById(quizId) {
-  return quizzesById.get(String(quizId)) || null;
+  const row = await getPrisma().quiz.findUnique({ where: { id: String(quizId) } });
+  return row ? mapQuiz(row) : null;
 }
 
 /**
- * Lists all quizzes attached to one lesson (for the lesson page).
- *
- * @param {string} lessonId - The lesson whose quizzes should be listed.
- * @returns {Promise<object[]>} Quiz records, newest first.
+ * Lists all quizzes of one lesson, newest first.
+ * @param {string} lessonId
+ * @returns {Promise<object[]>}
  */
 async function getQuizzesForLesson(lessonId) {
-  return [...quizzesById.values()]
-    .filter((quiz) => quiz.lessonId === String(lessonId))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const rows = await getPrisma().quiz.findMany({
+    where: { lessonId: String(lessonId) },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(mapQuiz);
 }
 
 /**
- * Lists all quizzes belonging to one course (source for course leaderboard).
- *
- * FUTURE DB: SELECT quizzes JOIN lessons ... WHERE course = :courseId.
- *
- * @param {string} courseId - The course identifier.
- * @returns {Promise<object[]>} Quizzes in the course.
+ * Lists all quizzes belonging to one course.
+ * @param {string} courseId
+ * @returns {Promise<object[]>}
  */
 async function getQuizzesForCourse(courseId) {
-  return [...quizzesById.values()].filter(
-    (quiz) => quiz.courseId === String(courseId)
-  );
+  const rows = await getPrisma().quiz.findMany({
+    where: { courseId: String(courseId) },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map(mapQuiz);
 }
 
 /* ------------------------------------------------------------------ *
@@ -157,236 +251,259 @@ async function getQuizzesForCourse(courseId) {
  * ------------------------------------------------------------------ */
 
 /**
- * Adds one question to a quiz.
- *
- * The calling route already validated the shape; this function enforces the
- * STORAGE rules: quiz must exist, must not exceed its declared question
- * count, and MCQ choices are normalized into stable choice objects
- * ({id, text}) so submitted answers can be compared BY ID, not by text.
- *
- * FUTURE DB: INSERT INTO questions (+ child rows for mcq_choices).
- *
- * @param {string} quizId - The quiz this question belongs to.
- * @param {object} input  - Validated question fields (see creation routes).
+ * Adds one question to a quiz (enforces existence + declared limit).
+ * MCQ choices are normalized into stable choice objects ({id:"cN", text}).
+ * @param {string} quizId
+ * @param {object} input - Validated question fields (see creation routes).
  * @returns {Promise<object>} The stored question record.
  */
 async function addQuestionToQuiz(quizId, input) {
-  const quiz = quizzesById.get(String(quizId));
+  const quiz = await getPrisma().quiz.findUnique({ where: { id: String(quizId) } });
   if (!quiz) throw new Error("QUIZ_NOT_FOUND");
 
-  const existing = questionsByQuizId.get(quiz.id) || [];
-  if (existing.length >= quiz.questionCount) {
+  const existingCount = await getPrisma().quizQuestion.count({
+    where: { quizId: quiz.id },
+  });
+  if (existingCount >= quiz.questionCount) {
     throw new Error("QUIZ_QUESTION_LIMIT_REACHED");
   }
 
-  const question = {
-    id: newId(),
+  const data = {
     quizId: quiz.id,
-    order: existing.length + 1,
+    order: existingCount + 1,
     type: input.type, // "mcq" | "written"
     text: String(input.text).trim(),
+    imagePath: input.imagePath ? String(input.imagePath) : null,
   };
 
   if (input.type === "mcq") {
-    question.choices = input.choices.map((text, index) => ({
-      id: `c${index + 1}`,
+    const choices = input.choices.map((text, index) => ({
+      key: `c${index + 1}`,
       text: String(text).trim(),
     }));
-    question.correctChoiceId = question.choices[input.correctIndex].id;
+    data.correctChoiceId = choices[input.correctIndex].key;
+    data.choices = { create: choices };
   } else {
     // Written questions keep the model answer purely for LATER DISPLAY.
-    // It is never graded, never compared, never scored — anywhere.
-    question.modelAnswer = String(input.modelAnswer).trim();
+    // It is never graded, never compared, never scored â€” anywhere.
+    data.modelAnswer = String(input.modelAnswer).trim();
   }
 
-  // Optional image: ONLY the storage path is persisted, never the bytes.
-  question.imagePath = input.imagePath ? String(input.imagePath) : null;
-
-  existing.push(question);
-  questionsByQuizId.set(quiz.id, existing);
-  return question;
+  const row = await getPrisma().quizQuestion.create({
+    data,
+    include: { choices: true },
+  });
+  return mapQuestion(row);
 }
 
 /**
- * Returns ALL questions of a quiz WITH correct answers / model answers.
- *
- * ⚠️ CALLER RESPONSIBILITY: this is the FULL version. Student-facing routes
- * must pass results through sanitizeQuestionForStudent() (quiz.helpers.js)
- * before responding. Only the teacher view and the post-deadline review may
- * ever see correctChoiceId / modelAnswer.
- *
- * @param {string} quizId - The quiz whose questions to read.
- * @returns {Promise<object[]>} Full question records in order.
+ * ALL questions of a quiz WITH correct answers / model answers, in order.
+ * âš ï¸ Caller responsibility: student-facing routes must sanitize via
+ * quiz.helpers sanitizeQuestionForStudent() before responding.
+ * @param {string} quizId
+ * @returns {Promise<object[]>}
  */
 async function getQuestionsForQuiz(quizId) {
-  return [...(questionsByQuizId.get(String(quizId)) || [])].sort(
-    (a, b) => a.order - b.order
-  );
+  const rows = await getPrisma().quizQuestion.findMany({
+    where: { quizId: String(quizId) },
+    orderBy: { order: "asc" },
+    include: { choices: true },
+  });
+  return rows.map(mapQuestion);
 }
 
 /* ------------------------------------------------------------------ *
  * ATTEMPTS (one row per attempt; supports resume + granted retries)
  * ------------------------------------------------------------------ */
 
-/** Composite key grouping one student's attempts for one quiz. */
-function attemptKey(quizId, studentId) {
-  return `${quizId}:${studentId}`;
-}
-
 /**
- * Creates a NEW in-progress attempt. The server records the exact start
- * time AND the personal cutoff (startedAt + durationMinutes) — both are
- * computed HERE ON THE SERVER and never trusted from the client.
- *
- * FUTURE DB: INSERT INTO quiz_attempts (status='in_progress',
- *            started_at=now, personal_deadline=:personalDeadline).
- *
- * @param {string} quizId           - The quiz being taken.
- * @param {string} studentId        - The student taking it.
+ * Creates a NEW in-progress attempt. Server records start time AND personal
+ * cutoff; never trusted from the client.
+ * @param {string} quizId
+ * @param {string} studentId
  * @param {string} personalDeadline - ISO instant when their countdown ends.
  * @returns {Promise<object>} The fresh attempt record.
  */
 async function createAttempt(quizId, studentId, personalDeadline) {
-  const key = attemptKey(quizId, studentId);
-  const previous = attemptsByQuizAndStudent.get(key) || [];
+  const previousCount = await getPrisma().quizAttempt.count({
+    where: { quizId: String(quizId), studentId: String(studentId) },
+  });
 
-  const attempt = {
-    id: newId(), // doubles as the "result id" used by the review endpoint
-    quizId: String(quizId),
-    studentId: String(studentId),
-    attemptNumber: previous.length + 1,
-    status: "in_progress",
-    startedAt: new Date().toISOString(),
-    // Personal cutoff = startedAt + durationMinutes. Stored here at start;
-    // routes still take min(personalDeadline, quiz.endTime) when checking,
-    // so a teacher shortening end_time mid-quiz keeps cutting people off.
-    personalDeadline: new Date(personalDeadline).toISOString(),
-    submittedAt: null,
-    submissionReason: null, // 'manual' | 'auto-personal-timer' | 'auto-quiz-end'
-    score: null,            // MCQ-only score (written answers are NEVER scored)
-    totalMcq: null,         // number of MCQ questions when graded
-    // questionId -> { value, updatedAt }. Saved AS the student types/selects
-    // so an interrupted session resumes with answers intact.
-    answers: {},
-  };
-
-  previous.push(attempt);
-  attemptsByQuizAndStudent.set(key, previous);
-  attemptsById.set(attempt.id, attempt);
-  return attempt;
+  const row = await getPrisma().quizAttempt.create({
+    data: {
+      quizId: String(quizId),
+      studentId: String(studentId),
+      attemptNumber: previousCount + 1,
+      status: "in_progress",
+      startedAt: new Date(),
+      personalDeadline: new Date(personalDeadline),
+    },
+    include: ATTEMPT_INCLUDE,
+  });
+  return mapAttempt(row);
 }
 
 /**
- * Returns all attempts (any status) one student has for one quiz.
- *
- * @param {string} quizId    - The quiz.
- * @param {string} studentId - The student.
- * @returns {Promise<object[]>} Attempts ordered oldest first.
+ * All attempts (any status) one student has for one quiz, oldest first.
+ * @param {string} quizId
+ * @param {string} studentId
+ * @returns {Promise<object[]>}
  */
 async function getAttemptsForStudent(quizId, studentId) {
-  return [...(attemptsByQuizAndStudent.get(attemptKey(quizId, studentId)) || [])];
+  const rows = await getPrisma().quizAttempt.findMany({
+    where: { quizId: String(quizId), studentId: String(studentId) },
+    orderBy: { attemptNumber: "asc" },
+    include: ATTEMPT_INCLUDE,
+  });
+  return rows.map(mapAttempt);
 }
 
 /**
- * Finds one attempt by its ID (the "result id" from the review endpoint).
- *
- * @param {string} resultId - Attempt/result ID.
- * @returns {Promise<object|null>} The attempt, or null when missing.
+ * Finds one attempt by its ID (the "result id" of review endpoints).
+ * @param {string} resultId
+ * @returns {Promise<object|null>}
  */
 async function getAttemptById(resultId) {
-  return attemptsById.get(String(resultId)) || null;
+  const row = await getPrisma().quizAttempt.findUnique({
+    where: { id: String(resultId) },
+    include: ATTEMPT_INCLUDE,
+  });
+  return row ? mapAttempt(row) : null;
 }
 
 /**
- * Saves ONE answer for an IN-PROGRESS attempt (called on every change the
- * student makes, not only on submit). This is what makes resume work: when
- * the student reopens the quiz they see these values pre-filled.
- *
- * Silently ignores writes after the attempt is submitted — a late autosave
- * from a closing tab must never mutate a graded result.
- *
- * FUTURE DB: UPSERT INTO quiz_answers (attempt_id, question_id, value).
- *
- * @param {string} attemptId  - The in-progress attempt.
- * @param {string} questionId - The question being answered.
- * @param {string} value      - Choice ID (mcq) or free text (written).
- * @returns {Promise<boolean>} true if saved, false if attempt not in-progress.
+ * Saves ONE answer for an IN-PROGRESS attempt (autosave on every change).
+ * Silently ignores writes after submission â€” a late autosave from a closing
+ * tab must never mutate a graded result.
+ * @param {string} attemptId
+ * @param {string} questionId
+ * @param {string} value - Choice key (mcq) or free text (written).
+ * @returns {Promise<boolean>} true if saved, false otherwise.
  */
 async function saveInProgressAnswer(attemptId, questionId, value) {
-  const attempt = attemptsById.get(String(attemptId));
+  const attempt = await getPrisma().quizAttempt.findUnique({
+    where: { id: String(attemptId) },
+    select: { status: true },
+  });
   if (!attempt || attempt.status !== "in_progress") return false;
 
-  attempt.answers[String(questionId)] = {
-    value: String(value == null ? "" : value),
-    updatedAt: new Date().toISOString(),
-  };
+  const data = { value: String(value == null ? "" : value) };
+  await getPrisma().studentAnswer.upsert({
+    where: {
+      attemptId_questionId: {
+        attemptId: String(attemptId),
+        questionId: String(questionId),
+      },
+    },
+    update: data,
+    create: {
+      attemptId: String(attemptId),
+      questionId: String(questionId),
+      ...data,
+    },
+  });
   return true;
 }
 
 /**
- * Marks an attempt as submitted and stores its final graded outcome.
- * Used by manual submits AND by auto-submits (personal timer / quiz end),
- * including the "student came back too late" path.
- *
- * FUTURE DB: UPDATE quiz_attempts SET status='submitted', score=... ,
- *            submitted_at=..., submission_reason=...
- *
- * @param {string} attemptId - The attempt to finalize.
- * @param {object} result    - { score, totalMcq, reason, submittedAt }
- * @returns {Promise<object|null>} The updated attempt, or null.
+ * Persists the server-generated per-attempt shuffle (question + choice
+ * orders). The taking routes call this right after createAttempt so a
+ * resume replays the exact same arrangement. Kept separate from
+ * createAttempt to preserve that function's original signature.
+ * @param {string} attemptId
+ * @param {object} ordering - { questionOrder: string[], choiceOrders: object }
+ * @returns {Promise<object>} The updated attempt record.
+ */
+async function setAttemptOrdering(attemptId, ordering) {
+  const row = await getPrisma().quizAttempt.update({
+    where: { id: String(attemptId) },
+    data: { ordering },
+    include: ATTEMPT_INCLUDE,
+  });
+  return mapAttempt(row);
+}
+
+/**
+ * Marks an attempt submitted and stores its final graded outcome
+ * (manual AND auto submits). Returns null when missing/already submitted.
+ * @param {string} attemptId
+ * @param {object} result - { score, totalMcq, reason, submittedAt }
+ * @returns {Promise<object|null>}
  */
 async function finalizeAttempt(attemptId, result) {
-  const attempt = attemptsById.get(String(attemptId));
-  if (!attempt || attempt.status === "submitted") return null;
+  const existing = await getPrisma().quizAttempt.findUnique({
+    where: { id: String(attemptId) },
+    select: { status: true },
+  });
+  if (!existing || existing.status === "submitted") return null;
 
-  attempt.status = "submitted";
-  attempt.score = Number(result.score);
-  attempt.totalMcq = Number(result.totalMcq);
-  attempt.submissionReason = String(result.reason);
-  attempt.submittedAt = new Date(result.submittedAt || Date.now()).toISOString();
-  return attempt;
+  const row = await getPrisma().quizAttempt.update({
+    where: { id: String(attemptId) },
+    data: {
+      status: "submitted",
+      score: Number(result.score),
+      totalMcq: Number(result.totalMcq),
+      submissionReason: String(result.reason),
+      submittedAt: result.submittedAt
+        ? new Date(result.submittedAt)
+        : new Date(),
+    },
+    include: ATTEMPT_INCLUDE,
+  });
+  return mapAttempt(row);
 }
 
 /**
- * Counts how many SUBMITTED attempts a student has used on a quiz.
- * In-progress attempts do NOT count against the allowance until submitted
- * (an abandoned one gets finalized by the expiry logic instead).
- *
- * @param {string} quizId    - The quiz.
- * @param {string} studentId - The student.
- * @returns {Promise<number>} Used attempts so far.
+ * Count of SUBMITTED attempts a student has used on a quiz.
+ * @param {string} quizId
+ * @param {string} studentId
+ * @returns {Promise<number>}
  */
 async function countSubmittedAttempts(quizId, studentId) {
-  const all = await getAttemptsForStudent(quizId, studentId);
-  return all.filter((attempt) => attempt.status === "submitted").length;
+  return getPrisma().quizAttempt.count({
+    where: {
+      quizId: String(quizId),
+      studentId: String(studentId),
+      status: "submitted",
+    },
+  });
 }
 
 /**
- * Total attempts this student may use (1 by default + teacher-granted extra).
- *
- * FUTURE DB: column/row on an attempts_allowance or quiz_assignments table.
- *
- * @param {string} quizId    - The quiz.
- * @param {string} studentId - The student.
- * @returns {Promise<number>} Allowed attempt count.
+ * Total allowed attempts: 1 by default + persisted teacher-granted extras.
+ * @param {string} quizId
+ * @param {string} studentId
+ * @returns {Promise<number>}
  */
 async function getAllowedAttemptCount(quizId, studentId) {
-  return 1 + (extraAttemptsByKey.get(attemptKey(quizId, studentId)) || 0);
+  const row = await getPrisma().quizExtraAttempt.findUnique({
+    where: {
+      quizId_studentId: { quizId: String(quizId), studentId: String(studentId) },
+    },
+  });
+  return 1 + (row ? row.extraCount : 0);
 }
 
 /**
- * Teacher grants ONE additional attempt to a specific student for a quiz.
- * Calling it twice grants two. Existing results are kept untouched.
- *
- * @param {string} quizId    - The quiz.
- * @param {string} studentId - The student receiving another try.
- * @returns {Promise<number>} The new total allowance.
+ * Teacher grants ONE additional attempt to a student for a quiz (persistent;
+ * calling twice grants two). Returns the new total allowance.
+ * @param {string} quizId
+ * @param {string} studentId
+ * @returns {Promise<number>}
  */
 async function grantAdditionalAttempt(quizId, studentId) {
-  const key = attemptKey(quizId, studentId);
-  const next = (extraAttemptsByKey.get(key) || 0) + 1;
-  extraAttemptsByKey.set(key, next);
-  return 1 + next;
+  const row = await getPrisma().quizExtraAttempt.upsert({
+    where: {
+      quizId_studentId: { quizId: String(quizId), studentId: String(studentId) },
+    },
+    update: { extraCount: { increment: 1 } },
+    create: {
+      quizId: String(quizId),
+      studentId: String(studentId),
+      extraCount: 1,
+    },
+  });
+  return 1 + row.extraCount;
 }
 
 /* ------------------------------------------------------------------ *
@@ -394,84 +511,80 @@ async function grantAdditionalAttempt(quizId, studentId) {
  * ------------------------------------------------------------------ */
 
 /**
- * ALL attempts for a quiz regardless of status or student — lets the teacher
- * see who currently has an attempt open (in-progress) as well as results.
- *
- * FUTURE DB: SELECT ... FROM quiz_attempts WHERE quiz_id = :quizId.
- *
- * @param {string} quizId - The quiz.
- * @returns {Promise<object[]>} Every attempt row for this quiz.
+ * ALL attempts for a quiz regardless of status or student.
+ * @param {string} quizId
+ * @returns {Promise<object[]>}
  */
 async function getAllAttemptsForQuiz(quizId) {
-  const rows = [];
-  for (const attempts of attemptsByQuizAndStudent.values()) {
-    for (const attempt of attempts) {
-      if (attempt.quizId === String(quizId)) rows.push(attempt);
-    }
-  }
-  return rows;
+  const rows = await getPrisma().quizAttempt.findMany({
+    where: { quizId: String(quizId) },
+    orderBy: { startedAt: "asc" },
+    include: ATTEMPT_INCLUDE,
+  });
+  return rows.map(mapAttempt);
 }
 
 /**
- * All SUBMITTED results across every student for one quiz — the raw input
- * for leaderboards and for the teacher's per-quiz results view.
- *
- * FUTURE DB: SELECT ... FROM quiz_attempts WHERE quiz_id=:id AND
- *            status='submitted'.
- *
- * @param {string} quizId - The quiz.
- * @returns {Promise<object[]>} Submitted attempts (any student).
+ * SUBMITTED results across every student for one quiz (leaderboards +
+ * teacher results view).
+ * @param {string} quizId
+ * @returns {Promise<object[]>}
  */
 async function getSubmittedResultsForQuiz(quizId) {
-  return (await getAllAttemptsForQuiz(quizId)).filter(
-    (attempt) => attempt.status === "submitted"
+  const rows = await getPrisma().quizAttempt.findMany({
+    where: { quizId: String(quizId), status: "submitted" },
+    orderBy: { startedAt: "asc" },
+    include: ATTEMPT_INCLUDE,
+  });
+  return rows.map(mapAttempt);
+}
+
+/**
+ * Display name for a student id: users table first, then the test-only
+ * overlay, then a short-id fallback.
+ * @param {string} studentId - The user id from the JWT.
+ * @returns {Promise<string>}
+ */
+async function getStudentNameById(studentId) {
+  const key = String(studentId);
+  const user = await getPrisma().user.findUnique({
+    where: { id: key },
+    select: { name: true },
+  });
+  if (user && user.name) return user.name;
+  return (
+    studentNamesById.get(key) || `Ø·Ø§Ù„Ø¨ ${key.slice(0, 6)}`
   );
 }
 
 /**
- * Display name for a student id. Real version: users table lookup.
- *
- * @param {string} studentId - The user id from the JWT.
- * @returns {Promise<string>} A display name, or "طالب" fallback.
- */
-async function getStudentNameById(studentId) {
-  // TODO(REPLACE-STUB): prisma.user.findUnique({ where: { id } }).name
-  return studentNamesById.get(String(studentId)) || `طالب ${String(studentId).slice(0, 6)}`;
-}
-
-/**
- * TEST-ONLY helper: seeds a fake display name without touching auth.
- * Remove when the real users table is connected.
+ * TEST-ONLY helper: seeds a display-name overlay without touching auth.
  */
 function setStudentNameForTesting(studentId, name) {
   studentNamesById.set(String(studentId), String(name));
 }
 
 /**
- * Roster: every student enrolled in a course. Used ONLY to add
+ * Roster: every student enrolled in a course. Only used to add
  * "never attempted" students to leaderboards with a zero score.
- *
- * STUB BEHAVIOUR: returns whatever the test/dev seeded.
- * FUTURE DB: SELECT studentId FROM enrollments WHERE course = :courseId
- *            (same table isStudentEnrolledInLessonCourse will query — that
- *             existing stub stays the single source for ACCESS checks; this
- *             function is only for LISTING the roster).
- *
- * @param {string} courseId - The course identifier.
- * @returns {Promise<string[]>} Enrolled student ids.
+ * NOTE: there is no enrollments table yet (that stub remains the single
+ * source for ACCESS checks); until it exists this returns the process-local
+ * seeded roster (empty on fresh instances).
+ * @param {string} courseId
+ * @returns {Promise<string[]>}
  */
 async function getStudentIdsForCourse(courseId) {
   return [...(courseRosterByCourseId.get(String(courseId)) || [])];
 }
 
 /**
- * TEST-ONLY helper: seeds the fake course roster. Remove with real DB.
+ * TEST-ONLY helper: seeds the course-roster overlay for leaderboards.
  */
 function setCourseRosterForTesting(courseId, studentIds) {
   courseRosterByCourseId.set(String(courseId), [...studentIds]);
 }
 
-module.exports = {
+const service = {
   createQuiz,
   getQuizById,
   getQuizzesForLesson,
@@ -482,6 +595,7 @@ module.exports = {
   createAttempt,
   getAttemptsForStudent,
   getAttemptById,
+  setAttemptOrdering,
   saveInProgressAnswer,
   finalizeAttempt,
   countSubmittedAttempts,
@@ -490,7 +604,15 @@ module.exports = {
   getAllAttemptsForQuiz,
   getSubmittedResultsForQuiz,
   getStudentNameById,
-  setStudentNameForTesting,
-  getStudentIdsForCourse,
-  setCourseRosterForTesting,
 };
+
+// Every DB-backed function gains cold-start resilience transparently;
+// the two TEST-ONLY overlay setters stay plain synchronous helpers.
+module.exports = Object.fromEntries(
+  Object.entries(service).map(([name, fn]) => [
+    name,
+    (...args) => withColdStartRetry(() => fn(...args)),
+  ])
+);
+module.exports.setStudentNameForTesting = setStudentNameForTesting;
+module.exports.setCourseRosterForTesting = setCourseRosterForTesting;

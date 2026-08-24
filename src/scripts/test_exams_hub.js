@@ -111,7 +111,8 @@ async function main() {
   const realError = console.error;
   console.error = (...args) => errorsSeen.push(args.join(" "));
 
-  global.fetch = async (url) => {
+  const startCalls = [];
+  global.fetch = async (url, options = {}) => {
     const target = String(url);
     if (target.includes("/api/quizzes/available")) {
       return { ok: true, status: 200, json: async () => ({ exams: EXAMS }) };
@@ -125,6 +126,30 @@ async function main() {
             { userId: "student-hub", name: "سارة", bestScore: 8, totalMcq: 10 },
           ],
           pendingQuizzes: [],
+        }),
+      };
+    }
+    if (/\/api\/quizzes\/[^/]+\/start$/.test(target)) {
+      startCalls.push({ url: target, options });
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({
+          attempt: { id: "attempt-1", status: "in_progress" },
+          remainingSeconds: 600,
+          questions: [
+            {
+              id: "q-on-q1",
+              type: "mcq",
+              text: "سؤال تجريبي",
+              choices: [
+                { id: "c1", text: "أ" },
+                { id: "c2", text: "ب" },
+                { id: "c3", text: "ج" },
+                { id: "c4", text: "د" },
+              ],
+            },
+          ],
         }),
       };
     }
@@ -193,6 +218,38 @@ async function main() {
 
   const lbBody = document.getElementById("course-leaderboard-body").innerHTML;
   check("course leaderboard rendered a table", lbBody.includes("<table"));
+
+  // ---- START EXAM: click the active card's button ----------------------
+  const takeButton = document.querySelector(
+    '.exam-card[data-exam-id="q-on"] .btn-take'
+  );
+  check("start button exists on the active card", Boolean(takeButton));
+  if (takeButton) {
+    takeButton.dispatchEvent(
+      new window.MouseEvent("click", { bubbles: true })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    check(
+      "start endpoint called once with the exam id",
+      startCalls.length === 1 && /\/api\/quizzes\/q-on\/start$/.test(startCalls[0].url),
+      JSON.stringify(startCalls.map((c) => c.url))
+    );
+    check(
+      "start request carries the Bearer token",
+      startCalls.length === 1 &&
+        startCalls[0].options.headers.Authorization === "Bearer jwt-fake"
+    );
+    const overlay = document.getElementById("quiz-run-overlay");
+    check(
+      "quiz run overlay opened",
+      overlay.style.display !== "none" && overlay.style.display !== ""
+    );
+    check(
+      "overlay shows the clicked quiz's title",
+      document.getElementById("run-title").textContent === "اختبار جاري الآن"
+    );
+  }
 
   realError.call(console, ...[]);
   console.error = realError;

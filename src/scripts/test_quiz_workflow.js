@@ -37,14 +37,18 @@ storageService.uploadQuizImage = async (buffer, mimeType, quizId) =>
 storageService.getQuizImageSignedUrl = async (filePath) =>
   `https://signed.test/${filePath}?token=fake`;
 
-/* Seed fake display names + course roster (stub-only helpers). */
+/* Seed fake display names + course roster (test-only overlay helpers).
+   COURSE is unique per run: quiz rows now PERSIST in Neon, so a fixed
+   courseId would let previous runs' released quizzes inflate the exact
+   cumulative-total assertions below. */
+const COURSE = `course-bio-suite-${Date.now()}`;
 const {
   setStudentNameForTesting,
   setCourseRosterForTesting,
 } = require("../services/quiz.stub.service.js");
 setStudentNameForTesting("student-a", "سارة أحمد");
 setStudentNameForTesting("student-c", "منى خالد");
-setCourseRosterForTesting("course-bio-1", ["student-a", "student-c", "student-z"]);
+setCourseRosterForTesting(COURSE, ["student-a", "student-c", "student-z"]);
 
 // NOTE: the REAL Express app lives in the project ROOT (app.js) — that is
 // what server.js and api/index.js run. There is an older duplicate copy at
@@ -152,7 +156,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار الدعامة والحركة",
         questionCount: 3,
         startTime: iso(-60_000),
@@ -331,7 +335,7 @@ async function runTests() {
 
     const courseLbEarly = await req(
       "GET",
-      "/api/courses/course-bio-1/leaderboard",
+      `/api/courses/${COURSE}/leaderboard`,
       { token: teacher }
     );
     const earlyRowA = courseLbEarly.data.rankings.find(
@@ -354,7 +358,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار سريع للمحاولتين",
         questionCount: 1,
         startTime: iso(-1000),
@@ -423,7 +427,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار الاستكمال",
         questionCount: 2,
         startTime: iso(-1000),
@@ -511,7 +515,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار المؤقت الشخصي",
         questionCount: 2,
         startTime: iso(-1000),
@@ -585,7 +589,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار انقطاع النافذة",
         questionCount: 1,
         startTime: iso(-500),
@@ -655,7 +659,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار المراجعة الملونة",
         questionCount: 2,
         startTime: iso(-500),
@@ -747,7 +751,7 @@ async function runTests() {
 
     /* ---- Final course leaderboard ------------------------------------ */
     section("Course cumulative leaderboard (all released except quiz5)");
-    const courseLb = await req("GET", "/api/courses/course-bio-1/leaderboard", {
+    const courseLb = await req("GET", `/api/courses/${COURSE}/leaderboard`, {
       token: teacher,
     });
     const rowA = courseLb.data.rankings.find((r) => r.studentId === "student-a");
@@ -846,7 +850,7 @@ async function runTests() {
       token: teacher,
       body: {
         lessonId: "lesson-quiz-test",
-        courseId: "course-bio-1",
+        courseId: COURSE,
         title: "اختبار الترتيب العشوائي",
         questionCount: 5,
         startTime: iso(-1000),

@@ -41,6 +41,7 @@ const {
   listAllQuizzes,
   createAttempt,
   getAttemptsForStudent,
+  setAttemptOrdering,
   saveInProgressAnswer,
   finalizeAttempt,
   countSubmittedAttempts,
@@ -256,10 +257,11 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
   ).toISOString();
   const attempt = await createAttempt(quiz.id, req.user.id, personalDeadline);
 
-  // Per-attempt shuffle generated SERVER-SIDE and stored on the attempt so
-  // resume replays the exact same order (grading matches by choice ID, so
+  // Per-attempt shuffle generated SERVER-SIDE and PERSISTED on the attempt
+  // so resume replays the exact same order (grading matches by choice ID, so
   // shuffling can never affect correctness).
-  attempt.ordering = generateAttemptOrdering(questions);
+  const ordering = generateAttemptOrdering(questions);
+  await setAttemptOrdering(attempt.id, ordering);
 
   return res.status(201).json({
     status: "started",
@@ -269,7 +271,7 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
     endTime: quiz.endTime,
     remainingSeconds: remainingSeconds(attempt, quiz),
     durationMinutes: quiz.durationMinutes,
-    questions: applyAttemptOrdering(questions, attempt.ordering).map(
+    questions: applyAttemptOrdering(questions, ordering).map(
       sanitizeQuestionForStudent
     ),
     savedAnswers: {},

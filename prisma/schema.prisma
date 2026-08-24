@@ -34,3 +34,116 @@ model User {
 
   @@map("users")
 }
+
+// ---------------------------------------------------------------------------
+// QUIZ FEATURE TABLES (added by the exams/quiz feature)
+// NOTE for collaborators: everything below this line is OWNED BY THE QUIZ
+// FEATURE. Nothing above was modified. quizId/studentId/lessonId are plain
+// strings (no FK to users/lessons yet) because lessons/courses tables do not
+// exist and attempt rows may reference JWT subjects that predate user rows.
+// ---------------------------------------------------------------------------
+
+/// One published exam. Times are absolute windows; durationMinutes is the
+/// per-student countdown length (fractional allowed for tests).
+model Quiz {
+  id              String   @id @default(uuid())
+  lessonId        String   @map("lesson_id")
+  courseId        String?  @map("course_id")
+  title           String
+  questionCount   Int      @map("question_count")
+  startTime       DateTime @map("start_time")
+  endTime         DateTime @map("end_time")
+  durationMinutes Float    @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@map("quizzes")
+}
+
+/// A question inside a quiz. MCQs carry choices + correctChoiceId ("c1".."c4");
+/// written questions carry modelAnswer only for later display (never graded).
+model QuizQuestion {
+  id              String  @id @default(uuid())
+  quizId          String  @map("quiz_id")
+  order           Int
+  type            String
+  text            String
+  correctChoiceId String? @map("correct_choice_id")
+  modelAnswer     String? @map("model_answer")
+  imagePath       String? @map("image_path")
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  choices QuizChoice[]
+
+  @@unique([quizId, order])
+  @@map("questions")
+}
+
+/// One MCQ option. `key` is the stable choice id students submit ("c1".."c4").
+model QuizChoice {
+  id         String @id @default(uuid())
+  questionId String @map("question_id")
+  key        String
+  text       String
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, key])
+  @@map("choices")
+}
+
+/// ONE ROW PER ATTEMPT — in-progress OR submitted (never both). Submitted rows
+/// double as "quiz results": resultId used by review endpoints == attempt id.
+model QuizAttempt {
+  id               String    @id @default(uuid())
+  quizId           String    @map("quiz_id")
+  studentId        String    @map("student_id")
+  attemptNumber    Int       @map("attempt_number")
+  status           String    @default("in_progress")
+  startedAt        DateTime  @default(now()) @map("started_at")
+  personalDeadline DateTime  @map("personal_deadline")
+  submittedAt      DateTime? @map("submitted_at")
+  submissionReason String?   @map("submission_reason")
+  score            Int?
+  totalMcq         Int?      @map("total_mcq")
+  /// Server-generated per-attempt shuffle (question + choice orders) so a
+  /// resume replays the exact same arrangement. Null for legacy rows.
+  ordering         Json?
+
+  quiz    Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers StudentAnswer[]
+
+  @@index([quizId, studentId])
+  @@index([quizId, status])
+  @@map("quiz_attempts")
+}
+
+/// Autosaved answer for an in-progress attempt (one per question), enabling
+/// resume-after-close. Late writes are ignored by the service once submitted.
+model StudentAnswer {
+  id         String   @id @default(uuid())
+  attemptId  String   @map("attempt_id")
+  questionId String   @map("question_id")
+  value      String
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@map("student_answers")
+}
+
+/// Teacher-granted ADDITIONAL attempts per (quiz, student). Allowance = 1 + extra_count.
+model QuizExtraAttempt {
+  id         String @id @default(uuid())
+  quizId     String @map("quiz_id")
+  studentId  String @map("student_id")
+  extraCount Int    @default(0) @map("extra_count")
+
+  @@unique([quizId, studentId])
+  @@map("quiz_extra_attempts")
+}

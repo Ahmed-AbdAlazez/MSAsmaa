@@ -1,4 +1,7 @@
+import { initNavbar } from './components/navbar.js';
+
 document.addEventListener('DOMContentLoaded', () => {
+  initNavbar();
   // --- Dark / light theme toggle --------------------------------------------
   // The inline bootstrap script in <head> already applied data-theme
   // (stored choice, else OS preference). Here we only flip it and persist;

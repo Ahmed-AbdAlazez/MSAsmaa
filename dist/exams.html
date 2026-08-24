@@ -5,57 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>الاختبارات | أ. أسماء مرسال</title>
   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-BiZckyoG.ico?v=2">
-  <script type="module" crossorigin src="/assets/exams-DIc64J6J.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/main-C2wvw7Jj.js">
+  <script type="module" crossorigin src="/assets/exams-BGAdRPTD.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/main-W1HskEVU.js">
   <link rel="stylesheet" crossorigin href="/assets/main-DJY2E0iA.css">
-  <link rel="stylesheet" crossorigin href="/assets/exams-CGi_EB0O.css">
+  <link rel="stylesheet" crossorigin href="/assets/exams-CGekU5Oe.css">
 </head>
 <body data-page="exams">
-  <!-- ===================== NAVBAR ===================== -->
-  <header class="header">
-    <nav class="navbar container">
-      <a href="index.html" class="logo">أ. أسماء مرسال 🧬</a>
-      <ul class="nav-links">
-        <li><a href="index.html" class="nav-link">الرئيسية</a></li>
-        <li><a href="course-biology.html" class="nav-link">الكورس (3ث)</a></li>
-        <li><a href="exams.html" class="nav-link active">الاختبارات</a></li>
-        <li><a href="assignments.html" class="nav-link">الواجبات</a></li>
-        <li><a href="dashboard-student.html" class="nav-link">لوحة الطالب</a></li>
-        <li><a href="dashboard-teacher.html" class="nav-link">لوحة المعلمة</a></li>
-      </ul>
-      <div id="auth-area"></div>
-    </nav>
-  </header>
+  <!-- Navigation Bar -->
+  <nav class="navbar"></nav>
 
-  <main class="container" style="padding-top:2rem; padding-bottom:4rem;">
-    <section id="exams-login-gate" style="display:none; text-align:center; padding:4rem 1rem;">
-      <h2>سجلي الدخول لمشاهدة الاختبارات</h2>
-      <p style="margin:1rem 0;">هذه الصفحة تعرض اختبارات الكورس وحالتها ولوحات الترتيب.</p>
-      <button class="btn btn-primary js-login-trigger">تسجيل الدخول</button>
-    </section>
-
-    <div id="exams-app" style="display:none;">
-      <h1 style="margin-bottom:.5rem;">📋 الاختبارات</h1>
-      <p id="exams-subtitle" style="color:var(--color-text-muted,#666); margin-bottom:1.5rem;"></p>
-
-      <!-- ============ TABS ============ -->
-      <div class="exam-tabs" role="tablist">
-        <button class="exam-tab active" data-tab="by-lesson">حسب الدرس</button>
-        <button class="exam-tab" data-tab="all">كل الاختبارات</button>
-      </div>
-
-      <!-- ============ EXAM LISTS ============ -->
-      <div id="exams-by-lesson" class="exam-groups"></div>
-      <div id="exams-all" class="exam-groups" style="display:none;"></div>
-
-      <!-- ============ CUMULATIVE LEADERBOARD ============ -->
-      <section class="card" id="course-leaderboard-card">
-        <h2>🏆 ترتيب الكورس الإجمالي</h2>
-        <p class="muted">
-          مجموع أفضل درجاتك في كل اختبار انتهى وقته. الاختبارات الجارية لا تُحسب إلا بعد انتهائها للجميع.
-        </p>
-        <div id="course-leaderboard-body"><div class="loading">جارٍ التحميل…</div></div>
+  <main class="dashboard-layout">
+    <div class="container">
+      <section id="exams-login-gate" style="display:none; text-align:center; padding:4rem 1rem;">
+        <h2>سجلي الدخول لمشاهدة الاختبارات</h2>
+        <p style="margin:1rem 0;">هذه الصفحة تعرض اختبارات الكورس وحالتها ولوحات الترتيب.</p>
+        <button class="btn btn-primary js-login-trigger">تسجيل الدخول</button>
       </section>
+
+      <div id="exams-app" style="display:none;">
+        <h1 style="margin-bottom:.5rem;">📋 الاختبارات</h1>
+        <p id="exams-subtitle" style="color:var(--color-text-muted,#666); margin-bottom:1.5rem;"></p>
+
+        <!-- ============ TABS ============ -->
+        <div class="exam-tabs" role="tablist">
+          <button class="exam-tab active" data-tab="by-lesson">حسب الدرس</button>
+          <button class="exam-tab" data-tab="all">كل الاختبارات</button>
+        </div>
+
+        <!-- ============ EXAM LISTS ============ -->
+        <div id="exams-by-lesson" class="exam-groups"></div>
+        <div id="exams-all" class="exam-groups" style="display:none;"></div>
+
+        <!-- ============ CUMULATIVE LEADERBOARD ============ -->
+        <section class="card" id="course-leaderboard-card">
+          <h2>🏆 ترتيب الكورس الإجمالي</h2>
+          <p class="muted">
+            مجموع أفضل درجاتك في كل اختبار انتهى وقته. الاختبارات الجارية لا تُحسب إلا بعد انتهائها للجميع.
+          </p>
+          <div id="course-leaderboard-body"><div class="loading">جارٍ التحميل…</div></div>
+        </section>
+      </div>
     </div>
   </main>
 
