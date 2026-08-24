@@ -3,6 +3,16 @@ const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { signToken } = require('../utils/jwt');
+const crypto = require('crypto');
+const { sendPasswordResetEmail } = require('../services/email.service');
+
+const STUDENT_CODE_PATTERN = /^[BS][0-9]+$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
+const GENERIC_FORGOT_PASSWORD_MESSAGE =
+  'إذا كان البريد الإلكتروني مرتبطًا بحساب، فسيتم إرسال تعليمات إعادة تعيين كلمة المرور.';
+const isStrongPassword = (value) =>
+  /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
 
 /**
  * Student Registration (Public)
@@ -11,23 +21,41 @@ const { signToken } = require('../utils/jwt');
  * @access  Public
  */
 const signup = catchAsync(async (req, res, next) => {
-  const { studentCode, name, password } = req.body;
+  const { studentCode, name, email, password, confirmPassword } = req.body;
 
   // 1. Validate required fields
-  if (!studentCode || !name || !password) {
+  if (!studentCode || !name || !email || !password || !confirmPassword) {
     return next(
-      new AppError('Please provide studentCode, name, and password.', 400)
+      new AppError('يرجى إدخال كود الطالب والاسم وGmail وكلمة المرور.', 400)
     );
   }
 
   // Trim whitespace
   const trimmedCode = String(studentCode).trim();
   const trimmedName = String(name).trim();
+  const normalizedEmail = String(email).trim().toLowerCase();
 
-  if (!trimmedCode || !trimmedName || !password) {
+  if (!trimmedCode || !trimmedName || !normalizedEmail || !password) {
     return next(
       new AppError('Fields cannot be empty.', 400)
     );
+  }
+
+  if (!STUDENT_CODE_PATTERN.test(trimmedCode)) {
+    return next(
+      new AppError('كود الطالب غير صحيح. يجب أن يبدأ بـ B أو S متبوعًا بأرقام.', 400)
+    );
+  }
+
+  if (!EMAIL_PATTERN.test(normalizedEmail)) {
+    return next(new AppError('يرجى إدخال Gmail صحيح.', 400));
+  }
+
+  if (!isStrongPassword(String(password))) {
+    return next(new AppError('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 400));
+  }
+  if (password !== confirmPassword) {
+    return next(new AppError('كلمتا المرور غير متطابقتين.', 400));
   }
 
   // 2. Check if studentCode already exists
@@ -41,6 +69,13 @@ const signup = catchAsync(async (req, res, next) => {
     );
   }
 
+  const existingEmail = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+  if (existingEmail) {
+    return next(new AppError('هذا البريد الإلكتروني مستخدم بالفعل.', 409));
+  }
+
   // 3. Hash password
   const hashedPassword = await hashPassword(password);
 
@@ -49,6 +84,7 @@ const signup = catchAsync(async (req, res, next) => {
     data: {
       studentCode: trimmedCode,
       name: trimmedName,
+      email: normalizedEmail,
       password: hashedPassword,
       role: 'STUDENT',
       status: 'PENDING',
@@ -60,6 +96,95 @@ const signup = catchAsync(async (req, res, next) => {
     status: 'success',
     message: 'Registration request submitted. Waiting for teacher approval.',
   });
+});
+
+/**
+ * Start a password reset without disclosing whether an address exists.
+ * @route POST /api/v1/auth/forgot-password
+ */
+const forgotPassword = catchAsync(async (req, res) => {
+  const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+
+  // Deliberately return the same response for invalid/unknown emails.
+  if (EMAIL_PATTERN.test(normalizedEmail)) {
+    const user = await prisma.user.findFirst({
+      where: { email: normalizedEmail, role: 'STUDENT' },
+    });
+
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expires = new Date(Date.now() + RESET_TOKEN_LIFETIME_MS);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { resetPasswordToken: tokenHash, resetPasswordExpires: expires },
+      });
+
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+      const resetUrl = `${frontendUrl}/reset-password.html?token=${encodeURIComponent(rawToken)}`;
+
+      try {
+        await sendPasswordResetEmail({ to: user.email, resetUrl });
+      } catch (error) {
+        // Do not leave a usable token when sending the message failed, and do
+        // not log the token or email address.
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { resetPasswordToken: null, resetPasswordExpires: null },
+        });
+        return res.status(503).json({
+          success: false,
+          status: 'error',
+          message: 'تعذر إرسال رسالة إعادة التعيين حاليًا. حاول مرة أخرى لاحقًا.',
+        });
+      }
+    }
+  }
+
+  return res.status(200).json({ status: 'success', message: GENERIC_FORGOT_PASSWORD_MESSAGE });
+});
+
+/**
+ * Complete a password reset using a short-lived one-time token.
+ * @route POST /api/v1/auth/reset-password
+ */
+const resetPassword = catchAsync(async (req, res, next) => {
+  const { token, password, confirmPassword } = req.body;
+  if (!token || !password || !confirmPassword) {
+    return next(new AppError('رابط إعادة تعيين كلمة المرور غير صالح.', 400));
+  }
+
+  if (!isStrongPassword(String(password))) {
+    return next(new AppError('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 400));
+  }
+  if (password !== confirmPassword) {
+    return next(new AppError('كلمتا المرور غير متطابقتين.', 400));
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+  const user = await prisma.user.findFirst({
+    where: { resetPasswordToken: tokenHash },
+  });
+
+  if (!user) {
+    return next(new AppError('رابط إعادة تعيين كلمة المرور غير صالح.', 400));
+  }
+  if (!user.resetPasswordExpires || user.resetPasswordExpires <= new Date()) {
+    return next(new AppError('انتهت صلاحية رابط إعادة تعيين كلمة المرور. اطلب رابطًا جديدًا.', 400));
+  }
+
+  const hashedPassword = await hashPassword(password);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      password: hashedPassword,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    },
+  });
+
+  return res.status(200).json({ status: 'success', message: 'تم تغيير كلمة المرور بنجاح.' });
 });
 
 /**
@@ -140,4 +265,6 @@ const login = catchAsync(async (req, res, next) => {
 module.exports = {
   signup,
   login,
+  forgotPassword,
+  resetPassword,
 };

@@ -77,15 +77,25 @@
                 <label for="login-username" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">الاسم</label>
                 <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">👤</span><input type="text" id="login-username" class="form-input" placeholder="اكتب اسمك" style="width: 100%;"></div>
               </div>
+              <div class="form-group" id="auth-email-group" style="margin-bottom: 1rem; text-align: right;" hidden>
+                <label for="login-email" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Gmail</label>
+                <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">@</span><input type="email" id="login-email" class="form-input" placeholder="name@gmail.com" autocomplete="email" style="width: 100%;"></div>
+              </div>
               <div class="form-group" style="margin-bottom: 1.5rem; text-align: right;">
                 <label for="login-code" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كود الدخول</label>
                 <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">#</span><input type="text" id="login-code" class="form-input" placeholder="أدخل كود الدخول الخاص بك" autocomplete="off" required minlength="4" style="width: 100%; text-transform: uppercase;"></div>
               </div>
+              <p id="student-code-help" class="student-code-help" hidden>الأحياء: يبدأ الكود بحرف B<br>العلوم المتكاملة: يبدأ الكود بحرف S<br>كود الطالب يجب أن يبدأ بحرف B أو S متبوعًا بأرقام.<br>مثال: B12345 أو S12345.</p>
               <div class="form-group" style="margin-bottom: 0.75rem; text-align: right;">
                 <label for="login-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">كلمة المرور</label>
                 <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">🔒</span><input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" required style="width: 100%;"><button type="button" class="password-toggle" aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">◉</button></div>
               </div>
+              <div class="form-group" id="confirm-password-group" style="margin-bottom: 0.75rem; text-align: right;" hidden>
+                <label for="login-confirm-password" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">تأكيد كلمة المرور</label>
+                <div class="auth-input-wrap"><span class="auth-input-icon" aria-hidden="true">🔒</span><input type="password" id="login-confirm-password" class="form-input" placeholder="••••••••" autocomplete="new-password" style="width: 100%;"></div>
+              </div>
               <p id="password-requirements" class="password-requirements" hidden>يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.</p>
+              <a id="forgot-password-link" class="forgot-password-link" href="forgot-password.html">نسيت كلمة المرور؟</a>
               <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full" style="padding: 0.8rem;"><span aria-hidden="true">↪</span> تسجيل الدخول</button>
             </form>
 
