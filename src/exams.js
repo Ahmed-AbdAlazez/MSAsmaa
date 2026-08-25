@@ -334,14 +334,23 @@ function startTimer(remainingSeconds) {
   runState.timerInterval = setInterval(paint, 1000);
 }
 
-function questionBlockHtml(question, savedValue) {
+function questionBlockHtml(question, savedValue, qIndex) {
+  const num = qIndex != null ? qIndex + 1 : "";
+  const numBadge = num ? `<span class="q-number">${num}</span>` : "";
+  const typeBadge = question.type === "mcq"
+    ? `<span class="q-type-badge q-type-mcq">اختيارات</span>`
+    : `<span class="q-type-badge q-type-written">مقالي</span>`;
+
   if (question.type === "mcq") {
+    const choiceKeys = ["أ", "ب", "ج", "د"];
     const choices = question.choices
-      .map((choice) => {
+      .map((choice, ci) => {
         const checked = savedValue === choice.id ? "checked" : "";
-        return `<label class="choice-row">
+        const selected = savedValue === choice.id ? " selected" : "";
+        return `<label class="choice-card${selected}">
                   <input type="radio" name="q-${question.id}" value="${choice.id}" data-qid="${question.id}" class="mcq-choice" ${checked}>
-                  <span>${escapeHtml(choice.text)}</span>
+                  <span class="choice-key">${choiceKeys[ci] || (ci + 1)}</span>
+                  <span class="choice-text">${escapeHtml(choice.text)}</span>
                 </label>`;
       })
       .join("");
@@ -349,9 +358,9 @@ function questionBlockHtml(question, savedValue) {
       ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال">`
       : "";
     return `<div class="question-block" data-question="${question.id}">
+              <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
               ${image}
-              <div class="q-text">${escapeHtml(question.text)}</div>
-              ${choices}
+              <div class="choices-grid">${choices}</div>
             </div>`;
   }
 
@@ -360,8 +369,8 @@ function questionBlockHtml(question, savedValue) {
     ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال">`
     : "";
   return `<div class="question-block" data-question="${question.id}">
+            <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
             ${image}
-            <div class="q-text">${escapeHtml(question.text)}</div>
             <textarea class="written-answer" data-qid="${question.id}"
               placeholder="اكتبي إجابتك هنا…">${escapeHtml(savedValue || "")}</textarea>
           </div>`;
@@ -381,8 +390,8 @@ function openRun(payload, quizTitle, quizId) {
       : `المدة ${payload.durationMinutes} دقيقة — بالتوفيق!`;
 
   document.getElementById("run-questions").innerHTML = payload.questions
-    .map((question) =>
-      questionBlockHtml(question, (payload.savedAnswers || {})[question.id])
+    .map((question, qi) =>
+      questionBlockHtml(question, (payload.savedAnswers || {})[question.id], qi)
     )
     .join("");
 
@@ -411,6 +420,17 @@ function openRun(payload, quizTitle, quizId) {
     if (!questionId) return;
     const value = target.type === "radio" ? target.value : target.value;
     runState.answers[questionId] = value;
+
+    // Toggle .selected on choice cards for visual feedback
+    if (target.type === "radio") {
+      const block = target.closest(".question-block");
+      if (block) {
+        block.querySelectorAll(".choice-card").forEach((c) => c.classList.remove("selected"));
+        const card = target.closest(".choice-card");
+        if (card) card.classList.add("selected");
+      }
+    }
+
     const save = await api("POST", `/api/quizzes/${runState.quizId}/answers`, {
       questionId,
       value,
