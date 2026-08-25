@@ -4,13 +4,10 @@ const catchAsync = require('../utils/catchAsync');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { signToken } = require('../utils/jwt');
 const crypto = require('crypto');
-const { sendPasswordResetEmail } = require('../services/email.service');
 
 const STUDENT_CODE_PATTERN = /^[BS][0-9]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
-const GENERIC_FORGOT_PASSWORD_MESSAGE =
-  'إذا كان البريد الإلكتروني مرتبطًا بحساب، فسيتم إرسال تعليمات إعادة تعيين كلمة المرور.';
 const isStrongPassword = (value) =>
   /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
 
@@ -99,50 +96,39 @@ const signup = catchAsync(async (req, res, next) => {
 });
 
 /**
- * Start a password reset without disclosing whether an address exists.
+ * Verify a student's recovery details and issue a one-time reset authorization.
  * @route POST /api/v1/auth/forgot-password
  */
 const forgotPassword = catchAsync(async (req, res) => {
   const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+  const studentCode = String(req.body.studentCode || '').trim();
 
-  // Deliberately return the same response for invalid/unknown emails.
-  if (EMAIL_PATTERN.test(normalizedEmail)) {
-    const user = await prisma.user.findFirst({
-      where: { email: normalizedEmail, role: 'STUDENT' },
-    });
-
-    if (user) {
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-      const expires = new Date(Date.now() + RESET_TOKEN_LIFETIME_MS);
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { resetPasswordToken: tokenHash, resetPasswordExpires: expires },
-      });
-
-      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-      const resetUrl = `${frontendUrl}/reset-password.html?token=${encodeURIComponent(rawToken)}`;
-
-      try {
-        await sendPasswordResetEmail({ to: user.email, resetUrl });
-      } catch (error) {
-        // Do not leave a usable token when sending the message failed, and do
-        // not log the token or email address.
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { resetPasswordToken: null, resetPasswordExpires: null },
-        });
-        return res.status(503).json({
-          success: false,
-          status: 'error',
-          message: 'تعذر إرسال رسالة إعادة التعيين حاليًا. حاول مرة أخرى لاحقًا.',
-        });
-      }
-    }
+  if (!EMAIL_PATTERN.test(normalizedEmail) || !STUDENT_CODE_PATTERN.test(studentCode)) {
+    return res.status(400).json({ status: 'fail', message: 'بيانات التحقق غير صحيحة.' });
   }
 
-  return res.status(200).json({ status: 'success', message: GENERIC_FORGOT_PASSWORD_MESSAGE });
+  // A single lookup prevents mixing an email from one student with the code
+  // of another. Teachers are excluded regardless of whether they have email.
+  const user = await prisma.user.findFirst({
+    where: { email: normalizedEmail, studentCode, role: 'STUDENT' },
+  });
+  if (!user) {
+    return res.status(400).json({ status: 'fail', message: 'بيانات التحقق غير صحيحة.' });
+  }
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      resetPasswordToken: tokenHash,
+      resetPasswordExpires: new Date(Date.now() + RESET_TOKEN_LIFETIME_MS),
+    },
+  });
+
+  // This is returned only after server-side verification and is never a user
+  // id. The browser keeps it in sessionStorage rather than the URL/history.
+  return res.status(200).json({ status: 'success', data: { resetToken: rawToken } });
 });
 
 /**
@@ -152,7 +138,7 @@ const forgotPassword = catchAsync(async (req, res) => {
 const resetPassword = catchAsync(async (req, res, next) => {
   const { token, password, confirmPassword } = req.body;
   if (!token || !password || !confirmPassword) {
-    return next(new AppError('رابط إعادة تعيين كلمة المرور غير صالح.', 400));
+    return next(new AppError('طلب تغيير كلمة المرور غير صالح.', 400));
   }
 
   if (!isStrongPassword(String(password))) {
@@ -164,14 +150,14 @@ const resetPassword = catchAsync(async (req, res, next) => {
 
   const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
   const user = await prisma.user.findFirst({
-    where: { resetPasswordToken: tokenHash },
+    where: { resetPasswordToken: tokenHash, role: 'STUDENT' },
   });
 
   if (!user) {
-    return next(new AppError('رابط إعادة تعيين كلمة المرور غير صالح.', 400));
+    return next(new AppError('طلب تغيير كلمة المرور غير صالح.', 400));
   }
   if (!user.resetPasswordExpires || user.resetPasswordExpires <= new Date()) {
-    return next(new AppError('انتهت صلاحية رابط إعادة تعيين كلمة المرور. اطلب رابطًا جديدًا.', 400));
+    return next(new AppError('انتهت صلاحية عملية تغيير كلمة المرور. يرجى المحاولة مرة أخرى.', 400));
   }
 
   const hashedPassword = await hashPassword(password);

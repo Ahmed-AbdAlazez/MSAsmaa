@@ -93,6 +93,16 @@ async function runTests() {
     if (signupRes.status !== 201) throw new Error('Student signup failed');
     if (signupRes.body.token) throw new Error('Token should NOT be returned on signup');
 
+    // A second student is used only to prove that recovery details cannot be mixed.
+    const secondSignupRes = await request('/api/v1/auth/signup', {
+      method: 'POST',
+      body: {
+        studentCode: 'S900002', name: 'Sara Student', email: 'auth-test-s900002@example.invalid',
+        password: 'Password123!', confirmPassword: 'Password123!',
+      },
+    });
+    if (secondSignupRes.status !== 201) throw new Error('Second student signup failed');
+
     // Student-code validation must be enforced by the backend, not only the UI.
     console.log('\n--- TEST 2B: Invalid Student Codes ---');
     for (const studentCode of ['A12345', '12345', 'BS12345', 'BABC', 'SABC', 'B', 'S']) {
@@ -110,41 +120,49 @@ async function runTests() {
     });
     if (duplicateEmailRes.status !== 409) throw new Error('Duplicate Gmail was not prevented');
 
-    console.log('\n--- TEST 2D: Unknown Gmail Forgot Password Response ---');
-    const unknownEmailRes = await request('/api/v1/auth/forgot-password', {
-      method: 'POST', body: { email: 'unknown-auth-test@example.invalid' },
+    console.log('\n--- TEST 2D: Student Recovery Verification ---');
+    const verificationRes = await request('/api/v1/auth/forgot-password', {
+      method: 'POST', body: { email: 'auth-test-b900001@example.invalid', studentCode: 'B900001' },
     });
-    if (unknownEmailRes.status !== 200 || !String(unknownEmailRes.body.message).includes('إذا كان البريد الإلكتروني')) {
-      throw new Error('Forgot-password response leaked account information');
+    const verificationToken = verificationRes.body.data?.resetToken;
+    if (verificationRes.status !== 200 || !verificationToken) {
+      throw new Error('Correct Gmail + student code did not issue a reset authorization');
+    }
+
+    for (const body of [
+      { email: 'wrong-auth-test@example.invalid', studentCode: 'B900001' },
+      { email: 'auth-test-b900001@example.invalid', studentCode: 'S900002' },
+      { email: 'auth-test-s900002@example.invalid', studentCode: 'B900001' },
+    ]) {
+      const mismatchRes = await request('/api/v1/auth/forgot-password', { method: 'POST', body });
+      if (mismatchRes.status !== 400 || mismatchRes.body.message !== 'بيانات التحقق غير صحيحة.') {
+        throw new Error('Mismatched recovery details were accepted or revealed information');
+      }
     }
 
     console.log('\n--- TEST 2E: Expired Reset Token ---');
-    const expiredRawToken = 'expired-auth-test-token';
     await prisma.user.update({
       where: { studentCode: 'B900001' },
       data: {
-        resetPasswordToken: crypto.createHash('sha256').update(expiredRawToken).digest('hex'),
+        resetPasswordToken: crypto.createHash('sha256').update(verificationToken).digest('hex'),
         resetPasswordExpires: new Date(Date.now() - 1000),
       },
     });
     const expiredResetRes = await request('/api/v1/auth/reset-password', {
-      method: 'POST', body: { token: expiredRawToken, password: 'Password456!', confirmPassword: 'Password456!' },
+      method: 'POST', body: { token: verificationToken, password: 'Password456!', confirmPassword: 'Password456!' },
     });
-    if (expiredResetRes.status !== 400 || !String(expiredResetRes.body.message).includes('انتهت صلاحية')) {
+    if (expiredResetRes.status !== 400 || expiredResetRes.body.message !== 'انتهت صلاحية عملية تغيير كلمة المرور. يرجى المحاولة مرة أخرى.') {
       throw new Error('Expired reset token was not rejected');
     }
 
     console.log('\n--- TEST 2F: Successful Password Reset ---');
-    const validRawToken = 'valid-auth-test-token';
-    await prisma.user.update({
-      where: { studentCode: 'B900001' },
-      data: {
-        resetPasswordToken: crypto.createHash('sha256').update(validRawToken).digest('hex'),
-        resetPasswordExpires: new Date(Date.now() + 60_000),
-      },
+    const freshVerificationRes = await request('/api/v1/auth/forgot-password', {
+      method: 'POST', body: { email: 'auth-test-b900001@example.invalid', studentCode: 'B900001' },
     });
+    const freshVerificationToken = freshVerificationRes.body.data?.resetToken;
+    if (freshVerificationRes.status !== 200 || !freshVerificationToken) throw new Error('Fresh recovery verification failed');
     const validResetRes = await request('/api/v1/auth/reset-password', {
-      method: 'POST', body: { token: validRawToken, password: 'Password456!', confirmPassword: 'Password456!' },
+      method: 'POST', body: { token: freshVerificationToken, password: 'Password456!', confirmPassword: 'Password456!' },
     });
     if (validResetRes.status !== 200 || !String(validResetRes.body.message).includes('تم تغيير كلمة المرور')) {
       throw new Error('Password reset failed');
@@ -252,6 +270,13 @@ async function runTests() {
     if (studentLoginRes.status !== 200 || !studentLoginRes.body.token) {
       throw new Error('Approved student login failed');
     }
+    const oldPasswordLoginRes = await request('/api/v1/auth/login', {
+      method: 'POST',
+      body: { studentCode: 'B900001', password: 'Password123!' },
+    });
+    if (oldPasswordLoginRes.status !== 401) {
+      throw new Error('Old password still works after reset');
+    }
     const studentToken = studentLoginRes.body.token;
 
     // 10. Student Attempting Teacher Routes (RBAC Check)
@@ -274,17 +299,6 @@ async function runTests() {
 
     // 12. Reject Flow (Student 2)
     console.log('\n--- TEST 12: Reject Flow for Student 2 ---');
-    await request('/api/v1/auth/signup', {
-      method: 'POST',
-      body: {
-        studentCode: 'S900002',
-        name: 'Sara Student',
-        email: 'auth-test-s900002@example.invalid',
-        password: 'Password123!',
-        confirmPassword: 'Password123!',
-      },
-    });
-
     const listRes2 = await request('/api/v1/registration-requests', {
       headers: { Authorization: `Bearer ${teacherToken}` },
     });
