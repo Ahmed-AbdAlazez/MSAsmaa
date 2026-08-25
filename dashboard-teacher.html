@@ -385,6 +385,21 @@
         </div>
       </section>
 
+      <!-- Quiz Management Section -->
+      <section id="quiz-management-panel" class="card" style="margin-top:2.5rem; padding:1.5rem; border-radius:14px; box-shadow:var(--shadow-sm,0 2px 8px rgba(0,0,0,.06));">
+        <h2 style="margin-bottom:1rem;">📋 إدارة الاختبارات</h2>
+        
+        <!-- Quiz List View -->
+        <div id="quiz-management-list" style="display:block;">
+          <p class="muted">جاري تحميل الاختبارات...</p>
+        </div>
+        
+        <!-- Quiz Details View -->
+        <div id="quiz-management-details" style="display:none;">
+          <!-- Rendered dynamically by quizManagement.js -->
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -422,6 +437,7 @@
   <script src="/js/profile-menu.js"></script>
 <script type="module" src="/src/main.js"></script>
 <script type="module" src="/src/teacherQuizzes.js"></script>
+<script type="module" src="/src/quizManagement.js"></script>
 </body>
 
 </html>

@@ -621,6 +621,152 @@ function setCourseRosterForTesting(courseId, studentIds) {
   courseRosterByCourseId.set(String(courseId), [...studentIds]);
 }
 
+/**
+ * Get all quizzes created by a specific teacher.
+ * @param {string} teacherId
+ * @returns {Promise<object[]>}
+ */
+async function getTeacherQuizzes(teacherId) {
+  const quizzes = await getPrisma().quiz.findMany({
+    where: { createdByTeacherId: String(teacherId) },
+    orderBy: { createdAt: "desc" },
+  });
+  return quizzes.map(mapQuiz);
+}
+
+/**
+ * Delete an entire quiz and all its related data (questions, attempts, etc).
+ * @param {string} quizId
+ * @returns {Promise<boolean>}
+ */
+async function deleteQuiz(quizId) {
+  try {
+    // Delete in cascading order
+    await getPrisma().studentAnswer.deleteMany({
+      where: {
+        quizAttempt: {
+          quizId: String(quizId),
+        },
+      },
+    });
+
+    await getPrisma().quizAttempt.deleteMany({
+      where: { quizId: String(quizId) },
+    });
+
+    await getPrisma().quizExtraAttempt.deleteMany({
+      where: { quizId: String(quizId) },
+    });
+
+    await getPrisma().quizChoice.deleteMany({
+      where: {
+        question: {
+          quizId: String(quizId),
+        },
+      },
+    });
+
+    await getPrisma().quizQuestion.deleteMany({
+      where: { quizId: String(quizId) },
+    });
+
+    await getPrisma().quiz.delete({
+      where: { id: String(quizId) },
+    });
+
+    return true;
+  } catch (err) {
+    console.error(`[deleteQuiz] error for ${quizId}:`, err.message);
+    return false;
+  }
+}
+
+/**
+ * Delete a single question from a quiz.
+ * @param {string} quizId
+ * @param {string} questionId
+ * @returns {Promise<boolean>}
+ */
+async function deleteQuestionFromQuiz(quizId, questionId) {
+  try {
+    // Delete choices first
+    await getPrisma().quizChoice.deleteMany({
+      where: { questionId: String(questionId) },
+    });
+
+    // Delete the question
+    const deleted = await getPrisma().quizQuestion.delete({
+      where: {
+        id: String(questionId),
+        quizId: String(quizId),
+      },
+    });
+
+    return Boolean(deleted);
+  } catch (err) {
+    console.error(`[deleteQuestionFromQuiz] error:`, err.message);
+    return false;
+  }
+}
+
+/**
+ * Update a question's text, answers, or correct choice.
+ * @param {string} questionId
+ * @param {object} updates - { text?, modelAnswer?, correctChoiceId?, choices? }
+ * @returns {Promise<object|null>}
+ */
+async function updateQuestion(questionId, updates) {
+  try {
+    const question = await getPrisma().quizQuestion.findUnique({
+      where: { id: String(questionId) },
+      include: { choices: true },
+    });
+
+    if (!question) return null;
+
+    // Update question text and model answer
+    const updated = await getPrisma().quizQuestion.update({
+      where: { id: String(questionId) },
+      data: {
+        text: updates.text || question.text,
+        modelAnswer: updates.modelAnswer || question.modelAnswer,
+        correctChoiceId: updates.correctChoiceId || question.correctChoiceId,
+      },
+      include: { choices: true },
+    });
+
+    // If MCQ choices were provided, update them
+    if (updates.choices && question.type === "mcq") {
+      // Delete old choices
+      await getPrisma().quizChoice.deleteMany({
+        where: { questionId: String(questionId) },
+      });
+
+      // Create new choices
+      for (let i = 0; i < updates.choices.length; i++) {
+        await getPrisma().quizChoice.create({
+          data: {
+            questionId: String(questionId),
+            key: `c${i + 1}`,
+            text: String(updates.choices[i]),
+          },
+        });
+      }
+
+      // Refetch to get updated choices
+      return await getPrisma().quizQuestion.findUnique({
+        where: { id: String(questionId) },
+        include: { choices: true },
+      });
+    }
+
+    return updated;
+  } catch (err) {
+    console.error(`[updateQuestion] error:`, err.message);
+    return null;
+  }
+}
+
 const service = {
   createQuiz,
   getQuizById,
@@ -643,6 +789,10 @@ const service = {
   getSubmittedResultsForQuiz,
   getStudentNameById,
   getStudentIdsForCourse,
+  getTeacherQuizzes,
+  deleteQuiz,
+  deleteQuestionFromQuiz,
+  updateQuestion,
 };
 
 // Every DB-backed function gains cold-start resilience transparently;

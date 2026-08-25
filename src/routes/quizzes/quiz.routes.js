@@ -40,5 +40,6 @@ router.use(require("./quizCreation.routes.js"));
 router.use(require("./quizResults.routes.js"));
 router.use(require("./quizLeaderboard.routes.js"));
 router.use(require("./quizReview.routes.js"));
+router.use(require("./quizManagement.routes.js"));
 
 module.exports = router;
