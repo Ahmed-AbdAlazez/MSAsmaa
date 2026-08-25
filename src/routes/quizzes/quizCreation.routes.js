@@ -100,7 +100,7 @@ router.post("/quizzes", requireAuth, requireTeacher, async (req, res) => {
     });
   }
 
-  const quiz = await createQuiz(fields);
+  const quiz = await createQuiz({ ...fields, createdByTeacherId: req.user.id });
 
   // PUBLISH NOTIFICATION - reuses the SHARED helper from the notifications
   // feature (never a second implementation). Fired after the quiz exists,

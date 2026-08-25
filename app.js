@@ -17,6 +17,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const { signToken } = require("./src/utils/jwt.js");
 
 const videoRoutes = require("./src/routes/video.routes.js");
 const materialsRoutes = require("./src/routes/materials.routes.js");
@@ -150,6 +151,7 @@ app.post("/api/auth/login", (req, res) => {
     name: account.name,
     role: account.role,
     code: account.code,
+    token: signToken({ id: account.id, role: account.role }),
   });
 });
 

@@ -62,7 +62,9 @@ function buildClient() {
   try {
     const parsed = new URL(url);
     if (!parsed.searchParams.has("connect_timeout")) {
-      parsed.searchParams.set("connect_timeout", "15");
+      // 8s x 3 retries stays inside Vercel's function budget; a 15s first
+      // connect could burn the whole request before the retry even starts.
+      parsed.searchParams.set("connect_timeout", "8");
     }
     url = parsed.toString();
   } catch (_) {
@@ -125,6 +127,7 @@ const courseRosterByCourseId = new Map();
 function mapQuiz(row) {
   return {
     id: row.id,
+    createdByTeacherId: row.createdByTeacherId || null,
     lessonId: row.lessonId,
     courseId: row.courseId,
     title: row.title,
@@ -202,6 +205,9 @@ async function createQuiz(input) {
   const row = await getPrisma().quiz.create({
     data: {
       lessonId: String(input.lessonId),
+      createdByTeacherId: input.createdByTeacherId
+        ? String(input.createdByTeacherId)
+        : null,
       courseId: input.courseId ? String(input.courseId) : null,
       title: String(input.title).trim(),
       questionCount: Number(input.questionCount),
@@ -634,6 +640,13 @@ async function getTeacherQuizzes(teacherId) {
   return quizzes.map(mapQuiz);
 }
 
+async function getTeacherQuiz(quizId, teacherId) {
+  const quiz = await getPrisma().quiz.findFirst({
+    where: { id: String(quizId), createdByTeacherId: String(teacherId) },
+  });
+  return quiz ? mapQuiz(quiz) : null;
+}
+
 /**
  * Delete an entire quiz and all its related data (questions, attempts, etc).
  * @param {string} quizId
@@ -644,7 +657,7 @@ async function deleteQuiz(quizId) {
     // Delete in cascading order
     await getPrisma().studentAnswer.deleteMany({
       where: {
-        quizAttempt: {
+        attempt: {
           quizId: String(quizId),
         },
       },
@@ -689,20 +702,17 @@ async function deleteQuiz(quizId) {
  */
 async function deleteQuestionFromQuiz(quizId, questionId) {
   try {
-    // Delete choices first
+    const question = await getPrisma().quizQuestion.findFirst({
+      where: { id: String(questionId), quizId: String(quizId) },
+    });
+    if (!question) return false;
+
     await getPrisma().quizChoice.deleteMany({
       where: { questionId: String(questionId) },
     });
 
-    // Delete the question
-    const deleted = await getPrisma().quizQuestion.delete({
-      where: {
-        id: String(questionId),
-        quizId: String(quizId),
-      },
-    });
-
-    return Boolean(deleted);
+    await getPrisma().quizQuestion.delete({ where: { id: question.id } });
+    return true;
   } catch (err) {
     console.error(`[deleteQuestionFromQuiz] error:`, err.message);
     return false;
@@ -728,32 +738,25 @@ async function updateQuestion(questionId, updates) {
     const updated = await getPrisma().quizQuestion.update({
       where: { id: String(questionId) },
       data: {
-        text: updates.text || question.text,
-        modelAnswer: updates.modelAnswer || question.modelAnswer,
-        correctChoiceId: updates.correctChoiceId || question.correctChoiceId,
+        text: updates.text ?? question.text,
+        modelAnswer: updates.modelAnswer ?? question.modelAnswer,
+        correctChoiceId: updates.correctChoiceId ?? question.correctChoiceId,
       },
       include: { choices: true },
     });
 
-    // If MCQ choices were provided, update them
-    if (updates.choices && question.type === "mcq") {
-      // Delete old choices
-      await getPrisma().quizChoice.deleteMany({
-        where: { questionId: String(questionId) },
-      });
-
-      // Create new choices
+    if (Array.isArray(updates.choices) && question.type === "mcq") {
       for (let i = 0; i < updates.choices.length; i++) {
-        await getPrisma().quizChoice.create({
-          data: {
-            questionId: String(questionId),
-            key: `c${i + 1}`,
-            text: String(updates.choices[i]),
-          },
-        });
+        const choice = question.choices[i];
+        const text = String(updates.choices[i] ?? "").trim();
+        if (choice && text) {
+          await getPrisma().quizChoice.update({
+            where: { id: choice.id },
+            data: { text },
+          });
+        }
       }
 
-      // Refetch to get updated choices
       return await getPrisma().quizQuestion.findUnique({
         where: { id: String(questionId) },
         include: { choices: true },
@@ -790,6 +793,7 @@ const service = {
   getStudentNameById,
   getStudentIdsForCourse,
   getTeacherQuizzes,
+  getTeacherQuiz,
   deleteQuiz,
   deleteQuestionFromQuiz,
   updateQuestion,

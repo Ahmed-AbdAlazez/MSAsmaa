@@ -64,8 +64,44 @@ function toast(message, kind = "info", ms = 4000) {
 
 let startPicker;
 let endPicker;
+let windowPreview;
+
+/** Arabic wall-clock rendering of an instant ("٢٥ أغسطس، ٤:٠٧ م"). */
+function formatLocalArabic(date) {
+  try {
+    return new Intl.DateTimeFormat("ar-EG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  } catch (_) {
+    return date.toLocaleString();
+  }
+}
+
+/** Shows exactly when the quiz opens/closes for students, and warns when
+ *  the start is still in the future (the #1 "why is it locked?" cause). */
+function updateWindowPreview() {
+  if (!windowPreview) return;
+  const start = startPicker && startPicker.selectedDates[0];
+  const end = endPicker && endPicker.selectedDates[0];
+  if (!start || !end) {
+    windowPreview.innerHTML = "";
+    return;
+  }
+  const startsLater = start.getTime() > Date.now();
+  windowPreview.innerHTML =
+    `⏰ يفتح الاختبار للطالبات: <b>${formatLocalArabic(start)}</b> — ويُغلق: <b>${formatLocalArabic(end)}</b>` +
+    (startsLater
+      ? `<br><span class="badge">⚠️ وقت البدء في المستقبل — الطالبات لا يرين لوحة الترتيب أو المراجعة إلا بعد وقت النهاية.</span>`
+      : "");
+}
 
 function initPickers() {
+  // Default start = the next 5-minute mark (i.e. NOW), NOT +1h — teachers
+  // who publish without touching the clock expect the quiz to be live.
+  const roundedStart = new Date(
+    Math.ceil(Date.now() / (5 * 60 * 1000)) * 5 * 60 * 1000
+  );
   const commonOptions = {
     enableTime: true,        // combined date + time in one picker
     time_24hr: false,        // teacher-friendly AM/PM clock
@@ -78,11 +114,11 @@ function initPickers() {
   };
   startPicker = flatpickr("#quiz-start", {
     ...commonOptions,
-    defaultDate: new Date(Date.now() + 60 * 60 * 1000), // in one hour
+    defaultDate: roundedStart,
   });
   endPicker = flatpickr("#quiz-end", {
     ...commonOptions,
-    defaultDate: new Date(Date.now() + 3 * 60 * 60 * 1000),
+    defaultDate: new Date(roundedStart.getTime() + 2 * 60 * 60 * 1000),
   });
 
   // Keep end after start whenever start changes.
@@ -92,7 +128,19 @@ function initPickers() {
         new Date(selectedDates[0].getTime() + 2 * 60 * 60 * 1000)
       );
     }
+    updateWindowPreview();
   });
+  endPicker.config.onChange.push(updateWindowPreview);
+
+  // Preview lives right under the end-time field (created here so the
+  // builder stays a drop-in without extra HTML edits).
+  windowPreview = document.createElement("p");
+  windowPreview.className = "muted";
+  windowPreview.style.fontSize = "0.85rem";
+  const endHost = byId("quiz-end");
+  const host = endHost.parentElement || document.body;
+  host.insertBefore(windowPreview, endHost.nextSibling);
+  updateWindowPreview();
 }
 
 /** ISO string or null from a picker. */

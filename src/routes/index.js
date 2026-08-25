@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./authRoutes');
 const registrationRequestRoutes = require('./registrationRequestRoutes');
+const quizRoutes = require('./quizzes/quiz.routes.js');
 
 const router = express.Router();
 
@@ -40,5 +41,6 @@ router.use('/v1/registration-requests', registrationRequestRoutes);
 // Direct aliases for convenience
 router.use('/auth', authRoutes);
 router.use('/registration-requests', registrationRequestRoutes);
+router.use('/', quizRoutes);
 
 module.exports = router;

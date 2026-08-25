@@ -15,12 +15,12 @@ const express = require("express");
 const { requireAuth } = require("../../middleware/auth.middleware.js");
 const { requireTeacher, attachImageUrls } = require("./quiz.helpers.js");
 const {
-  getQuizById,
   getQuestionsForQuiz,
   deleteQuiz,
   deleteQuestionFromQuiz,
   updateQuestion,
   getTeacherQuizzes,
+  getTeacherQuiz,
 } = require("../../services/quiz.stub.service.js");
 
 const router = express.Router();
@@ -58,7 +58,7 @@ router.get("/quizzes-managed", requireAuth, requireTeacher, async (req, res) => 
  */
 router.get("/quizzes/:quizId/full", requireAuth, requireTeacher, async (req, res) => {
   try {
-    const quiz = await getQuizById(req.params.quizId);
+    const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
     if (!quiz) {
       return res.status(404).json({ error: "الاختبار غير موجود." });
     }
@@ -117,7 +117,7 @@ router.put(
   requireTeacher,
   async (req, res) => {
     try {
-      const quiz = await getQuizById(req.params.quizId);
+        const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
       if (!quiz) {
         return res.status(404).json({ error: "الاختبار غير موجود." });
       }
@@ -169,7 +169,7 @@ router.delete(
   requireTeacher,
   async (req, res) => {
     try {
-      const quiz = await getQuizById(req.params.quizId);
+        const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
       if (!quiz) {
         return res.status(404).json({ error: "الاختبار غير موجود." });
       }
@@ -206,7 +206,7 @@ router.delete(
  */
 router.delete("/quizzes/:quizId", requireAuth, requireTeacher, async (req, res) => {
   try {
-    const quiz = await getQuizById(req.params.quizId);
+      const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
     if (!quiz) {
       return res.status(404).json({ error: "الاختبار غير موجود." });
     }

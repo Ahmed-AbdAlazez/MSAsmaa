@@ -50,6 +50,7 @@ model User {
 /// per-student countdown length (fractional allowed for tests).
 model Quiz {
   id              String   @id @default(uuid())
+  createdByTeacherId String? @map("created_by_teacher_id")
   lessonId        String   @map("lesson_id")
   courseId        String?  @map("course_id")
   title           String
