@@ -1144,3 +1144,113 @@
     text-align: center;
   }
 }
+
+/* ---------- Question Image Lightbox ---------- */
+.question-image {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.question-image:hover {
+  transform: scale(1.02);
+}
+
+.exam-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.exam-lightbox-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.exam-lightbox-inner {
+  position: relative;
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exam-lightbox-img {
+  max-width: 92vw;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  transform-origin: center center;
+  transition: transform 0.15s ease;
+  touch-action: none; /* let JS handle pinch/gestures */
+}
+
+.exam-lightbox-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary, #0F4C3A);
+  color: white;
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  z-index: 10001;
+  line-height: 1;
+}
+
+.exam-lightbox-zoom-controls {
+  position: absolute;
+  bottom: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.exam-lightbox-zoom-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-primary, #0F4C3A);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.exam-lightbox-zoom-controls button:active {
+  background: var(--color-accent, #10B981);
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .exam-lightbox-img {
+    max-width: 96vw;
+    max-height: 80vh;
+  }
+  .exam-lightbox-close {
+    top: -10px;
+    right: -10px;
+    width: 32px;
+    height: 32px;
+    font-size: 1.1rem;
+  }
+}

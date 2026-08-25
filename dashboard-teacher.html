@@ -403,10 +403,34 @@
       <!-- Quiz Management Section -->
       <section id="quiz-management-panel" class="card" style="margin-top:2.5rem; padding:1.5rem; border-radius:14px; box-shadow:var(--shadow-sm,0 2px 8px rgba(0,0,0,.06));">
         <h2 style="margin-bottom:1rem;">📋 إدارة الاختبارات</h2>
+
+        <!-- Filter mode selector -->
+        <div id="quiz-filter-mode" style="display:flex; gap:.75rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm quiz-filter-btn active" data-mode="by-lesson">حسب الدرس</button>
+          <button class="btn btn-secondary btn-sm quiz-filter-btn" data-mode="mixed">اختبارات مجمعة</button>
+        </div>
+
+        <!-- By-lesson selectors (matching PDF/video management pattern) -->
+        <div id="quiz-by-lesson-controls" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-bottom:1.25rem;">
+          <div style="flex:1; min-width:220px;">
+            <label for="quiz-mgmt-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="quiz-mgmt-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="quiz-mgmt-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="quiz-mgmt-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-mgmt-quizzes" class="btn btn-secondary" style="min-width:130px;">📋 عرض الاختبارات</button>
+        </div>
+
+        <!-- Mixed quizzes info -->
+        <div id="quiz-mixed-info" style="display:none; margin-bottom:1.25rem; padding:0.5rem 0.75rem; background:rgba(16,185,129,0.06); border-radius:var(--radius-sm); font-size:0.9rem; color:var(--color-primary);">
+          عرض جميع الاختبارات المجمعة بغض النظر عن الدرس.
+        </div>
         
         <!-- Quiz List View -->
         <div id="quiz-management-list" style="display:block;">
-          <p class="muted">جاري تحميل الاختبارات...</p>
+          <p class="muted">اختر طريقة العرض أعلاه.</p>
         </div>
         
         <!-- Quiz Details View -->

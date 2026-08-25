@@ -120,12 +120,8 @@ router.post("/quizzes", requireAuth, requireTeacher, async (req, res) => {
 
   // Cross-course validation for mixed quizzes: all lessonIds must belong to the same course
   if (fields.isMixed && fields.lessonIds) {
-    const { CURRICULUM } = require("../../../public/js/curriculum.js");
-    // We can't require the curriculum module (it sets window.CURRICULUM for browsers).
-    // Instead, validate using a regex pattern: all lesson IDs in the same course
-    // should follow the same prefix pattern. Since the biology course uses "lesson-N",
-    // we just ensure all IDs look like lesson IDs and are within expected range.
-    // The real cross-course guard is in the frontend; this is a server-side safety net.
+    // Server-side safety net: validate lesson ID format via regex.
+    // The real cross-course guard is in the frontend.
     const invalidIds = fields.lessonIds.filter(
       (id) => !/^lesson-\d+$/.test(id)
     );

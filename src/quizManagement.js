@@ -5,7 +5,7 @@
  * Loaded only by dashboard-teacher.html after the quiz builder.
  *
  * Features:
- * - List all quizzes created by the teacher
+ * - Filter by lesson (chapter → lesson cascade) or show all mixed quizzes
  * - Click to view quiz details and all questions
  * - Edit questions (text, answers, correct choice) - before start time only
  * - Delete individual questions - before start time only
@@ -64,10 +64,31 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
+/** Resolve a lesson ID to its Arabic name from the global curriculum. */
+function resolveLessonName(lessonId) {
+  if (!lessonId || !window.CURRICULUM) return lessonId || "";
+  for (const chapter of window.CURRICULUM.biology || []) {
+    const found = (chapter.lessons || []).find((l) => l.id === lessonId);
+    if (found) return found.name;
+  }
+  return lessonId;
+}
+
+/** Resolve a lesson ID to "Chapter — Lesson" label. */
+function resolveLessonLabel(lessonId) {
+  if (!lessonId || !window.CURRICULUM) return lessonId || "";
+  for (const chapter of window.CURRICULUM.biology || []) {
+    const found = (chapter.lessons || []).find((l) => l.id === lessonId);
+    if (found) return `${chapter.name.split(":")[0]} — ${found.name}`;
+  }
+  return lessonId;
+}
+
 /* ----------------------- State ----------------------- */
 let quizzesState = [];
 let selectedQuizId = null;
 let selectedQuiz = null;
+let currentFilterMode = "by-lesson"; // "by-lesson" | "mixed"
 
 /* ----------------------- API Calls ----------------------- */
 
@@ -78,7 +99,6 @@ async function loadTeacherQuizzes() {
     return false;
   }
   quizzesState = data.quizzes || [];
-  renderQuizzesList();
   return true;
 }
 
@@ -128,7 +148,7 @@ async function deleteEntireQuiz(quizId) {
   selectedQuizId = null;
   selectedQuiz = null;
   await loadTeacherQuizzes();
-  renderMainView();
+  applyFilter();
   return true;
 }
 
@@ -163,51 +183,120 @@ async function updateQuizSettings(quizId, payload) {
   return true;
 }
 
-/* ----------------------- UI Rendering ----------------------- */
+/* ----------------------- Filter Mode & Chapter/Lesson Cascade ----------------------- */
 
-function renderQuizzesList() {
+function populateFilterLessonSelect(chapterIdx) {
+  const chapterSelect = document.getElementById("quiz-mgmt-chapter");
+  const lessonSelect = document.getElementById("quiz-mgmt-lesson");
+  if (!chapterSelect || !lessonSelect) return;
+
+  // If called without argument, read current value
+  if (chapterIdx == null) chapterIdx = Number(chapterSelect.value) || 0;
+
+  const curriculum = window.CURRICULUM && window.CURRICULUM.biology
+    ? window.CURRICULUM.biology : [];
+
+  // Populate chapters
+  if (chapterSelect.options.length !== curriculum.length) {
+    chapterSelect.innerHTML = "";
+    curriculum.forEach((chapter, idx) => {
+      const opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = chapter.name;
+      chapterSelect.appendChild(opt);
+    });
+    chapterSelect.value = String(chapterIdx);
+  }
+
+  // Populate lessons for selected chapter
+  const chapter = curriculum[chapterIdx];
+  if (!chapter) return;
+  lessonSelect.innerHTML = "";
+  for (const lesson of chapter.lessons || []) {
+    const opt = document.createElement("option");
+    opt.value = lesson.id;
+    opt.textContent = `${lesson.name} (${lesson.id})`;
+    lessonSelect.appendChild(opt);
+  }
+}
+
+/** Apply the current filter mode and render the quiz list. */
+function applyFilter() {
+  const lessonListContainer = document.getElementById("quiz-management-list");
+  if (!lessonListContainer) return;
+
+  if (currentFilterMode === "mixed") {
+    // Show only mixed quizzes
+    const mixedQuizzes = quizzesState.filter((q) => q.isMixed);
+    renderFilteredQuizzes(mixedQuizzes);
+  } else {
+    // Show only single-lesson quizzes for the selected lesson
+    const lessonSelect = document.getElementById("quiz-mgmt-lesson");
+    const selectedLessonId = lessonSelect ? lessonSelect.value : null;
+    if (!selectedLessonId) {
+      lessonListContainer.innerHTML = `<p class="muted">اختاري الدرس لعرض الاختبارات.</p>`;
+      return;
+    }
+    const filtered = quizzesState.filter(
+      (q) => !q.isMixed && q.lessonId === selectedLessonId
+    );
+    renderFilteredQuizzes(filtered);
+  }
+}
+
+/** Render quiz cards into the list container. */
+function renderFilteredQuizzes(quizzes) {
   const container = document.getElementById("quiz-management-list");
   if (!container) return;
 
-  if (quizzesState.length === 0) {
-    container.innerHTML = `<p class="muted">لا توجد اختبارات حالياً.</p>`;
+  if (quizzes.length === 0) {
+    container.innerHTML = `<p class="muted">لا توجد اختبارات تطابق التصفية الحالية.</p>`;
     return;
   }
 
-  container.innerHTML = quizzesState
-    .map(
-      (quiz) => `
-    <div class="quiz-management-card" data-quiz-id="${quiz.id}">
-      <div class="quiz-card-header">
-        <div>
-          <h3>${escapeHtml(quiz.title)}</h3>
-          <p class="muted">${quiz.questionCount} سؤال • ${formatDate(quiz.startTime)}</p>
+  container.innerHTML = quizzes
+    .map((quiz) => {
+      // Lesson line for mixed quizzes: show covered lesson names
+      let lessonLine = "";
+      if (quiz.isMixed && quiz.lessonIds && quiz.lessonIds.length) {
+        const names = quiz.lessonIds.map((lid) => resolveLessonName(lid));
+        lessonLine = ` <span style="font-size:0.85rem; color:var(--color-primary);">(يشمل: ${names.join(" | ")})</span>`;
+      } else if (quiz.lessonId) {
+        lessonLine = ` <span class="muted">${escapeHtml(resolveLessonName(quiz.lessonId))}</span>`;
+      }
+
+      return `
+      <div class="quiz-management-card" data-quiz-id="${quiz.id}">
+        <div class="quiz-card-header">
+          <div>
+            <h3>${escapeHtml(quiz.title)}${quiz.isMixed ? ' <span style="font-size:0.8rem; background:var(--color-accent); color:white; padding:0.1rem 0.4rem; border-radius:4px; vertical-align:middle;">مجمع</span>' : ""}</h3>
+            <p class="muted">${quiz.questionCount} سؤال • ${formatDate(quiz.startTime)}${lessonLine}</p>
+          </div>
+          <span class="quiz-status-badge ${quiz.canEdit ? "editable" : "locked"}">
+            ${quiz.canEdit ? "قابل للتعديل" : "مغلق"}
+          </span>
         </div>
-        <span class="quiz-status-badge ${quiz.canEdit ? "editable" : "locked"}">
-          ${quiz.canEdit ? "قابل للتعديل" : "مغلق"}
-        </span>
+        <div class="quiz-card-actions">
+          <button class="btn btn-primary btn-sm view-quiz" data-quiz-id="${quiz.id}">
+            عرض التفاصيل
+          </button>
+          ${
+            quiz.canEdit
+              ? `<button class="btn btn-secondary btn-sm settings-quiz" data-quiz-id="${quiz.id}">
+                   ⚙️ تعديل الإعدادات
+                 </button>`
+              : ""
+          }
+          <button class="btn btn-danger btn-sm delete-quiz" data-quiz-id="${quiz.id}">
+            حذف الاختبار
+          </button>
+        </div>
       </div>
-      <div class="quiz-card-actions">
-        <button class="btn btn-primary btn-sm view-quiz" data-quiz-id="${quiz.id}">
-          عرض التفاصيل
-        </button>
-        ${
-          quiz.canEdit
-            ? `<button class="btn btn-secondary btn-sm settings-quiz" data-quiz-id="${quiz.id}">
-                 ⚙️ تعديل الإعدادات
-               </button>`
-            : ""
-        }
-        <button class="btn btn-danger btn-sm delete-quiz" data-quiz-id="${quiz.id}">
-          حذف الاختبار
-        </button>
-      </div>
-    </div>
-  `
-    )
+    `;
+    })
     .join("");
 
-  // Add event listeners
+  // Attach event listeners
   container.querySelectorAll(".view-quiz").forEach((btn) => {
     btn.addEventListener("click", async () => {
       await loadQuizDetails(btn.dataset.quizId);
@@ -229,6 +318,38 @@ function renderQuizzesList() {
   });
 }
 
+function setupFilterModeToggle() {
+  const buttons = document.querySelectorAll(".quiz-filter-btn");
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.mode;
+      if (mode === currentFilterMode) return;
+      currentFilterMode = mode;
+
+      // Toggle active class
+      buttons.forEach((b) => {
+        b.classList.toggle("active", b.dataset.mode === mode);
+        b.classList.toggle("btn-primary", b.dataset.mode === mode);
+        b.classList.toggle("btn-secondary", b.dataset.mode !== mode);
+      });
+
+      // Toggle controls visibility
+      const byLessonControls = document.getElementById("quiz-by-lesson-controls");
+      const mixedInfo = document.getElementById("quiz-mixed-info");
+      if (byLessonControls) byLessonControls.style.display = mode === "by-lesson" ? "flex" : "none";
+      if (mixedInfo) mixedInfo.style.display = mode === "mixed" ? "block" : "none";
+
+      // Re-render
+      selectedQuizId = null;
+      selectedQuiz = null;
+      renderMainView();
+      applyFilter();
+    });
+  });
+}
+
+/* ----------------------- UI Rendering ----------------------- */
+
 function renderQuizDetails() {
   if (!selectedQuiz) return;
 
@@ -238,14 +359,24 @@ function renderQuizDetails() {
   const container = document.getElementById("quiz-management-details");
   if (!container) return;
 
+  // Lesson info line
+  let lessonInfo = "";
+  if (quiz.isMixed && quiz.lessonIds && quiz.lessonIds.length) {
+    const names = quiz.lessonIds.map((lid) => resolveLessonLabel(lid));
+    lessonInfo = `<br>يشمل الدرس: ${names.join(" | ")}`;
+  } else if (quiz.lessonId) {
+    lessonInfo = `<br>الدرس: ${escapeHtml(resolveLessonLabel(quiz.lessonId))}`;
+  }
+
   container.innerHTML = `
     <div class="quiz-details-header">
       <button class="btn btn-secondary" id="back-to-list">← العودة</button>
       <div>
-        <h2>${escapeHtml(quiz.title)}</h2>
+        <h2>${escapeHtml(quiz.title)}${quiz.isMixed ? ' <span style="font-size:0.8rem; background:var(--color-accent); color:white; padding:0.1rem 0.4rem; border-radius:4px; vertical-align:middle;">مجمع</span>' : ""}</h2>
         <p class="muted">
           من ${formatDate(quiz.startTime)} إلى ${formatDate(quiz.endTime)}<br>
           المدة: ${quiz.durationMinutes} دقيقة | ${questions.length} سؤال
+          ${lessonInfo}
         </p>
       </div>
       <div class="quiz-details-actions">
@@ -272,7 +403,7 @@ function renderQuizDetails() {
 
           <div class="question-preview">
             <p><strong>نص السؤال:</strong> ${escapeHtml(q.text)}</p>
-            ${q.imageUrl ? `<img src="${q.imageUrl}" class="question-preview-image" alt="">` : ""}
+            ${q.imageUrl ? `<img src="${q.imageUrl}" class="question-preview-image" alt="" style="max-width:300px; border-radius:6px; margin-top:0.5rem; cursor:pointer;" onclick="window.open('${q.imageUrl}','_blank')">` : ""}
 
             ${
               q.type === "mcq"
@@ -338,13 +469,13 @@ function renderQuizDetails() {
     showEditSettingsModal(quiz);
   });
 
-  document.querySelectorAll(".delete-question").forEach((btn) => {
+  container.querySelectorAll(".delete-question").forEach((btn) => {
     btn.addEventListener("click", async () => {
       await deleteQuestion(quiz.id, btn.dataset.qId);
     });
   });
 
-  document.querySelectorAll(".edit-question").forEach((btn) => {
+  container.querySelectorAll(".edit-question").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const question = questions.find((q) => q.id === btn.dataset.qId);
       if (question) {
@@ -413,12 +544,19 @@ function showEditSettingsModal(quiz) {
                  value="${escapeHtml(quiz.title)}">
         </div>
 
-        <div class="form-group">
-          <label>الدرس</label>
-          <select class="form-input" id="settings-lesson">
-            ${lessonOptionsHtml(quiz.lessonId)}
-          </select>
-        </div>
+        ${
+          quiz.isMixed
+            ? `<div class="form-group">
+                 <label>الدروس المشمولة</label>
+                 <p class="muted">${(quiz.lessonIds || []).map(resolveLessonLabel).join(" | ")}</p>
+               </div>`
+            : `<div class="form-group">
+                 <label>الدرس</label>
+                 <select class="form-input" id="settings-lesson">
+                   ${lessonOptionsHtml(quiz.lessonId)}
+                 </select>
+               </div>`
+        }
 
         <div class="form-group">
           <label>وقت البدء</label>
@@ -463,10 +601,17 @@ function showEditSettingsModal(quiz) {
 
   modal.querySelector("#save-settings-edit").addEventListener("click", async () => {
     const title = modal.querySelector("#settings-title").value.trim();
-    const lessonId = modal.querySelector("#settings-lesson").value;
     const startRaw = modal.querySelector("#settings-start").value;
     const endRaw = modal.querySelector("#settings-end").value;
     const duration = Number(modal.querySelector("#settings-duration").value);
+
+    const payload = { title, durationMinutes: duration };
+
+    // Only send lessonId if this is a single-lesson quiz
+    if (!quiz.isMixed) {
+      const lessonEl = modal.querySelector("#settings-lesson");
+      if (lessonEl) payload.lessonId = lessonEl.value;
+    }
 
     if (!title) return showToast("عنوان الاختبار مطلوب.", "warning");
     if (!startRaw || !endRaw) return showToast("حددي وقتي البداية والنهاية.", "warning");
@@ -482,15 +627,10 @@ function showEditSettingsModal(quiz) {
       return showToast("حددي مدة الحل بالدقائق.", "warning");
     }
 
-    const success = await updateQuizSettings(quiz.id, {
-      title,
-      lessonId,
-      // datetime-local reads in the teacher's clock; toISOString bakes the
-      // exact instant -> no timezone shifting on the way to the server.
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      durationMinutes: duration,
-    });
+    payload.startTime = startTime.toISOString();
+    payload.endTime = endTime.toISOString();
+
+    const success = await updateQuizSettings(quiz.id, payload);
     if (success) close();
   });
 }
@@ -556,7 +696,6 @@ function showEditQuestionModal(quizId, question) {
 
   editModal.style.display = "flex";
 
-  // Event listeners
   editModal.querySelector(".modal-close").addEventListener("click", () => {
     editModal.style.display = "none";
   });
@@ -593,7 +732,6 @@ function showEditQuestionModal(quizId, question) {
     }
   });
 
-  // Close on outside click
   editModal.addEventListener("click", (e) => {
     if (e.target === editModal) {
       editModal.style.display = "none";
@@ -614,17 +752,45 @@ function renderMainView() {
   } else {
     if (detailsContainer) detailsContainer.style.display = "none";
     if (listContainer) listContainer.style.display = "block";
-    renderQuizzesList();
+    applyFilter();
   }
 }
 
 /* ----------------------- Init ----------------------- */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   // Only run if on teacher dashboard
   if (!document.querySelector("#quiz-management-panel")) return;
 
-  loadTeacherQuizzes();
+  // Populate chapter/lesson dropdowns
+  populateFilterLessonSelect(0);
+
+  // Wire up chapter change to repopulate lessons
+  const chapterSelect = document.getElementById("quiz-mgmt-chapter");
+  if (chapterSelect) {
+    chapterSelect.addEventListener("change", () => {
+      populateFilterLessonSelect(Number(chapterSelect.value));
+    });
+  }
+
+  // Wire up "load" button for by-lesson mode
+  const loadBtn = document.getElementById("btn-load-mgmt-quizzes");
+  if (loadBtn) {
+    loadBtn.addEventListener("click", () => applyFilter());
+  }
+
+  // Also re-filter when lesson changes (immediate feedback)
+  const lessonSelect = document.getElementById("quiz-mgmt-lesson");
+  if (lessonSelect) {
+    lessonSelect.addEventListener("change", () => applyFilter());
+  }
+
+  // Setup filter mode toggle buttons
+  setupFilterModeToggle();
+
+  // Load all quizzes from API
+  await loadTeacherQuizzes();
+  applyFilter();
 });
 
 export { loadTeacherQuizzes, loadQuizDetails };

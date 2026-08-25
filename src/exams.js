@@ -382,7 +382,7 @@ function questionBlockHtml(question, savedValue, qIndex) {
       })
       .join("");
     const image = question.imageUrl
-      ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال">`
+      ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال" onclick="openExamLightbox(this.src)">`
       : "";
     return `<div class="question-block" data-question="${question.id}">
               <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
@@ -393,7 +393,7 @@ function questionBlockHtml(question, savedValue, qIndex) {
 
   // written
   const image = question.imageUrl
-    ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال">`
+    ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال" onclick="openExamLightbox(this.src)">`
     : "";
   return `<div class="question-block" data-question="${question.id}">
             <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
@@ -761,6 +761,113 @@ function setupFullscreenHandler() {
       }
     }
   });
+}
+
+/* =====================================================================
+ * IMAGE LIGHTBOX / ZOOM
+ * ===================================================================== */
+
+let lightboxScale = 1;
+let lightboxImgEl = null;
+let lightboxStartDist = 0;
+let lightboxStartScale = 1;
+
+function ensureLightbox() {
+  if (document.getElementById("exam-lightbox")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "exam-lightbox";
+  overlay.className = "exam-lightbox-overlay";
+  overlay.innerHTML = `
+    <div class="exam-lightbox-inner">
+      <button class="exam-lightbox-close" title="إغلاق">&times;</button>
+      <img class="exam-lightbox-img" src="" alt="تكبير صورة السؤال">
+      <div class="exam-lightbox-zoom-controls">
+        <button class="lb-zoom-in" title="تكبير">+</button>
+        <button class="lb-zoom-out" title="تصغير">−</button>
+        <button class="lb-zoom-reset" title="إعادة">↺</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  lightboxImgEl = overlay.querySelector(".exam-lightbox-img");
+
+  // Close handlers
+  overlay.querySelector(".exam-lightbox-close").addEventListener("click", closeExamLightbox);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeExamLightbox();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeExamLightbox();
+  });
+
+  // Zoom buttons
+  overlay.querySelector(".lb-zoom-in").addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLightboxScale(lightboxScale + 0.3);
+  });
+  overlay.querySelector(".lb-zoom-out").addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLightboxScale(Math.max(0.3, lightboxScale - 0.3));
+  });
+  overlay.querySelector(".lb-zoom-reset").addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLightboxScale(1);
+  });
+
+  // Scroll-to-zoom (desktop)
+  lightboxImgEl.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaY > 0 ? -0.15 : 0.15;
+    setLightboxScale(Math.max(0.3, Math.min(5, lightboxScale + delta)));
+  }, { passive: false });
+
+  // Pinch-to-zoom (mobile)
+  lightboxImgEl.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      lightboxStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lightboxStartScale = lightboxScale;
+    }
+  }, { passive: false });
+
+  lightboxImgEl.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lightboxStartDist > 0) {
+        const newScale = lightboxStartScale * (dist / lightboxStartDist);
+        setLightboxScale(Math.max(0.3, Math.min(5, newScale)));
+      }
+    }
+  }, { passive: false });
+}
+
+function setLightboxScale(s) {
+  lightboxScale = Math.round(s * 100) / 100;
+  if (lightboxImgEl) lightboxImgEl.style.transform = `scale(${lightboxScale})`;
+}
+
+function openExamLightbox(src) {
+  ensureLightbox();
+  lightboxScale = 1;
+  lightboxImgEl.style.transform = "scale(1)";
+  lightboxImgEl.src = src;
+  document.getElementById("exam-lightbox").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeExamLightbox() {
+  const overlay = document.getElementById("exam-lightbox");
+  if (overlay) overlay.classList.remove("open");
+  document.body.style.overflow = "";
 }
 
 /* =====================================================================

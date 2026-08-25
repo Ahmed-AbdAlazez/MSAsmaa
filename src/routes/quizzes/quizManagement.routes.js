@@ -36,19 +36,33 @@ const router = express.Router();
 router.get("/quizzes-managed", requireAuth, requireTeacher, async (req, res) => {
   try {
     const quizzes = await getTeacherQuizzes(req.user.id);
+
+    // Batch-fetch lesson associations for mixed quizzes
+    const mixedQuizIds = quizzes.filter((q) => q.isMixed).map((q) => q.id);
+    const quizLessonsMap = mixedQuizIds.length
+      ? await require("../../services/quiz.stub.service.js").getQuizLessonsBatch(mixedQuizIds)
+      : new Map();
+
     return res.json({
-      quizzes: quizzes.map((q) => ({
-        id: q.id,
-        title: q.title,
-        lessonId: q.lessonId,
-        courseId: q.courseId,
-        questionCount: q.questionCount,
-        startTime: q.startTime,
-        endTime: q.endTime,
-        durationMinutes: q.durationMinutes,
-        createdAt: q.createdAt,
-        canEdit: new Date() < new Date(q.startTime), // Before start time
-      })),
+      quizzes: quizzes.map((q) => {
+        const row = {
+          id: q.id,
+          title: q.title,
+          lessonId: q.lessonId,
+          courseId: q.courseId,
+          isMixed: q.isMixed,
+          questionCount: q.questionCount,
+          startTime: q.startTime,
+          endTime: q.endTime,
+          durationMinutes: q.durationMinutes,
+          createdAt: q.createdAt,
+          canEdit: new Date() < new Date(q.startTime),
+        };
+        if (q.isMixed) {
+          row.lessonIds = quizLessonsMap.get(q.id) || [];
+        }
+        return row;
+      }),
     });
   } catch (error) {
     console.error("[quizManagement] getTeacherQuizzes error:", error);
@@ -72,19 +86,20 @@ router.get("/quizzes/:quizId/full", requireAuth, requireTeacher, async (req, res
 
     const canEdit = new Date() < new Date(quiz.startTime);
 
-    return res.json({
+    const result = {
       quiz: {
         id: quiz.id,
         title: quiz.title,
         lessonId: quiz.lessonId,
         courseId: quiz.courseId,
+        isMixed: quiz.isMixed,
         questionCount: quiz.questionCount,
         startTime: quiz.startTime,
         endTime: quiz.endTime,
         durationMinutes: quiz.durationMinutes,
         createdAt: quiz.createdAt,
         canEdit,
-        canDelete: true, // Always can delete entire quiz
+        canDelete: true,
       },
       questions: questions
         .sort((a, b) => a.order - b.order)
@@ -103,7 +118,14 @@ router.get("/quizzes/:quizId/full", requireAuth, requireTeacher, async (req, res
                 modelAnswer: q.modelAnswer,
               }),
         })),
-    });
+    };
+
+    if (quiz.isMixed) {
+      const { getQuizLessons } = require("../../services/quiz.stub.service.js");
+      result.quiz.lessonIds = await getQuizLessons(quiz.id);
+    }
+
+    return res.json(result);
   } catch (error) {
     console.error("[quizManagement] getFullQuiz error:", error);
     return res.status(500).json({ error: "تعذر تحميل الاختبار." });
