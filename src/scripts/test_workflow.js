@@ -1,8 +1,11 @@
 const http = require('http');
+const crypto = require('crypto');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const app = require('../app');
+// Use the production/Vercel Express composition. src/app is a legacy
+// standalone server shape and does not match the deployed /api/v1 paths.
+const app = require('../../app');
 const { prisma, disconnectDB } = require('../config/db');
 
 let server;
@@ -64,7 +67,7 @@ async function runTests() {
     // Cleanup any existing test students
     await prisma.user.deleteMany({
       where: {
-        studentCode: { in: ['STU_TEST_01', 'STU_TEST_02'] },
+        studentCode: { in: ['B900001', 'S900002'] },
       },
     });
 
@@ -79,23 +82,84 @@ async function runTests() {
     const signupRes = await request('/api/v1/auth/signup', {
       method: 'POST',
       body: {
-        studentCode: 'STU_TEST_01',
+        studentCode: 'B900001',
         name: 'Ahmed Student',
+        email: 'auth-test-b900001@example.invalid',
         password: 'Password123!',
+        confirmPassword: 'Password123!',
       },
     });
     console.log('POST /api/v1/auth/signup:', signupRes.status, signupRes.body);
     if (signupRes.status !== 201) throw new Error('Student signup failed');
     if (signupRes.body.token) throw new Error('Token should NOT be returned on signup');
 
+    // Student-code validation must be enforced by the backend, not only the UI.
+    console.log('\n--- TEST 2B: Invalid Student Codes ---');
+    for (const studentCode of ['A12345', '12345', 'BS12345', 'BABC', 'SABC', 'B', 'S']) {
+      const invalidRes = await request('/api/v1/auth/signup', {
+        method: 'POST',
+        body: { studentCode, name: 'Invalid Code', email: `invalid-${studentCode}@example.invalid`, password: 'Password123!', confirmPassword: 'Password123!' },
+      });
+      if (invalidRes.status !== 400) throw new Error(`Invalid code ${studentCode} was accepted`);
+    }
+
+    console.log('\n--- TEST 2C: Duplicate Gmail Prevention ---');
+    const duplicateEmailRes = await request('/api/v1/auth/signup', {
+      method: 'POST',
+      body: { studentCode: 'S900003', name: 'Duplicate Gmail', email: 'auth-test-b900001@example.invalid', password: 'Password123!', confirmPassword: 'Password123!' },
+    });
+    if (duplicateEmailRes.status !== 409) throw new Error('Duplicate Gmail was not prevented');
+
+    console.log('\n--- TEST 2D: Unknown Gmail Forgot Password Response ---');
+    const unknownEmailRes = await request('/api/v1/auth/forgot-password', {
+      method: 'POST', body: { email: 'unknown-auth-test@example.invalid' },
+    });
+    if (unknownEmailRes.status !== 200 || !String(unknownEmailRes.body.message).includes('إذا كان البريد الإلكتروني')) {
+      throw new Error('Forgot-password response leaked account information');
+    }
+
+    console.log('\n--- TEST 2E: Expired Reset Token ---');
+    const expiredRawToken = 'expired-auth-test-token';
+    await prisma.user.update({
+      where: { studentCode: 'B900001' },
+      data: {
+        resetPasswordToken: crypto.createHash('sha256').update(expiredRawToken).digest('hex'),
+        resetPasswordExpires: new Date(Date.now() - 1000),
+      },
+    });
+    const expiredResetRes = await request('/api/v1/auth/reset-password', {
+      method: 'POST', body: { token: expiredRawToken, password: 'Password456!', confirmPassword: 'Password456!' },
+    });
+    if (expiredResetRes.status !== 400 || !String(expiredResetRes.body.message).includes('انتهت صلاحية')) {
+      throw new Error('Expired reset token was not rejected');
+    }
+
+    console.log('\n--- TEST 2F: Successful Password Reset ---');
+    const validRawToken = 'valid-auth-test-token';
+    await prisma.user.update({
+      where: { studentCode: 'B900001' },
+      data: {
+        resetPasswordToken: crypto.createHash('sha256').update(validRawToken).digest('hex'),
+        resetPasswordExpires: new Date(Date.now() + 60_000),
+      },
+    });
+    const validResetRes = await request('/api/v1/auth/reset-password', {
+      method: 'POST', body: { token: validRawToken, password: 'Password456!', confirmPassword: 'Password456!' },
+    });
+    if (validResetRes.status !== 200 || !String(validResetRes.body.message).includes('تم تغيير كلمة المرور')) {
+      throw new Error('Password reset failed');
+    }
+
     // 3. Duplicate Signup Prevention
     console.log('\n--- TEST 3: Duplicate Student Code Signup ---');
     const dupSignupRes = await request('/api/v1/auth/signup', {
       method: 'POST',
       body: {
-        studentCode: 'STU_TEST_01',
+        studentCode: 'B900001',
         name: 'Duplicate Student',
+        email: 'auth-test-duplicate@example.invalid',
         password: 'Password123!',
+        confirmPassword: 'Password123!',
       },
     });
     console.log('POST /api/v1/auth/signup (Duplicate):', dupSignupRes.status, dupSignupRes.body);
@@ -108,8 +172,8 @@ async function runTests() {
     const pendingLoginRes = await request('/api/v1/auth/login', {
       method: 'POST',
       body: {
-        studentCode: 'STU_TEST_01',
-        password: 'Password123!',
+        studentCode: 'B900001',
+        password: 'Password456!',
       },
     });
     console.log('POST /api/v1/auth/login (PENDING):', pendingLoginRes.status, pendingLoginRes.body);
@@ -156,7 +220,7 @@ async function runTests() {
     if (listRes.status !== 200 || !listRes.body.data.requests) {
       throw new Error('Get pending requests list failed');
     }
-    const student1 = listRes.body.data.requests.find((r) => r.studentCode === 'STU_TEST_01');
+    const student1 = listRes.body.data.requests.find((r) => r.studentCode === 'B900001');
     if (!student1) throw new Error('Student 1 not found in pending list');
     if (student1.password) throw new Error('Password hash leaked in student list!');
 
@@ -176,8 +240,8 @@ async function runTests() {
     const studentLoginRes = await request('/api/v1/auth/login', {
       method: 'POST',
       body: {
-        studentCode: 'STU_TEST_01',
-        password: 'Password123!',
+        studentCode: 'B900001',
+        password: 'Password456!',
       },
     });
     console.log('POST /api/v1/auth/login (APPROVED):', studentLoginRes.status, {
@@ -213,16 +277,18 @@ async function runTests() {
     await request('/api/v1/auth/signup', {
       method: 'POST',
       body: {
-        studentCode: 'STU_TEST_02',
+        studentCode: 'S900002',
         name: 'Sara Student',
+        email: 'auth-test-s900002@example.invalid',
         password: 'Password123!',
+        confirmPassword: 'Password123!',
       },
     });
 
     const listRes2 = await request('/api/v1/registration-requests', {
       headers: { Authorization: `Bearer ${teacherToken}` },
     });
-    const student2 = listRes2.body.data.requests.find((r) => r.studentCode === 'STU_TEST_02');
+    const student2 = listRes2.body.data.requests.find((r) => r.studentCode === 'S900002');
     if (!student2) throw new Error('Student 2 not found in pending list');
 
     const rejectRes = await request(`/api/v1/registration-requests/${student2.id}/reject`, {
@@ -239,7 +305,7 @@ async function runTests() {
     const rejectedLoginRes = await request('/api/v1/auth/login', {
       method: 'POST',
       body: {
-        studentCode: 'STU_TEST_02',
+        studentCode: 'S900002',
         password: 'Password123!',
       },
     });
@@ -255,7 +321,7 @@ async function runTests() {
     // Cleanup test records
     await prisma.user.deleteMany({
       where: {
-        studentCode: { in: ['STU_TEST_01', 'STU_TEST_02'] },
+        studentCode: { in: ['B900001', 'S900002'] },
       },
     });
     server.close();

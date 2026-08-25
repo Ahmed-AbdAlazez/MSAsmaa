@@ -20,7 +20,9 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 409;
     status = 'fail';
     const fields = err.meta && err.meta.target ? err.meta.target.join(', ') : 'field';
-    message = `A record with this ${fields} already exists.`;
+    message = String(fields).includes('email')
+      ? 'هذا البريد الإلكتروني مستخدم بالفعل.'
+      : `A record with this ${fields} already exists.`;
   }
 
   // Handle Prisma Record Not Found

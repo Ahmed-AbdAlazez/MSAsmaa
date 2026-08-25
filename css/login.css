@@ -196,6 +196,25 @@
   color: var(--color-primary-ink);
 }
 
+.student-code-help {
+  margin: -0.75rem 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.forgot-password-link {
+  display: block;
+  margin: 0.75rem 0 1rem;
+  padding: 0;
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.forgot-password-link:hover { text-decoration: underline; }
+
 /* ---------- RESPONSIVE: stack vertically (mascot on top) ---------- */
 @media (max-width: 900px) {
   .auth-page {

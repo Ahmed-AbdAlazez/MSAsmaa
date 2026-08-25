@@ -81,8 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('auth-form');
   const nameGroup = document.getElementById('auth-name-group');
   const nameInput = document.getElementById('login-username');
+  const emailGroup = document.getElementById('auth-email-group');
+  const emailInput = document.getElementById('login-email');
   const codeInput = document.getElementById('login-code');
   const passwordInput = document.getElementById('login-password');
+  const confirmPasswordGroup = document.getElementById('confirm-password-group');
+  const confirmPasswordInput = document.getElementById('login-confirm-password');
+  const studentCodeHelp = document.getElementById('student-code-help');
   const passwordRequirements = document.getElementById('password-requirements');
   const submitButton = document.getElementById('auth-submit-btn');
   const titleEl = document.getElementById('auth-title');
@@ -120,6 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (nameGroup) nameGroup.hidden = !isSignUp;
     if (nameInput) nameInput.required = isSignUp;
+    if (emailGroup) emailGroup.hidden = !isSignUp;
+    if (emailInput) emailInput.required = isSignUp;
+    if (confirmPasswordGroup) confirmPasswordGroup.hidden = !isSignUp;
+    if (confirmPasswordInput) confirmPasswordInput.required = isSignUp;
+    if (studentCodeHelp) studentCodeHelp.hidden = !isSignUp;
     if (passwordRequirements) passwordRequirements.hidden = !isSignUp;
     passwordInput.autocomplete = isSignUp ? 'new-password' : 'current-password';
 
@@ -168,11 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const usernameInput = (nameInput?.value || '').trim();
+    const email = (emailInput?.value || '').trim().toLowerCase();
     const code = normalizeCode(codeInput.value);
     const password = passwordInput.value;
 
-    if (!code || code.length < 4) {
-      showToast('يرجى إدخال كود الدخول (4 أحرف على الأقل).', 'warning');
+    if (!code || (authMode === 'signup' && !/^[BS][0-9]+$/.test(code))) {
+      showToast('كود الطالب يجب أن يبدأ بحرف B أو S متبوعًا بأرقام. B للأحياء و S للعلوم المتكاملة. مثال: B12345 أو S12345.', 'warning');
       codeInput.focus();
       return;
     }
@@ -212,6 +223,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('يرجى إدخال الاسم لإنشاء الحساب.', 'warning');
         return;
       }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('يرجى إدخال Gmail صحيح.', 'warning');
+        emailInput?.focus();
+        return;
+      }
+      if (password !== confirmPasswordInput?.value) {
+        showToast('كلمتا المرور غير متطابقتين.', 'warning');
+        confirmPasswordInput?.focus();
+        return;
+      }
 
       try {
         const data = await fetchJson(`${API_BASE}/auth/signup`, {
@@ -220,7 +241,9 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({
             studentCode: code,
             name: usernameInput,
+            email,
             password,
+            confirmPassword: confirmPasswordInput.value,
           }),
         });
 

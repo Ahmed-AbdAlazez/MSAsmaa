@@ -34,6 +34,8 @@ export default defineConfig({
       input: {
         index: 'index.html',
         login: 'login.html',
+        'forgot-password': 'forgot-password.html',
+        'reset-password': 'reset-password.html',
         'course-biology': 'course-biology.html',
         lessons: 'lessons.html',
         'lesson-view': 'lesson-view.html',
