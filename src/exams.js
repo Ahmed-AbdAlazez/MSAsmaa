@@ -382,7 +382,7 @@ function questionBlockHtml(question, savedValue, qIndex) {
       })
       .join("");
     const image = question.imageUrl
-      ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال" onclick="openExamLightbox(this.src)">`
+      ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال" data-lightbox-src="${question.imageUrl}">`
       : "";
     return `<div class="question-block" data-question="${question.id}">
               <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
@@ -393,7 +393,7 @@ function questionBlockHtml(question, savedValue, qIndex) {
 
   // written
   const image = question.imageUrl
-    ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال" onclick="openExamLightbox(this.src)">`
+    ? `<img class="question-image" src="${question.imageUrl}" alt="صورة السؤال" data-lightbox-src="${question.imageUrl}">`
     : "";
   return `<div class="question-block" data-question="${question.id}">
             <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
@@ -905,6 +905,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const resultButton = event.target.closest(".btn-result");
     if (resultButton) openResult(resultButton.dataset.id, null);
+
+    // Image lightbox — delegated to work inside module scope
+    const img = event.target.closest(".question-image");
+    if (img) {
+      const src = img.dataset.lightboxSrc || img.src;
+      if (src) openExamLightbox(src);
+    }
   });
 
   document.getElementById("btn-submit-quiz").addEventListener("click", () => {
