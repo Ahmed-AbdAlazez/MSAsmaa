@@ -22,16 +22,18 @@ original author and was left byte-for-byte identical.
 
 | Model (Prisma) | Table (Postgres) | Purpose |
 |---|---|---|
-| `Quiz` | `quizzes` | one row per exam (title, lesson/course, window, duration) |
+| `Quiz` | `quizzes` | one row per exam (title, lesson/course, window, duration, isMixed) |
 | `QuizQuestion` | `quiz_questions` | questions of a quiz (`type` mcq/written, order, image path) |
 | `QuizChoice` | `quiz_choices` | the 4 MCQ options per question |
 | `QuizAttempt` | `quiz_attempts` | one row per student attempt; submitted rows ARE the results (score, totalMcq, submissionReason, ordering JSON) |
 | `StudentAnswer` | `student_answers` | autosaved answer per (attempt, question) |
 | `QuizExtraAttempt` | `quiz_extra_attempts` | teacher-granted retry allowance per (quiz, student) |
+| `QuizLesson` | `quiz_lessons` | join table for mixed quizzes linking one quiz to many lessons (cascade-deleted with quiz) |
 
 Migrations creating them:
 - `20260823230613_add_quiz_tables`
 - `20260823235007_add_attempt_ordering_fields`
+- `20260826120000_add_mixed_quiz_support`
 
 `lessonId`, `courseId`, and `studentId` are plain string columns with **no
 foreign keys** on purpose: lessons/courses have no tables yet, and attempts

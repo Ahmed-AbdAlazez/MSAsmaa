@@ -322,9 +322,24 @@
           <label style="font-weight:700;">عنوان الاختبار
             <input id="builder-quiz-title" type="text" class="form-input" placeholder="مثال: اختبار الدرس الأول" style="width:100%; margin-top:.3rem;">
           </label>
-          <label style="font-weight:700;">الدرس
+          <div>
+            <label style="font-weight:700;">نوع الاختبار</label>
+            <div style="display:flex; gap:.75rem; margin-top:.4rem;">
+              <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer; font-weight:600;">
+                <input type="radio" name="quiz-type" value="single" checked> درس واحد
+              </label>
+              <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer; font-weight:600;">
+                <input type="radio" name="quiz-type" value="mixed"> اختبار مجمع
+              </label>
+            </div>
+          </div>
+          <label id="single-lesson-label" style="font-weight:700;">الدرس
             <select id="quiz-lesson" class="form-input" style="width:100%; margin-top:.3rem;"></select>
           </label>
+          <div id="mixed-lessons-label" style="display:none;">
+            <label style="font-weight:700;">الدروس المشمولة (اختر درسين على الأقل)</label>
+            <div id="quiz-lessons-checkboxes" style="margin-top:.4rem; max-height:180px; overflow-y:auto; border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:.5rem;"></div>
+          </div>
           <label style="font-weight:700;">وقت البداية 📅
             <input id="quiz-start" type="text" placeholder="اختاري من التقويم…" style="width:100%; margin-top:.3rem;" autocomplete="off">
           </label>

@@ -41,6 +41,8 @@ const {
   getQuizById,
   getQuestionsForQuiz,
   listAllQuizzes,
+  getQuizLessons,
+  getQuizLessonsBatch,
   createAttempt,
   getAttemptsForStudent,
   listAttemptsForStudent,
@@ -143,33 +145,40 @@ async function autoSubmitExpiredAttempt(attempt, quiz) {
  * enrolled courses are returned; today the enrollment stub passes.
  * ------------------------------------------------------------------ */
 router.get("/quizzes/available", requireAuth, async (req, res) => {
-  // Optional ?courseId= filter: a single-course hub page asks for its own
-  // course so quizzes from other courses (or synthetic test data) never
-  // appear. Omitting the parameter keeps the legacy "list everything".
   const rawCourseId = req.query.courseId;
   const courseId =
     typeof rawCourseId === "string" && rawCourseId.trim()
       ? rawCourseId.trim()
       : null;
   const quizzes = await listAllQuizzes(courseId ? { courseId } : {});
+
+  // Batch-fetch lesson associations for mixed quizzes
+  const mixedQuizIds = quizzes.filter((q) => q.isMixed).map((q) => q.id);
+  const quizLessonsMap = await getQuizLessonsBatch(mixedQuizIds);
+
   const now = Date.now();
 
   const exams = quizzes.map((quiz) => {
     const startMs = Date.parse(quiz.startTime);
     const endMs = Date.parse(quiz.endTime);
-    return {
+    const exam = {
       id: quiz.id,
       title: quiz.title,
       lessonId: quiz.lessonId,
       courseId: quiz.courseId,
+      isMixed: quiz.isMixed,
       questionCount: quiz.questionCount,
       startTime: quiz.startTime,
       endTime: quiz.endTime,
       durationMinutes: quiz.durationMinutes,
-      // Status computed FRESH on every request from the server clock.
       status:
         now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
     };
+    // Attach covered lesson IDs for mixed quizzes
+    if (quiz.isMixed) {
+      exam.lessonIds = quizLessonsMap.get(quiz.id) || [];
+    }
+    return exam;
   });
 
   return res.json({ exams });
@@ -237,15 +246,33 @@ router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, r
   const quiz = await loadQuizOr404(req, res);
   if (!quiz) return;
 
-  // (a) Enrollment â€” reuses the SAME stub as videos/materials features.
-  const enrolled = await isStudentEnrolledInLessonCourse(
-    req.user.id,
-    quiz.lessonId
-  );
-  if (!enrolled) {
-    return res.status(403).json({
-      error: "يجب أن تكوني مسجلة في الكورس الخاص بهذا الدرس.",
-    });
+  // (a) Enrollment — for mixed quizzes, check course enrollment (not lesson-level);
+  // for single-lesson quizzes, check lesson-level enrollment as before.
+  if (quiz.isMixed) {
+    // Mixed quiz: enrolled in ANY of the covered lessons = OK
+    const { isStudentEnrolledInLessonCourse } = require("../../services/enrollment.stub.service.js");
+    let enrolled = false;
+    for (const lid of (await getQuizLessons(quiz.id))) {
+      if (await isStudentEnrolledInLessonCourse(req.user.id, lid)) {
+        enrolled = true;
+        break;
+      }
+    }
+    if (!enrolled) {
+      return res.status(403).json({
+        error: "يجب أن تكوني مسجلة في كورس الأحياء للمشاركة في هذا الاختبار.",
+      });
+    }
+  } else {
+    const enrolled = await isStudentEnrolledInLessonCourse(
+      req.user.id,
+      quiz.lessonId
+    );
+    if (!enrolled) {
+      return res.status(403).json({
+        error: "يجب أن تكوني مسجلة في الكورس الخاص بهذا الدرس.",
+      });
+    }
   }
 
   // (b) Window check.

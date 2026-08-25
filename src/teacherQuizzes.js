@@ -178,6 +178,39 @@ function populateLessonSelect() {
   }
 }
 
+/** Populate the mixed-quiz lesson checkboxes (same curriculum, with chapter labels). */
+function populateMixedLessonCheckboxes() {
+  const container = byId("quiz-lessons-checkboxes");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const curriculum =
+    window.CURRICULUM && window.CURRICULUM.biology
+      ? window.CURRICULUM.biology
+      : [];
+
+  for (const chapter of curriculum) {
+    for (const lesson of chapter.lessons || []) {
+      const label = document.createElement("label");
+      label.style.cssText = "display:flex; align-items:center; gap:.4rem; padding:.25rem 0; cursor:pointer; font-weight:500; font-size:.9rem;";
+      label.innerHTML = `<input type="checkbox" value="${lesson.id}" class="mixed-lesson-check"> ${chapter.name.split(":")[0]} — ${lesson.name}`;
+      container.appendChild(label);
+    }
+  }
+}
+
+/** Toggle between single-lesson and mixed-lesson UI. */
+function setupQuizTypeToggle() {
+  const radios = document.querySelectorAll('input[name="quiz-type"]');
+  radios.forEach((radio) => {
+    radio.addEventListener("change", () => {
+      const isMixed = radio.value === "mixed" && radio.checked;
+      byId("single-lesson-label").style.display = isMixed ? "none" : "";
+      byId("mixed-lessons-label").style.display = isMixed ? "" : "none";
+    });
+  });
+}
+
 /* ---------------- question builder state ---------------- */
 
 /** Questions staged before publishing. Images kept as File objects until
@@ -269,6 +302,7 @@ async function publishQuiz() {
   const duration = Number(byId("quiz-duration").value);
   const startTime = pickerIso(startPicker);
   const endTime = pickerIso(endPicker);
+  const isMixed = document.querySelector('input[name="quiz-type"]:checked')?.value === "mixed";
 
   if (!title) return toast("اكتبي عنوان الاختبار.", "warning");
   if (!startTime || !endTime) return toast("حددي وقت البداية والنهاية من التقويم.", "warning");
@@ -277,19 +311,33 @@ async function publishQuiz() {
   if (stagedQuestions.length === 0)
     return toast("أضيفي سؤالاً واحداً على الأقل قبل النشر.", "warning");
 
+  const body = {
+    isMixed,
+    title,
+    courseId: "biology",
+    questionCount: stagedQuestions.length,
+    startTime,
+    endTime,
+    durationMinutes: duration,
+  };
+
+  if (isMixed) {
+    const checked = [...document.querySelectorAll(".mixed-lesson-check:checked")];
+    if (checked.length < 2) {
+      return toast("اختاري درسين على الأقل للاختبار المجمع.", "warning");
+    }
+    body.lessonIds = checked.map((cb) => cb.value);
+  } else {
+    const lessonId = byId("quiz-lesson").value;
+    if (!lessonId) return toast("اختاري الدرس.", "warning");
+    body.lessonId = lessonId;
+  }
+
   const button = byId("btn-publish-quiz");
   button.disabled = true;
 
   try {
-    const created = await api("POST", "/api/quizzes", {
-      lessonId: byId("quiz-lesson").value,
-      courseId: "biology",
-      title,
-      questionCount: stagedQuestions.length,
-      startTime,           // ISO UTC - no timezone shifting possible
-      endTime,
-      durationMinutes: duration,
-    });
+    const created = await api("POST", "/api/quizzes", body);
 
     if (!created.ok) {
       throw new Error(created.data?.error || "فشل إنشاء الاختبار.");
@@ -371,6 +419,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initPickers();
   populateLessonSelect();
+  populateMixedLessonCheckboxes();
+  setupQuizTypeToggle();
   renderStagedQuestions();
 
   // MCQ <-> Written toggle swaps which fields are visible.

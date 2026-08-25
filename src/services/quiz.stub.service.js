@@ -130,6 +130,7 @@ function mapQuiz(row) {
     createdByTeacherId: row.createdByTeacherId || null,
     lessonId: row.lessonId,
     courseId: row.courseId,
+    isMixed: row.isMixed || false,
     title: row.title,
     questionCount: row.questionCount,
     startTime: row.startTime.toISOString(),
@@ -196,27 +197,72 @@ const ATTEMPT_INCLUDE = { answers: true };
  * ------------------------------------------------------------------ */
 
 /**
- * Creates and stores a quiz attached to a lesson.
- * @param {object} input - { lessonId, courseId?, title, questionCount,
- *                          startTime, endTime, durationMinutes }
+ * Creates and stores a quiz attached to a lesson (or multiple lessons for mixed quizzes).
+ * @param {object} input - { lessonId?, courseId?, title, questionCount,
+ *                          startTime, endTime, durationMinutes,
+ *                          isMixed?, lessonIds? }
  * @returns {Promise<object>} The stored quiz record.
  */
 async function createQuiz(input) {
+  const isMixed = Boolean(input.isMixed);
+  const lessonIds = Array.isArray(input.lessonIds) ? input.lessonIds : [];
+
   const row = await getPrisma().quiz.create({
     data: {
-      lessonId: String(input.lessonId),
+      lessonId: isMixed ? null : (input.lessonId ? String(input.lessonId) : null),
       createdByTeacherId: input.createdByTeacherId
         ? String(input.createdByTeacherId)
         : null,
       courseId: input.courseId ? String(input.courseId) : null,
+      isMixed,
       title: String(input.title).trim(),
       questionCount: Number(input.questionCount),
       startTime: new Date(input.startTime),
       endTime: new Date(input.endTime),
       durationMinutes: Number(input.durationMinutes),
+      // Create quiz_lessons join rows for mixed quizzes
+      ...(isMixed && lessonIds.length > 0
+        ? {
+            quizLessons: {
+              create: lessonIds.map((lid) => ({ lessonId: String(lid) })),
+            },
+          }
+        : {}),
     },
   });
   return mapQuiz(row);
+}
+
+/**
+ * Returns the lesson IDs associated with a mixed quiz.
+ * @param {string} quizId
+ * @returns {Promise<string[]>}
+ */
+async function getQuizLessons(quizId) {
+  const rows = await getPrisma().quizLesson.findMany({
+    where: { quizId: String(quizId) },
+    select: { lessonId: true },
+  });
+  return rows.map((r) => r.lessonId);
+}
+
+/**
+ * Returns quiz_lessons rows with lesson info for multiple quizzes at once (batch).
+ * @param {string[]} quizIds
+ * @returns {Promise<Map<string, string[]>>} Map of quizId -> lessonId[]
+ */
+async function getQuizLessonsBatch(quizIds) {
+  if (!quizIds.length) return new Map();
+  const rows = await getPrisma().quizLesson.findMany({
+    where: { quizId: { in: quizIds } },
+    select: { quizId: true, lessonId: true },
+  });
+  const map = new Map();
+  for (const row of rows) {
+    if (!map.has(row.quizId)) map.set(row.quizId, []);
+    map.get(row.quizId).push(row.lessonId);
+  }
+  return map;
 }
 
 /**
@@ -247,13 +293,14 @@ async function getQuizById(quizId) {
 }
 
 /**
- * Lists all quizzes of one lesson, newest first.
+ * Lists all quizzes of one lesson, newest first. Excludes mixed quizzes
+ * (they appear in their own dedicated section on the student hub).
  * @param {string} lessonId
  * @returns {Promise<object[]>}
  */
 async function getQuizzesForLesson(lessonId) {
   const rows = await getPrisma().quiz.findMany({
-    where: { lessonId: String(lessonId) },
+    where: { lessonId: String(lessonId), isMixed: false },
     orderBy: { createdAt: "desc" },
   });
   return rows.map(mapQuiz);
@@ -683,6 +730,10 @@ async function deleteQuiz(quizId) {
       where: { quizId: String(quizId) },
     });
 
+    await getPrisma().quizLesson.deleteMany({
+      where: { quizId: String(quizId) },
+    });
+
     await getPrisma().quiz.delete({
       where: { id: String(quizId) },
     });
@@ -800,6 +851,8 @@ const service = {
   listAllQuizzes,
   addQuestionToQuiz,
   getQuestionsForQuiz,
+  getQuizLessons,
+  getQuizLessonsBatch,
   createAttempt,
   getAttemptsForStudent,
   listAttemptsForStudent,

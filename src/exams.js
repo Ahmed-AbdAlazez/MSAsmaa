@@ -120,6 +120,19 @@ function examCardHtml(exam) {
       return null;
     })();
 
+  // For mixed quizzes, resolve covered lesson names from exam.lessonIds
+  const coveredLessonNames = (() => {
+    if (!exam.isMixed || !exam.lessonIds || !window.CURRICULUM) return [];
+    const names = [];
+    for (const lid of exam.lessonIds) {
+      for (const chapter of window.CURRICULUM.biology || []) {
+        const found = (chapter.lessons || []).find((l) => l.id === lid);
+        if (found) { names.push(found.name); break; }
+      }
+    }
+    return names;
+  })();
+
   const att = attemptFor(exam.id);
   const submitted = att && att.latestSubmitted ? att.latestSubmitted : null;
   const remaining = att ? att.remainingAttempts : 1;
@@ -165,7 +178,7 @@ function examCardHtml(exam) {
       ${badge}
     </div>
     <div class="exam-meta">
-      <span>📘 ${escapeHtml(lessonName || exam.lessonId)}</span>
+      <span>📘 ${escapeHtml(exam.isMixed && coveredLessonNames.length ? `يشمل ${coveredLessonNames.length} دروس` : lessonName || exam.lessonId)}</span>
       <span>🕒 تبدأ: ${formatDateTime(exam.startTime)}</span>
       <span>⏹ تنتهي: ${formatDateTime(exam.endTime)}</span>
       <span>⏱ المدة: ${exam.durationMinutes} دقيقة</span>
@@ -180,18 +193,30 @@ function examCardHtml(exam) {
 function renderExams(exams, tab) {
   const byLesson = document.getElementById("exams-by-lesson");
   const all = document.getElementById("exams-all");
+  const mixed = document.getElementById("exams-mixed");
 
-  // Flat chronological view (soonest first).
+  // Separate mixed quizzes from single-lesson quizzes
+  const mixedExams = exams.filter((e) => e.isMixed);
+  const singleExams = exams.filter((e) => !e.isMixed);
+
+  // Flat chronological view — only single-lesson quizzes
   all.innerHTML =
-    exams.length === 0
+    singleExams.length === 0
       ? '<p class="muted">لا توجد اختبارات متاحة حالياً.</p>'
-      : `<div class="exam-grid">${exams.map(examCardHtml).join("")}</div>`;
+      : `<div class="exam-grid">${singleExams.map(examCardHtml).join("")}</div>`;
 
-  // Grouped-by-lesson view.
+  // Mixed quizzes tab
+  mixed.innerHTML =
+    mixedExams.length === 0
+      ? '<p class="muted">لا توجد اختبارات مجمعة.</p>'
+      : `<div class="exam-grid">${mixedExams.map(examCardHtml).join("")}</div>`;
+
+  // Grouped-by-lesson view — only single-lesson quizzes
   const groups = new Map();
-  for (const exam of exams) {
-    if (!groups.has(exam.lessonId)) groups.set(exam.lessonId, []);
-    groups.get(exam.lessonId).push(exam);
+  for (const exam of singleExams) {
+    const key = exam.lessonId || "__unknown";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(exam);
   }
   byLesson.innerHTML =
     groups.size === 0
@@ -225,6 +250,8 @@ function showTab(tab) {
     tab === "by-lesson" ? "" : "none";
   document.getElementById("exams-all").style.display =
     tab === "all" ? "" : "none";
+  document.getElementById("exams-mixed").style.display =
+    tab === "mixed" ? "" : "none";
 }
 
 async function loadHub() {

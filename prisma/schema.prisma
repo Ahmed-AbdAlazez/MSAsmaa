@@ -51,8 +51,9 @@ model User {
 model Quiz {
   id              String   @id @default(uuid())
   createdByTeacherId String? @map("created_by_teacher_id")
-  lessonId        String   @map("lesson_id")
+  lessonId        String?  @map("lesson_id")
   courseId        String?  @map("course_id")
+  isMixed         Boolean  @default(false) @map("is_mixed")
   title           String
   questionCount   Int      @map("question_count")
   startTime       DateTime @map("start_time")
@@ -60,12 +61,26 @@ model Quiz {
   durationMinutes Float    @map("duration_minutes")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  questions QuizQuestion[]
-  attempts  QuizAttempt[]
+  questions     QuizQuestion[]
+  attempts      QuizAttempt[]
+  quizLessons   QuizLesson[]
 
   @@index([courseId])
   @@index([lessonId])
   @@map("quizzes")
+}
+
+/// Join table: which lessons a mixed quiz covers. Single-lesson quizzes
+/// do NOT use this table — they just use Quiz.lessonId directly.
+model QuizLesson {
+  id       String @id @default(uuid())
+  quizId   String @map("quiz_id")
+  lessonId String @map("lesson_id")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, lessonId])
+  @@map("quiz_lessons")
 }
 
 /// A question inside a quiz. MCQs carry choices + correctChoiceId ("c1".."c4");
