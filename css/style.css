@@ -1529,7 +1529,7 @@ h1, h2, h3, h4, h5, h6 {
   background-color: rgba(248, 250, 252, 0.8);
 }
 
-/* Assignments List Card Style */
+/* Item Layout (used for dashboard task cards) */
 .assignment-item {
   display: flex;
   justify-content: space-between;
@@ -1884,20 +1884,95 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #ffffff;
 }
 
-/* Assignment Submission Area */
-.assignment-question-box {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 2.25rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 2rem;
+/* Teacher Notes */
+.teacher-note-add-box {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-primary-light);
 }
 
-.assignment-question-header {
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
+.teacher-note-card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  border-inline-start: 4px solid var(--color-primary);
+}
+
+.teacher-note-content {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 0.5rem;
+}
+
+.teacher-note-meta {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.teacher-note-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Student Comments */
+.lesson-comments-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.comments-list {
+  margin-bottom: 1.25rem;
+}
+
+.comment-item {
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.6rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  position: relative;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.comment-author {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-primary);
+}
+
+.comment-date {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.comment-body {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.comment-delete-btn {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+}
+
+.comment-form-container {
+  padding: 1rem;
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
 }
 
 .question-text {

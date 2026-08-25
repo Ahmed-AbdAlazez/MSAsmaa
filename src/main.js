@@ -554,40 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- Mock Student Assignment MCQ & Upload Submission ---
-  const assignmentForm = document.querySelector('#assignment-submit-form');
-  if (assignmentForm) {
-    assignmentForm.addEventListener('submit', (e) => {
-      e.preventDefault();
 
-      // Check if MCQ answered
-      const chosenMCQ = document.querySelector('input[name="q1"]:checked');
-      if (!chosenMCQ) {
-        showToast('يرجى اختيار إجابة للسؤال الأول قبل الإرسال!', 'warning');
-        return;
-      }
-
-      showToast('تم إرسال إجابات الواجب وحفظها بنجاح!', 'success');
-
-      // Stay on page but show score/completion feedback after 1.5 seconds
-      setTimeout(() => {
-        window.location.href = 'assignments.html';
-      }, 1500);
-    });
-
-    // Mock drag & drop interaction
-    const dropZone = document.querySelector('.file-upload-drag');
-    if (dropZone) {
-      dropZone.addEventListener('click', () => {
-        // Mock selecting a file
-        showToast('تم اختيار الملف الملحق (حل الأسئلة المقالية.pdf) بنجاح!', 'success');
-        const textElement = dropZone.querySelector('p');
-        if (textElement) {
-          textElement.innerHTML = '<strong>تم الإرفاق:</strong> حل الأسئلة المقالية.pdf (اضغط لتغيير الملف)';
-        }
-      });
-    }
-  }
 
   // --- Contact Form Submission ---
   const contactForm = document.querySelector('#contact-form');
@@ -1613,6 +1580,205 @@ document.addEventListener('DOMContentLoaded', () => {
         playBtn.disabled = true;
         showToast('جاري تشغيل الفيديو...', 'success');
         loadIframe(videoEntry);
+      });
+    }
+
+    // --- Teacher Notes (dynamic) ---
+    const notesContainer = document.querySelector('#teacher-notes-container');
+    const isTeacher = localStorage.getItem('userRole') === 'teacher';
+
+    const renderNotes = (notes) => {
+      if (!notesContainer) return;
+      notesContainer.innerHTML = '';
+
+      if (isTeacher) {
+        const addBox = document.createElement('div');
+        addBox.className = 'teacher-note-add-box';
+        addBox.innerHTML = `
+          <textarea id="new-note-input" class="form-input" rows="3" placeholder="أضيفي ملاحظة جديدة للطلاب..." style="width: 100%; margin-bottom: 0.75rem;"></textarea>
+          <button id="btn-add-note" class="btn btn-primary" style="min-width: 120px;">إضافة ملاحظة</button>
+        `;
+        notesContainer.appendChild(addBox);
+
+        addBox.querySelector('#btn-add-note').addEventListener('click', async () => {
+          const input = addBox.querySelector('#new-note-input');
+          const content = input.value.trim();
+          if (!content) {
+            showToast('اكتب الملاحظة أولاً.', 'warning');
+            return;
+          }
+          try {
+            await fetchJson(`/api/lessons/${lessonId}/notes`, {
+              method: 'POST',
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content }),
+            });
+            input.value = '';
+            showToast('تم إضافة الملاحظة بنجاح.', 'success');
+            loadNotes();
+          } catch (err) {
+            showToast(err.message, 'danger');
+          }
+        });
+      }
+
+      if (!notes.length && !isTeacher) {
+        notesContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">لا توجد ملاحظات من المعلمة لهذا الدرس بعد.</p>';
+        return;
+      }
+
+      notes.forEach((note) => {
+        const card = document.createElement('div');
+        card.className = 'teacher-note-card';
+        card.innerHTML = `
+          <div class="teacher-note-content">${note.content}</div>
+          <div class="teacher-note-meta">${new Date(note.createdAt).toLocaleDateString('ar-EG')}</div>
+        `;
+        if (isTeacher) {
+          const actions = document.createElement('div');
+          actions.className = 'teacher-note-actions';
+          actions.innerHTML = `
+            <button class="btn btn-secondary btn-sm note-edit-btn">تعديل</button>
+            <button class="btn btn-secondary btn-sm note-delete-btn" style="color: var(--color-danger);">حذف</button>
+          `;
+          actions.querySelector('.note-edit-btn').addEventListener('click', () => {
+            const contentEl = card.querySelector('.teacher-note-content');
+            const currentText = contentEl.textContent;
+            contentEl.innerHTML = `<textarea class="form-input note-edit-textarea" rows="2" style="width:100%; margin-bottom:0.5rem;">${currentText}</textarea>
+              <button class="btn btn-primary btn-sm note-save-btn">حفظ</button>
+              <button class="btn btn-secondary btn-sm note-cancel-btn">إلغاء</button>`;
+            actions.remove();
+            contentEl.querySelector('.note-save-btn').addEventListener('click', async () => {
+              const newContent = contentEl.querySelector('.note-edit-textarea').value.trim();
+              if (!newContent) return;
+              try {
+                await fetchJson(`/api/notes/${note.id}`, {
+                  method: 'PATCH',
+                  headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: newContent }),
+                });
+                showToast('تم تحديث الملاحظة.', 'success');
+                loadNotes();
+              } catch (err) {
+                showToast(err.message, 'danger');
+              }
+            });
+            contentEl.querySelector('.note-cancel-btn').addEventListener('click', () => loadNotes());
+          });
+          actions.querySelector('.note-delete-btn').addEventListener('click', async () => {
+            if (!confirm('هل أنت متأكد من حذف هذه الملاحظة؟')) return;
+            try {
+              await fetchJson(`/api/notes/${note.id}`, {
+                method: 'DELETE',
+                headers: authHeaders(),
+              });
+              showToast('تم حذف الملاحظة.', 'success');
+              loadNotes();
+            } catch (err) {
+              showToast(err.message, 'danger');
+            }
+          });
+          card.appendChild(actions);
+        }
+        notesContainer.appendChild(card);
+      });
+    };
+
+    const loadNotes = async () => {
+      try {
+        const data = await fetchJson(`/api/lessons/${lessonId}/notes`, { headers: authHeaders() });
+        renderNotes(data.notes || []);
+      } catch (err) {
+        if (notesContainer) notesContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الملاحظات.</p>';
+      }
+    };
+    loadNotes();
+
+    // --- Student Comments ---
+    const commentsList = document.querySelector('#comments-list');
+    const commentFormContainer = document.querySelector('#comment-form-container');
+    const commentInput = document.querySelector('#comment-input');
+    const postCommentBtn = document.querySelector('#btn-post-comment');
+    const userRole = localStorage.getItem('userRole');
+    const userName = localStorage.getItem('userName') || 'طالب';
+
+    if (userRole === 'student' && commentFormContainer) {
+      commentFormContainer.style.display = 'block';
+    }
+
+    const renderComments = (comments) => {
+      if (!commentsList) return;
+      commentsList.innerHTML = '';
+
+      if (!comments.length) {
+        commentsList.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">لا توجد تعليقات بعد. كن أول من يعلق!</p>';
+        return;
+      }
+
+      comments.forEach((comment) => {
+        const isOwn = comment.studentId === localStorage.getItem('userId');
+        const canDelete = isTeacher || isOwn;
+        const item = document.createElement('div');
+        item.className = 'comment-item';
+        item.innerHTML = `
+          <div class="comment-header">
+            <span class="comment-author">${comment.studentName}</span>
+            <span class="comment-date">${new Date(comment.createdAt).toLocaleDateString('ar-EG')}</span>
+          </div>
+          <div class="comment-body">${comment.content}</div>
+          ${canDelete ? '<button class="btn btn-secondary btn-sm comment-delete-btn" style="color: var(--color-danger); font-size: 0.75rem;">حذف</button>' : ''}
+        `;
+        if (canDelete) {
+          item.querySelector('.comment-delete-btn').addEventListener('click', async () => {
+            if (!confirm('هل أنت متأكد من حذف هذا التعليق؟')) return;
+            try {
+              await fetchJson(`/api/comments/${comment.id}`, {
+                method: 'DELETE',
+                headers: authHeaders(),
+              });
+              showToast('تم حذف التعليق.', 'success');
+              loadComments();
+            } catch (err) {
+              showToast(err.message, 'danger');
+            }
+          });
+        }
+        commentsList.appendChild(item);
+      });
+    };
+
+    const loadComments = async () => {
+      try {
+        const data = await fetchJson(`/api/lessons/${lessonId}/comments`, { headers: authHeaders() });
+        renderComments(data.comments || []);
+      } catch (err) {
+        if (commentsList) commentsList.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل التعليقات.</p>';
+      }
+    };
+    loadComments();
+
+    if (postCommentBtn) {
+      postCommentBtn.addEventListener('click', async () => {
+        const content = commentInput?.value.trim();
+        if (!content) {
+          showToast('اكتب تعليقك أولاً.', 'warning');
+          return;
+        }
+        try {
+          postCommentBtn.disabled = true;
+          await fetchJson(`/api/lessons/${lessonId}/comments`, {
+            method: 'POST',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, studentName: userName }),
+          });
+          commentInput.value = '';
+          showToast('تم نشر التعليق.', 'success');
+          loadComments();
+        } catch (err) {
+          showToast(err.message, 'danger');
+        } finally {
+          postCommentBtn.disabled = false;
+        }
       });
     }
   }

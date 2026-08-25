@@ -77,7 +77,7 @@
           <div class="tab-nav">
             <button class="tab-btn active" data-tab="tab-desc">وصف الدرس</button>
             <button class="tab-btn" data-tab="tab-terms">المصطلحات العلمية</button>
-            <button class="tab-btn" data-tab="tab-notes">ملاحظات الامتحان</button>
+            <button class="tab-btn" data-tab="tab-notes">ملاحظات المعلمة</button>
           </div>
 
           <!-- Tab Content 1 (Active) -->
@@ -128,31 +128,31 @@
             </div>
           </div>
 
-          <!-- Tab Content 3 -->
+          <!-- Tab Content 3: Dynamic Teacher Notes -->
           <div class="tab-panel" id="tab-notes">
-            <h3 style="margin-bottom: 1rem; color: var(--color-primary);">توجيهات هامة لامتحان الثانوية العامة (نواتج التعلم)</h3>
-            <ul style="list-style-type: square; padding-inline-start: 1.5rem; line-height: 1.8;">
-              <li style="margin-bottom: 0.75rem;">تذكر أن **الدعامة الفسيولوجية** تتأثر بشكل مباشر بعمليتي **النتح** (فقد الماء) و**الامتصاص** (اكتساب الماء) من الجذور.</li>
-              <li style="margin-bottom: 0.75rem;">الكيوتين يلعب دوراً مزدوجاً: فهو يمثل **دعامة تركيبية** بحد ذاته لترسبه المادي، ويحافظ على **الدعامة الفسيولوجية** بمنع خروج بخار الماء.</li>
-              <li style="margin-bottom: 0.75rem;">خلايا النسيج البارانشيمي تمتلك دعامة فسيولوجية فقط، بينما الخلايا الكولنشيمية والإسكلرنشيمية تمتلك دعامة تركيبية.</li>
-              <li>الضغط الاسموزي يتناسب عكسياً مع كمية الماء داخل الفجوة، فكلما زاد الماء قل الضغط الاسموزي للخلية.</li>
-            </ul>
+            <div id="teacher-notes-container">
+              <p class="text-muted" style="font-size: 0.9rem;">جاري تحميل ملاحظات المعلمة...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Comments Section -->
+        <div class="lesson-comments-section">
+          <h3 style="margin-bottom: 1rem; color: var(--color-primary);">תגובות ושאלות 💬</h3>
+          <div id="comments-list" class="comments-list">
+            <p class="text-muted" style="font-size: 0.9rem;">جاري تحميل التعليقات...</p>
+          </div>
+          <div class="comment-form-container" id="comment-form-container" style="display: none;">
+            <textarea id="comment-input" class="form-input" rows="3" placeholder="اكتب تعليقك أو سؤالك هنا..." style="width: 100%; margin-bottom: 0.75rem;"></textarea>
+            <button id="btn-post-comment" class="btn btn-primary" style="min-width: 120px;">إرسال التعليق</button>
           </div>
         </div>
 
       </div>
 
-      <!-- Left Side: Sidebar navigation & Assignment CTA -->
+      <!-- Left Side: Sidebar navigation -->
       <div>
         
-        <!-- Assignment CTA Box -->
-        <div class="card" style="background-color: var(--color-primary-dark); color: white; border: none; margin-bottom: 1.5rem; text-align: center;">
-          <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📝</div>
-          <h3 style="color: white; font-size: 1.2rem; margin-bottom: 0.5rem;">اختبر استيعابك للدرس</h3>
-          <p style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-bottom: 1.25rem;">قم بحل واجب الدعامة في النبات المعتمد للتأكد من فهمك لأسئلة نظام التقييم الجديد.</p>
-          <a href="assignment-view.html" class="btn btn-primary" style="background-color: var(--color-accent); color: white; width: 100%; border: none;">الذهاب إلى صفحة الواجب</a>
-        </div>
-
         <!-- Lesson PDF Materials -->
         <div class="lesson-sidebar-box">
           <h3 class="lesson-sidebar-title">مواد الدرس PDF</h3>
@@ -185,7 +185,6 @@
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
             <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
-            <li><a href="assignments.html" class="footer-link">بنك الأسئلة والواجبات</a></li>
           </ul>
         </div>
         <div>

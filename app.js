@@ -52,7 +52,7 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Headers",
     "Content-Type, x-user-id, x-user-role"
   );
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
@@ -85,6 +85,9 @@ app.use("/api", notificationsRoutes);
 // See src/routes/quizzes/quiz.routes.js for the full endpoint list and
 // QUIZ_README.md for flows, stubs, and testing.
 app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
+
+// Lesson notes (teacher) and student comments on lessons.
+app.use("/api", require("./src/routes/lessonNotesComments.routes.js"));
 
 /* ==========================================================================
  * DEV TEST ACCOUNTS (hardcoded for platform testing only — replace with a

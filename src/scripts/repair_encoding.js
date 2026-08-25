@@ -27,7 +27,6 @@ const BACKUP_DIR = path.join(__dirname, 'encoding-backups');
 const FILES = [
   'index.html',
   'lessons.html',
-  'assignments.html',
   'course-biology.html',
   'dashboard-student.html',
   'dashboard-teacher.html',

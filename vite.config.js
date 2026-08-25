@@ -39,8 +39,6 @@ export default defineConfig({
         'course-biology': 'course-biology.html',
         lessons: 'lessons.html',
         'lesson-view': 'lesson-view.html',
-        assignments: 'assignments.html',
-        'assignment-view': 'assignment-view.html',
         chatbots: 'chatbots.html',
         exams: 'exams.html',
         'dashboard-student': 'dashboard-student.html',
