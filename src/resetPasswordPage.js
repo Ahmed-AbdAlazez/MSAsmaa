@@ -8,13 +8,14 @@ function showToast(message, type = 'success') {
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('reset-password-form');
-  const token = new URLSearchParams(window.location.search).get('token');
+  const token = sessionStorage.getItem('passwordResetToken');
   const passwordInput = document.getElementById('new-password');
   const confirmInput = document.getElementById('confirm-new-password');
+  const successPanel = document.getElementById('reset-success');
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const password = passwordInput.value;
-    if (!token) return showToast('رابط إعادة تعيين كلمة المرور غير صالح.', 'danger');
+    if (!token) return showToast('طلب تغيير كلمة المرور غير صالح.', 'danger');
     if (!strongPassword(password)) return showToast('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم واحد على الأقل.', 'warning');
     if (password !== confirmInput.value) return showToast('كلمتا المرور غير متطابقتين.', 'warning');
     try {
@@ -24,8 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'تعذر تغيير كلمة المرور.');
-      showToast(data.message || 'تم تغيير كلمة المرور بنجاح.', 'success');
-      setTimeout(() => { window.location.href = 'login.html'; }, 1000);
+      sessionStorage.removeItem('passwordResetToken');
+      form.hidden = true;
+      successPanel.hidden = false;
     } catch (error) { showToast(error.message, 'danger'); }
   });
 });
