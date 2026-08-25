@@ -41,6 +41,8 @@ const {
   getQuizById,
   getQuestionsForQuiz,
   listAllQuizzes,
+  getQuizzesForLesson,
+  getMixedQuizzesForLesson,
   getQuizLessons,
   getQuizLessonsBatch,
   createAttempt,
@@ -237,6 +239,88 @@ router.get("/quizzes/my-attempts", requireAuth, requireStudent, async (req, res)
   }
 
   return res.json({ attempts: result });
+});
+
+/* ------------------------------------------------------------------ *
+ * GET /quizzes/for-lesson/:lessonId - quizzes for the lesson page.
+ * Returns single-lesson quizzes AND mixed quizzes that include this
+ * lesson, with server-computed status and the current student's attempt
+ * data per quiz. Any authenticated user may call it.
+ * ------------------------------------------------------------------ */
+router.get("/quizzes/for-lesson/:lessonId", requireAuth, async (req, res) => {
+  const { lessonId } = req.params;
+  if (!lessonId || !/^lesson-\d+$/.test(lessonId)) {
+    return res.status(400).json({ error: "معرف الدرس غير صحيح." });
+  }
+
+  // 1. Single-lesson quizzes for this lesson
+  const singleQuizzes = await getQuizzesForLesson(lessonId);
+
+  // 2. Mixed quizzes that include this lesson (via QuizLesson join table)
+  const mixedQuizzes = await getMixedQuizzesForLesson(lessonId);
+
+  // Combine and deduplicate
+  const allQuizzes = [...singleQuizzes];
+  for (const mq of mixedQuizzes) {
+    if (!allQuizzes.some((q) => q.id === mq.id)) allQuizzes.push(mq);
+  }
+
+  // Add server-computed status
+  const now = Date.now();
+  const exams = allQuizzes.map((quiz) => {
+    const startMs = Date.parse(quiz.startTime);
+    const endMs = Date.parse(quiz.endTime);
+    return {
+      id: quiz.id,
+      title: quiz.title,
+      lessonId: quiz.lessonId,
+      isMixed: quiz.isMixed,
+      questionCount: quiz.questionCount,
+      startTime: quiz.startTime,
+      endTime: quiz.endTime,
+      durationMinutes: quiz.durationMinutes,
+      status: now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
+    };
+  });
+
+  // 3. Fetch student attempt data for these quizzes
+  let attempts = {};
+  if (req.user && req.user.id) {
+    const studentAttempts = await listAttemptsForStudent(req.user.id);
+    const byQuiz = new Map();
+    for (const a of studentAttempts) {
+      if (!byQuiz.has(a.quizId)) byQuiz.set(a.quizId, []);
+      byQuiz.get(a.quizId).push(a);
+    }
+    for (const exam of exams) {
+      const quizAttempts = byQuiz.get(exam.id) || [];
+      const inProgress = quizAttempts.find((a) => a.status === "in_progress");
+      const submitted = quizAttempts
+        .filter((a) => a.status === "submitted")
+        .sort((a, b) => String(b.submittedAt || "").localeCompare(String(a.submittedAt || "")));
+      const latestSubmitted = submitted[0] || null;
+      const used = quizAttempts.filter((a) => a.status === "submitted").length;
+      const allowed = await getAllowedAttemptCount(exam.id, req.user.id);
+
+      attempts[exam.id] = {
+        status: inProgress ? "in_progress" : latestSubmitted ? "submitted" : "not_started",
+        usedAttempts: used,
+        allowedAttempts: allowed,
+        remainingAttempts: Math.max(0, allowed - used),
+        latestSubmitted: latestSubmitted
+          ? {
+              resultId: latestSubmitted.id,
+              attemptNumber: latestSubmitted.attemptNumber,
+              score: latestSubmitted.score,
+              totalMcq: latestSubmitted.totalMcq,
+              submittedAt: latestSubmitted.submittedAt,
+            }
+          : null,
+      };
+    }
+  }
+
+  return res.json({ exams, attempts });
 });
 
 /* ------------------------------------------------------------------ *

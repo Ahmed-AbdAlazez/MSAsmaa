@@ -1781,6 +1781,115 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
+
+    // --- Lesson Exams Tab ---
+    const examsContainer = document.querySelector('#lesson-exams-container');
+    let lessonExamsLoaded = false;
+
+    const statusLabel = (status) => {
+      if (status === 'upcoming') return 'قادم';
+      if (status === 'active') return 'نشط';
+      return 'منتهي';
+    };
+
+    const renderLessonExams = (exams, attempts) => {
+      if (!examsContainer) return;
+      examsContainer.innerHTML = '';
+
+      if (!exams.length) {
+        examsContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">لا توجد امتحانات متاحة لهذا الدرس حاليًا.</p>';
+        return;
+      }
+
+      exams.forEach((exam) => {
+        const attempt = attempts[exam.id] || {};
+        const card = document.createElement('div');
+        card.className = 'lesson-exam-card';
+
+        const titleRow = document.createElement('div');
+        titleRow.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:0.6rem;';
+
+        const title = document.createElement('span');
+        title.className = 'lesson-exam-title';
+        title.textContent = exam.title;
+
+        const status = document.createElement('span');
+        status.className = `lesson-exam-status status-${exam.status}`;
+        status.textContent = statusLabel(exam.status);
+
+        titleRow.append(title, status);
+
+        const meta = document.createElement('div');
+        meta.className = 'lesson-exam-meta';
+        meta.innerHTML = `<span>${exam.questionCount} سؤال</span><span>${exam.durationMinutes} دقيقة</span>`;
+        if (exam.isMixed) {
+          meta.innerHTML += '<span>اختبار مجمع</span>';
+        }
+
+        const foot = document.createElement('div');
+        foot.className = 'lesson-exam-foot';
+
+        // Score chip for completed attempts
+        if (attempt.status === 'submitted' && attempt.latestSubmitted) {
+          const score = document.createElement('span');
+          score.className = 'lesson-exam-score';
+          score.textContent = `${attempt.latestSubmitted.score}/${attempt.latestSubmitted.totalMcq}`;
+          foot.appendChild(score);
+        }
+
+        // Action button
+        if (exam.status === 'active') {
+          const canStart = attempt.status === 'not_started' || attempt.status === 'in_progress' || (attempt.status === 'submitted' && attempt.remainingAttempts > 0);
+          if (canStart) {
+            const btn = document.createElement('a');
+            btn.href = `/exams.html?start=${encodeURIComponent(exam.id)}`;
+            btn.className = 'btn btn-primary';
+            btn.style.cssText = 'font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;';
+            btn.textContent = attempt.status === 'in_progress' ? 'استئناف الاختبار' : 'بدء الاختبار';
+            foot.appendChild(btn);
+          } else if (attempt.status === 'submitted' && attempt.remainingAttempts === 0) {
+            const noAttempts = document.createElement('span');
+            noAttempts.className = 'text-muted';
+            noAttempts.style.cssText = 'font-size:0.82rem;';
+            noAttempts.textContent = 'لا محاولات متبقية';
+            foot.appendChild(noAttempts);
+          }
+        } else if (exam.status === 'ended' && attempt.status === 'submitted' && attempt.latestSubmitted) {
+          const resultBtn = document.createElement('a');
+          resultBtn.href = `/exams.html`;
+          resultBtn.className = 'btn btn-secondary';
+          resultBtn.style.cssText = 'font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;';
+          resultBtn.textContent = 'عرض النتيجة';
+          foot.appendChild(resultBtn);
+        }
+
+        card.append(titleRow, meta, foot);
+        examsContainer.appendChild(card);
+      });
+    };
+
+    const loadLessonExams = async () => {
+      if (lessonExamsLoaded) return;
+      lessonExamsLoaded = true;
+
+      try {
+        const data = await fetchJson(`/api/quizzes/for-lesson/${lessonId}`, { headers: authHeaders() });
+        renderLessonExams(data.exams || [], data.attempts || {});
+      } catch (err) {
+        if (examsContainer) {
+          examsContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الاختبارات.</p>';
+        }
+      }
+    };
+
+    // Lazy-load exams when the Exams tab is clicked
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.getAttribute('data-tab') === 'tab-exams') {
+          loadLessonExams();
+        }
+      });
+    });
   }
 
   // --- Teacher dashboard: video upload to Bunny Stream ---

@@ -307,6 +307,22 @@ async function getQuizzesForLesson(lessonId) {
 }
 
 /**
+ * Returns mixed quizzes that include the given lesson via the QuizLesson
+ * join table. Used by the lesson page exams tab.
+ * @param {string} lessonId
+ * @returns {Promise<object[]>}
+ */
+async function getMixedQuizzesForLesson(lessonId) {
+  const rows = await getPrisma().quizLesson.findMany({
+    where: { lessonId: String(lessonId) },
+    include: { quiz: true },
+  });
+  return rows
+    .filter((r) => r.quiz && r.quiz.isMixed)
+    .map((r) => mapQuiz(r.quiz));
+}
+
+/**
  * Lists all quizzes belonging to one course.
  * @param {string} courseId
  * @returns {Promise<object[]>}
@@ -847,6 +863,7 @@ const service = {
   createQuiz,
   getQuizById,
   getQuizzesForLesson,
+  getMixedQuizzesForLesson,
   getQuizzesForCourse,
   listAllQuizzes,
   addQuestionToQuiz,

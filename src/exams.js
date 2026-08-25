@@ -923,4 +923,22 @@ document.addEventListener("DOMContentLoaded", () => {
     .addEventListener("click", () => {
       document.getElementById("quiz-result-overlay").style.display = "none";
     });
+
+  // Deep-link: ?start=<quizId> auto-starts a quiz (from lesson page)
+  const startParam = new URLSearchParams(window.location.search).get("start");
+  if (startParam) {
+    const waitForHub = setInterval(() => {
+      if (document.querySelector(".exam-card")) {
+        clearInterval(waitForHub);
+        const card = document.querySelector(`.btn-take[data-id="${startParam}"]`);
+        if (card) {
+          const title = card.closest(".exam-card").querySelector(".exam-title").textContent;
+          beginQuiz(startParam, title);
+        } else {
+          beginQuiz(startParam, "");
+        }
+      }
+    }, 500);
+    setTimeout(() => clearInterval(waitForHub), 8000);
+  }
 });
