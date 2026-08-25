@@ -389,13 +389,19 @@ function openRun(payload, quizTitle, quizId) {
   document.getElementById("quiz-run-overlay").style.display = "flex";
   startTimer(payload.remainingSeconds);
 
-  // Request fullscreen mode for focused exam taking
+  // Request fullscreen mode for focused exam taking.
+  // When fullscreen succeeds the fullscreenchange handler adds the
+  // .exam-fullscreen class. When it fails (or the API is absent) we
+  // add it immediately so the enhanced layout still applies.
   const runOverlay = document.getElementById("quiz-run-overlay");
   if (runOverlay && runOverlay.requestFullscreen) {
     runOverlay.requestFullscreen().catch((err) => {
       console.log("Fullscreen request failed:", err);
-      showToast("تعذّر فتح وضع الملء الشاشة. يمكنك المتابعة عادياً.", "info");
+      showToast("تعذّر فتح وضع ملء الشاشة. يمكنك المتابعة عادياً.", "info");
+      runOverlay.classList.add("exam-fullscreen");
     });
+  } else if (runOverlay) {
+    runOverlay.classList.add("exam-fullscreen");
   }
 
   // Autosave on EVERY change so an interrupted session resumes pre-filled.
@@ -430,6 +436,9 @@ function closeRun() {
       // Ignore errors if already exited
     });
   }
+  // Clean up fullscreen layout class
+  const runOverlay = document.getElementById("quiz-run-overlay");
+  if (runOverlay) runOverlay.classList.remove("exam-fullscreen");
   document.getElementById("quiz-run-overlay").style.display = "none";
 }
 
@@ -670,6 +679,18 @@ async function loadCourseLeaderboard() {
 
 function setupFullscreenHandler() {
   document.addEventListener("fullscreenchange", () => {
+    const runOverlay = document.getElementById("quiz-run-overlay");
+
+    // Toggle .exam-fullscreen layout class to switch between the
+    // small overlay (normal) and the dedicated fullscreen layout.
+    if (document.fullscreenElement && document.fullscreenElement === runOverlay) {
+      runOverlay.classList.add("exam-fullscreen");
+      runState.inFullscreen = true;
+    } else if (runOverlay) {
+      runOverlay.classList.remove("exam-fullscreen");
+      runState.inFullscreen = false;
+    }
+
     if (!document.fullscreenElement && runState.quizId) {
       // User exited fullscreen while a quiz is active
       runState.fullscreenExitCount++;
@@ -684,7 +705,6 @@ function setupFullscreenHandler() {
         `[QUIZ INTEGRITY] Student exited fullscreen ${runState.fullscreenExitCount} time(s) during quiz ${runState.quizId}`
       );
       // Attempt to re-enter fullscreen
-      const runOverlay = document.getElementById("quiz-run-overlay");
       if (runOverlay && runOverlay.requestFullscreen) {
         setTimeout(() => {
           runOverlay.requestFullscreen().catch(() => {
