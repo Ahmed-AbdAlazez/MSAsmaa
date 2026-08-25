@@ -12,14 +12,13 @@
   flex: 1;
   display: flex;
   align-items: stretch;
-  padding: 3rem 0 4rem;
+  min-height: calc(100vh - 60px);
 }
 
 .auth-split {
   display: flex;
   flex-direction: row-reverse;
   align-items: stretch;
-  gap: 2.5rem;
   width: 100%;
 }
 
@@ -32,12 +31,10 @@
   align-items: center;
   justify-content: center;
   padding: 3rem 2rem;
-  border-radius: var(--radius-lg);
   background:
     radial-gradient(circle at 85% -10%, rgba(20, 184, 166, 0.35), transparent 55%),
     linear-gradient(160deg, var(--color-primary-dark) 0%, var(--color-primary) 45%, var(--color-accent-blue) 130%);
   color: #fff;
-  box-shadow: 0 24px 48px rgba(15, 76, 58, 0.28);
 }
 
 .auth-visual::before,
@@ -218,12 +215,11 @@
 /* ---------- RESPONSIVE: stack vertically (mascot on top) ---------- */
 @media (max-width: 900px) {
   .auth-page {
-    padding: 2rem 0 3rem;
+    min-height: auto;
   }
 
   .auth-split {
     flex-direction: column;
-    gap: 1.5rem;
   }
 
   .auth-visual {
