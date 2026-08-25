@@ -152,3 +152,15 @@ model QuizExtraAttempt {
   @@unique([quizId, studentId])
   @@map("quiz_extra_attempts")
 }
+
+/// Lesson notes added dynamically by the teacher (Ms Asmaa) under a video.
+model LessonNote {
+  id        String   @id @default(uuid())
+  lessonId  String   @map("lesson_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([lessonId])
+  @@map("lesson_notes")
+}

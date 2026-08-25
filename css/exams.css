@@ -134,7 +134,7 @@
 }
 .exam-status.upcoming { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
 .exam-status.active   { background: rgba(16, 185, 129, 0.16); color: var(--color-accent-dark); }
-.exam-status.submitted { background: rgba(20, 184, 166, 0.16); color: #0f766e; }
+.exam-status.submitted { background: rgba(20, 184, 166, 0.16); color: var(--color-accent-dark); }
 .exam-status.ended    { background: var(--color-border); color: var(--color-text-muted); }
 
 /* ---------- Overlays ---------- */

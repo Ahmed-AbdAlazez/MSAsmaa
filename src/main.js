@@ -1,5 +1,14 @@
 import { initNavbar } from './components/navbar.js';
 
+// Keep every OPEN tab in sync with theme toggles made elsewhere: the
+// 'storage' event fires only in other tabs/documents, so flipping dark
+// mode on one page instantly updates all the others without a reload.
+window.addEventListener('storage', (event) => {
+  if (event.key === 'theme' && (event.newValue === 'dark' || event.newValue === 'light')) {
+    document.documentElement.setAttribute('data-theme', event.newValue);
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const isRegistrationRequestsPage = window.location.pathname.includes('registration-requests.html');
   if (isRegistrationRequestsPage) {

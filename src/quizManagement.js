@@ -149,6 +149,20 @@ async function updateQuestion(quizId, questionId, updates) {
   return true;
 }
 
+async function updateQuizSettings(quizId, payload) {
+  const { ok, data } = await apiCall("PUT", `/api/quizzes/${quizId}`, payload);
+
+  if (!ok) {
+    showToast(data?.error || "تعذر تحديث إعدادات الاختبار.", "danger");
+    return false;
+  }
+
+  showToast("تم تحديث إعدادات الاختبار بنجاح.", "success");
+  await loadTeacherQuizzes();
+  await loadQuizDetails(quizId);
+  return true;
+}
+
 /* ----------------------- UI Rendering ----------------------- */
 
 function renderQuizzesList() {
@@ -177,6 +191,13 @@ function renderQuizzesList() {
         <button class="btn btn-primary btn-sm view-quiz" data-quiz-id="${quiz.id}">
           عرض التفاصيل
         </button>
+        ${
+          quiz.canEdit
+            ? `<button class="btn btn-secondary btn-sm settings-quiz" data-quiz-id="${quiz.id}">
+                 ⚙️ تعديل الإعدادات
+               </button>`
+            : ""
+        }
         <button class="btn btn-danger btn-sm delete-quiz" data-quiz-id="${quiz.id}">
           حذف الاختبار
         </button>
@@ -197,6 +218,13 @@ function renderQuizzesList() {
   container.querySelectorAll(".delete-quiz").forEach((btn) => {
     btn.addEventListener("click", async () => {
       await deleteEntireQuiz(btn.dataset.quizId);
+    });
+  });
+
+  container.querySelectorAll(".settings-quiz").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const quiz = quizzesState.find((q) => q.id === btn.dataset.quizId);
+      if (quiz) showEditSettingsModal(quiz);
     });
   });
 }
@@ -220,9 +248,16 @@ function renderQuizDetails() {
           المدة: ${quiz.durationMinutes} دقيقة | ${questions.length} سؤال
         </p>
       </div>
-      <button class="btn btn-danger delete-entire-quiz" data-quiz-id="${quiz.id}">
-        🗑️ حذف الاختبار
-      </button>
+      <div class="quiz-details-actions">
+        ${
+          canEdit
+            ? `<button class="btn btn-secondary" id="edit-settings">⚙️ تعديل الإعدادات</button>`
+            : ""
+        }
+        <button class="btn btn-danger delete-entire-quiz" data-quiz-id="${quiz.id}">
+          🗑️ حذف الاختبار
+        </button>
+      </div>
     </div>
 
     <div class="questions-editor">
@@ -299,6 +334,10 @@ function renderQuizDetails() {
     await deleteEntireQuiz(e.target.dataset.quizId);
   });
 
+  document.getElementById("edit-settings")?.addEventListener("click", () => {
+    showEditSettingsModal(quiz);
+  });
+
   document.querySelectorAll(".delete-question").forEach((btn) => {
     btn.addEventListener("click", async () => {
       await deleteQuestion(quiz.id, btn.dataset.qId);
@@ -312,6 +351,147 @@ function renderQuizDetails() {
         showEditQuestionModal(quiz.id, question);
       }
     });
+  });
+}
+
+/** ISO instant -> "YYYY-MM-DDTHH:mm" in the TEACHER'S local clock so a
+ *  datetime-local input shows exactly what she picked originally. */
+function isoToLocalInputValue(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+
+function lessonOptionsHtml(selectedLessonId) {
+  const curriculum =
+    window.CURRICULUM && window.CURRICULUM.biology
+      ? window.CURRICULUM.biology
+      : [];
+  const options = [];
+  for (const chapter of curriculum) {
+    for (const lesson of chapter.lessons || []) {
+      const value = escapeHtml(lesson.id);
+      const label = `${chapter.name.split(":")[0]} — ${escapeHtml(lesson.name)}`;
+      options.push(
+        `<option value="${value}" ${lesson.id === selectedLessonId ? "selected" : ""}>${label}</option>`
+      );
+    }
+  }
+  if (!options.length) {
+    return `<option value="lesson-1">lesson-1</option>`;
+  }
+  return options.join("");
+}
+
+/**
+ * Edit ALL quiz settings (title / lesson / window / duration / question
+ * count). Only offered while the quiz has NOT started; the server enforces
+ * the same rule.
+ */
+function showEditSettingsModal(quiz) {
+  let modal = document.getElementById("edit-settings-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "edit-settings-modal";
+    modal.className = "modal";
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>تعديل إعدادات الاختبار</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>عنوان الاختبار</label>
+          <input type="text" class="form-input" id="settings-title"
+                 value="${escapeHtml(quiz.title)}">
+        </div>
+
+        <div class="form-group">
+          <label>الدرس</label>
+          <select class="form-input" id="settings-lesson">
+            ${lessonOptionsHtml(quiz.lessonId)}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>وقت البدء</label>
+          <input type="datetime-local" class="form-input" id="settings-start"
+                 value="${isoToLocalInputValue(quiz.startTime)}">
+        </div>
+
+        <div class="form-group">
+          <label>وقت النهاية</label>
+          <input type="datetime-local" class="form-input" id="settings-end"
+                 value="${isoToLocalInputValue(quiz.endTime)}">
+        </div>
+
+        <div class="form-group">
+          <label>مدة الحل بالدقائق</label>
+          <input type="number" min="1" step="1" class="form-input" id="settings-duration"
+                 value="${escapeHtml(String(quiz.durationMinutes))}">
+        </div>
+
+        <p class="muted" style="font-size:.85rem;">
+          ⏰ يفتح الاختبار للطالبات في وقت البدء، وتظهر لوحة الترتيب والمراجعة بعد وقت النهاية.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">إلغاء</button>
+        <button class="btn btn-primary" id="save-settings-edit">حفظ التغييرات</button>
+      </div>
+    </div>
+  `;
+
+  modal.style.display = "flex";
+
+  const close = () => {
+    modal.style.display = "none";
+  };
+  modal.querySelector(".modal-close").addEventListener("click", close);
+  modal.querySelector(".modal-close-btn").addEventListener("click", close);
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close();
+  });
+
+  modal.querySelector("#save-settings-edit").addEventListener("click", async () => {
+    const title = modal.querySelector("#settings-title").value.trim();
+    const lessonId = modal.querySelector("#settings-lesson").value;
+    const startRaw = modal.querySelector("#settings-start").value;
+    const endRaw = modal.querySelector("#settings-end").value;
+    const duration = Number(modal.querySelector("#settings-duration").value);
+
+    if (!title) return showToast("عنوان الاختبار مطلوب.", "warning");
+    if (!startRaw || !endRaw) return showToast("حددي وقتي البداية والنهاية.", "warning");
+    const startTime = new Date(startRaw);
+    const endTime = new Date(endRaw);
+    if (!Number.isFinite(startTime.getTime()) || !Number.isFinite(endTime.getTime())) {
+      return showToast("وقت البداية أو النهاية غير صالح.", "warning");
+    }
+    if (endTime <= startTime) {
+      return showToast("وقت النهاية يجب أن يكون بعد وقت البدء.", "warning");
+    }
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return showToast("حددي مدة الحل بالدقائق.", "warning");
+    }
+
+    const success = await updateQuizSettings(quiz.id, {
+      title,
+      lessonId,
+      // datetime-local reads in the teacher's clock; toISOString bakes the
+      // exact instant -> no timezone shifting on the way to the server.
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      durationMinutes: duration,
+    });
+    if (success) close();
   });
 }
 

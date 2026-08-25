@@ -770,6 +770,28 @@ async function updateQuestion(questionId, updates) {
   }
 }
 
+/**
+ * Persists an EDITED set of quiz SETTINGS (title, lesson, window, duration,
+ * declared question count). Validation + ownership + the before-start gate
+ * live in the route; this is the thin persistence layer. All `data` fields
+ * are pre-validated by the caller.
+ * @param {string} quizId
+ * @param {object} data - Prisma-ready subset of quiz columns
+ * @returns {Promise<object|null>} mapped quiz, or null when not found
+ */
+async function updateQuizMeta(quizId, data) {
+  try {
+    const updatedRow = await getPrisma().quiz.update({
+      where: { id: String(quizId) },
+      data,
+    });
+    return mapQuiz(updatedRow);
+  } catch (err) {
+    console.error(`[updateQuizMeta] error:`, err.message);
+    return null;
+  }
+}
+
 const service = {
   createQuiz,
   getQuizById,
@@ -797,6 +819,7 @@ const service = {
   deleteQuiz,
   deleteQuestionFromQuiz,
   updateQuestion,
+  updateQuizMeta,
 };
 
 // Every DB-backed function gains cold-start resilience transparently;
