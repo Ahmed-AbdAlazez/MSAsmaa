@@ -23,6 +23,7 @@
   <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
   <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/exams.css">
 </head>
 <body>
 
@@ -199,11 +200,50 @@
     </div>
   </footer>
 
+  <!-- ===================== TAKE-QUIZ OVERLAY ===================== -->
+  <div id="quiz-run-overlay" class="overlay" style="display:none;">
+    <div class="overlay-panel">
+      <div class="quiz-run-head">
+        <div>
+          <h2 id="run-title"></h2>
+          <span id="run-meta" class="muted"></span>
+        </div>
+        <div id="run-timer" class="quiz-timer">--:--</div>
+      </div>
+      <div id="run-questions" class="quiz-questions"></div>
+      <div class="quiz-run-actions">
+        <button id="btn-submit-quiz" class="btn btn-primary">تسليم الاختبار</button>
+        <button id="btn-close-run" class="btn btn-secondary">خروج</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RESULT / REVIEW OVERLAY ===================== -->
+  <div id="quiz-result-overlay" class="overlay" style="display:none;">
+    <div class="overlay-panel overlay-panel-wide">
+      <button id="btn-close-result" class="btn btn-secondary overlay-close">إغلاق ✕</button>
+      <div id="result-summary"></div>
+
+      <section class="result-section">
+        <h3>🏆 لوحة ترتيب هذا الاختبار</h3>
+        <div id="quiz-leaderboard-body"><div class="loading">جارٍ التحميل…</div></div>
+      </section>
+
+      <section class="result-section">
+        <h3>📝 مراجعة الإجابات</h3>
+        <div id="review-body"><div class="loading">جارٍ التحميل…</div></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
   <script src="/js/curriculum.js"></script>
   <!-- PDFs stream through the same-origin backend proxy
        (GET /api/materials/:id/view) into a plain <iframe>, so the native
        browser/OS PDF renderer handles display on every platform. -->
   <script src="/js/profile-menu.js"></script>
-<script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/exams.js"></script>
 </body>
 </html>

@@ -106,7 +106,7 @@
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
           <div style="flex:2; min-width:220px;">
-            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط ملف إضافي PDF / وسائط (اختياري)</label>
+            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط وسائط إضافي (اختياري)</label>
             <input id="upload-attachment" type="url" placeholder="https://drive.google.com/..."
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;" dir="ltr">
           </div>
@@ -115,28 +115,61 @@
             <input id="upload-file" type="file" accept="video/*"
               style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
-          <div style="flex:2; min-width:220px;">
-            <label for="upload-pdf-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف PDF للدرس (اختياري)</label>
-            <input id="upload-pdf-file" type="file" accept="application/pdf,.pdf"
-              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
-          </div>
         </div>
 
         <div style="margin-top:1rem;">
-          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس (اختياري)</label>
+          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الفيديو (اختياري)</label>
           <textarea id="upload-description" rows="3" placeholder="ملخص محتوى الشرح، المصادر، تعليمات للطلاب..."
             style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
         </div>
 
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
-          <button id="btn-upload-video" class="btn btn-primary" style="min-width:160px;">â¬† رفع الفيديو</button>
-          <button id="btn-upload-material" class="btn btn-secondary" style="min-width:170px;">رفع PDF فقط</button>
+          <button id="btn-upload-video" class="btn btn-primary" style="min-width:160px;">رفع الفيديو</button>
         </div>
 
         <div id="upload-progress-area" style="display:none; margin-top:1.25rem;">
           <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-status-text">جاري الرفع...</div>
           <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
             <div id="upload-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PDF Materials Upload Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">رفع ملفات PDF للدرس 📄</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-pdf-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="upload-pdf-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-pdf-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="upload-pdf-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-top:1rem;">
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-pdf-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم ملف PDF *</label>
+            <input id="upload-pdf-title" type="text" placeholder="ملخص الدعامة في النبات"
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-pdf-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف PDF للدرس *</label>
+            <input id="upload-pdf-file" type="file" accept="application/pdf,.pdf"
+              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
+          <button id="btn-upload-material" class="btn btn-secondary" style="min-width:170px;">رفع PDF</button>
+        </div>
+
+        <div id="upload-pdf-progress-area" style="display:none; margin-top:1.25rem;">
+          <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-pdf-status-text">جاري الرفع...</div>
+          <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
+            <div id="upload-pdf-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
           </div>
         </div>
       </div>
