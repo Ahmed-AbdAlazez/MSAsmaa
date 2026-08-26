@@ -1463,7 +1463,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .notification-item.unread {
-  background: rgba(16, 185, 129, 0.08);
+  background: var(--color-primary-ghost);
 }
 
 .notification-item-icon {
@@ -2049,7 +2049,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .file-upload-drag:hover {
   border-color: var(--color-primary-ink);
-  background-color: rgba(15, 76, 58, 0.02);
+  background-color: var(--color-primary-ghost);
 }
 
 .upload-icon {
@@ -2314,7 +2314,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .accordion-header:hover {
-  background-color: rgba(15, 76, 58, 0.02);
+  background-color: var(--color-primary-ghost);
 }
 
 .accordion-title-wrapper {
