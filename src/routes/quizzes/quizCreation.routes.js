@@ -18,10 +18,7 @@ const express = require("express");
 const multer = require("multer");
 
 const { requireAuth } = require("../../middleware/auth.middleware.js");
-const {
-  requireTeacher,
-  attachImageUrls,
-} = require("./quiz.helpers.js");
+const { requireTeacher, attachImageUrls } = require("./quiz.helpers.js");
 const {
   createQuiz,
   getQuizById,
@@ -35,8 +32,8 @@ const {
   isAllowedQuizImage,
 } = require("../../services/supabaseStorage.service.js");
 const {
-  createNotificationForEnrolledStudents,
-} = require("../../services/notifications.stub.service.js");
+  createNotificationForApprovedStudents,
+} = require("../../services/notifications.service.js");
 
 const router = express.Router();
 
@@ -123,7 +120,7 @@ router.post("/quizzes", requireAuth, requireTeacher, async (req, res) => {
     // Server-side safety net: validate lesson ID format via regex.
     // The real cross-course guard is in the frontend.
     const invalidIds = fields.lessonIds.filter(
-      (id) => !/^lesson-\d+$/.test(id)
+      (id) => !/^lesson-\d+$/.test(id),
     );
     if (invalidIds.length > 0) {
       return res.status(400).json({
@@ -134,40 +131,47 @@ router.post("/quizzes", requireAuth, requireTeacher, async (req, res) => {
 
   const quiz = await createQuiz({ ...fields, createdByTeacherId: req.user.id });
 
-  // PUBLISH NOTIFICATION - reuses the SHARED helper from the notifications
-  // feature (never a second implementation). Fired after the quiz exists,
-  // deliberately non-blocking: a notification outage must never fail
-  // quiz creation.
-  createNotificationForEnrolledStudents(
-    quiz.courseId || "biology",
-    `اختبار جديد: ${quiz.title} — افتحي صفحة الاختبارات لبدء الحل.`,
-    "/exams.html"
-  ).catch((error) =>
-    console.error("[quiz] publish notification failed:", error.message)
-  );
+  await createNotificationForApprovedStudents({
+    type: "quiz",
+    title: "امتحان جديد",
+    message: `تم إضافة امتحان جديد: ${quiz.title}`,
+    relatedId: quiz.id,
+    relatedType: "quiz",
+    link: `/exams.html?quiz=${encodeURIComponent(quiz.id)}`,
+  });
   return res.status(201).json({ message: "تم إنشاء الاختبار.", quiz });
 });
 
 /**
  * GET /api/quizzes/:quizId â€” metadata (teacher view).
  */
-router.get("/quizzes/:quizId", requireAuth, requireTeacher, async (req, res) => {
-  const quiz = await getQuizById(req.params.quizId);
-  if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
-  // Attach lessonIds for mixed quizzes
-  if (quiz.isMixed) {
-    quiz.lessonIds = await getQuizLessons(quiz.id);
-  }
-  return res.json({ quiz });
-});
+router.get(
+  "/quizzes/:quizId",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    const quiz = await getQuizById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
+    // Attach lessonIds for mixed quizzes
+    if (quiz.isMixed) {
+      quiz.lessonIds = await getQuizLessons(quiz.id);
+    }
+    return res.json({ quiz });
+  },
+);
 
 /**
  * GET /api/lessons/:lessonId/quizzes â€” all quizzes for one lesson page.
  */
-router.get("/lessons/:lessonId/quizzes", requireAuth, requireTeacher, async (req, res) => {
-  const quizzes = await getQuizzesForLesson(req.params.lessonId);
-  return res.json({ quizzes });
-});
+router.get(
+  "/lessons/:lessonId/quizzes",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    const quizzes = await getQuizzesForLesson(req.params.lessonId);
+    return res.json({ quizzes });
+  },
+);
 
 /**
  * Validates an incoming question payload BEFORE anything is stored.
@@ -202,7 +206,11 @@ function validateQuestionPayload(body) {
     }
 
     const correctIndex = Number(body.correctIndex);
-    if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex > 3) {
+    if (
+      !Number.isInteger(correctIndex) ||
+      correctIndex < 0 ||
+      correctIndex > 3
+    ) {
       return { ok: false, error: "حددي الإجابة الصحيحة (correctIndex ٠..٣)." };
     }
 
@@ -224,63 +232,74 @@ function validateQuestionPayload(body) {
  * file field (jpg/png/webp). The image is stored in Supabase and ONLY its
  * path is saved on the question record.
  */
-router.post("/quizzes/:quizId/questions", requireAuth, requireTeacher, imageUpload.single("image"), async (req, res) => {
-  const quiz = await getQuizById(req.params.quizId);
-  if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
+router.post(
+  "/quizzes/:quizId/questions",
+  requireAuth,
+  requireTeacher,
+  imageUpload.single("image"),
+  async (req, res) => {
+    const quiz = await getQuizById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
-  const validated = validateQuestionPayload(req.body);
-  if (!validated.ok) {
-    return res.status(400).json({ error: validated.error });
-  }
-
-  // Reject wrong image types early with a clear Arabic message.
-  if (req.file && !isAllowedQuizImage(req.file)) {
-    return res.status(400).json({
-      error: "صورة السؤال يجب أن تكون JPG أو PNG أو WEBP.",
-    });
-  }
-
-  try {
-    // Upload FIRST so a failed upload never leaves a question row pointing
-    // at nothing (same order as the materials feature).
-    let imagePath = null;
-    if (req.file) {
-      imagePath = await uploadQuizImage(
-        req.file.buffer,
-        req.file.mimetype,
-        quiz.id
-      );
+    const validated = validateQuestionPayload(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ error: validated.error });
     }
 
-    const question = await addQuestionToQuiz(quiz.id, {
-      ...validated.fields,
-      imagePath,
-    });
-
-    return res.status(201).json({ message: "تمت إضافة السؤال.", question });
-  } catch (error) {
-    if (error.message === "QUIZ_QUESTION_LIMIT_REACHED") {
+    // Reject wrong image types early with a clear Arabic message.
+    if (req.file && !isAllowedQuizImage(req.file)) {
       return res.status(400).json({
-        error: `وصلتِ للحد الأقصى (${quiz.questionCount} سؤال) لهذا الاختبار.`,
+        error: "صورة السؤال يجب أن تكون JPG أو PNG أو WEBP.",
       });
     }
-    console.error("[quiz] add question failed:", error);
-    return res.status(500).json({ error: "تعذر حفظ السؤال." });
-  }
-});
+
+    try {
+      // Upload FIRST so a failed upload never leaves a question row pointing
+      // at nothing (same order as the materials feature).
+      let imagePath = null;
+      if (req.file) {
+        imagePath = await uploadQuizImage(
+          req.file.buffer,
+          req.file.mimetype,
+          quiz.id,
+        );
+      }
+
+      const question = await addQuestionToQuiz(quiz.id, {
+        ...validated.fields,
+        imagePath,
+      });
+
+      return res.status(201).json({ message: "تمت إضافة السؤال.", question });
+    } catch (error) {
+      if (error.message === "QUIZ_QUESTION_LIMIT_REACHED") {
+        return res.status(400).json({
+          error: `وصلتِ للحد الأقصى (${quiz.questionCount} سؤال) لهذا الاختبار.`,
+        });
+      }
+      console.error("[quiz] add question failed:", error);
+      return res.status(500).json({ error: "تعذر حفظ السؤال." });
+    }
+  },
+);
 
 /**
  * GET /api/quizzes/:quizId/questions â€” FULL questions (teacher preview).
  * Includes correctChoiceId / modelAnswer BY DESIGN â€” this router is
  * teacher-gated, unlike the student taking flow which sanitizes.
  */
-router.get("/quizzes/:quizId/questions", requireAuth, requireTeacher, async (req, res) => {
-  const quiz = await getQuizById(req.params.quizId);
-  if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
+router.get(
+  "/quizzes/:quizId/questions",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    const quiz = await getQuizById(req.params.quizId);
+    if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
-  const questions = await getQuestionsForQuiz(quiz.id);
-  await attachImageUrls(questions);
-  return res.json({ quiz, questions });
-});
+    const questions = await getQuestionsForQuiz(quiz.id);
+    await attachImageUrls(questions);
+    return res.json({ quiz, questions });
+  },
+);
 
 module.exports = router;

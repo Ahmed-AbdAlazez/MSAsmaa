@@ -702,7 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return [];
     try {
-      const data = await fetchJson("/api/notifications", {
+      const data = await fetchJson(`${API_BASE}/notifications`, {
         headers: authHeaders(),
       });
       cachedNotifications = data.notifications || [];
@@ -720,8 +720,18 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const updateNotificationBadge = async () => {
-    const notifications = await fetchNotifications();
-    const unreadCount = notifications.filter((item) => !item.read).length;
+    let unreadCount = 0;
+    try {
+      const data = await fetchJson(`${API_BASE}/notifications/unread-count`, {
+        headers: authHeaders(),
+      });
+      unreadCount = Number(data.count) || 0;
+    } catch (error) {
+      const notifications = await fetchNotifications();
+      unreadCount = notifications.filter(
+        (item) => !(item.isRead ?? item.read),
+      ).length;
+    }
     document.querySelectorAll(".notification-count").forEach((badge) => {
       badge.textContent = unreadCount;
       badge.hidden = unreadCount === 0;
@@ -743,11 +753,11 @@ document.addEventListener("DOMContentLoaded", () => {
       .slice(0, 6)
       .map(
         (item) => `
-      <div class="notification-item ${item.read ? "" : "unread"}" data-id="${item.id}" data-link="${item.link || ""}">
+      <div class="notification-item ${(item.isRead ?? item.read) ? "" : "unread"}" data-id="${item.id}" data-link="${escapeHTML(item.link || "")}">
         <div class="notification-item-icon">${item.type === "quiz" ? "؟" : "!"}</div>
         <div>
-          <h4>${item.title}</h4>
-          <p>${item.message}</p>
+          <h4>${escapeHTML(item.title)}</h4>
+          <p>${escapeHTML(item.message)}</p>
         </div>
       </div>
     `,
@@ -760,8 +770,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const id = item.dataset.id;
         const link = item.dataset.link;
         try {
-          await fetchJson(`/api/notifications/${id}/read`, {
-            method: "POST",
+          await fetchJson(`${API_BASE}/notifications/${id}/read`, {
+            method: "PATCH",
             headers: authHeaders(),
           });
           await updateNotificationBadge();
@@ -1092,22 +1102,6 @@ document.addEventListener("DOMContentLoaded", () => {
           quizzes.unshift(quiz);
           setStoredItems(QUIZZES_STORAGE_KEY, quizzes);
 
-          // Publish notification to backend
-          fetchJson("/api/notifications/quiz", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...authHeaders(),
-            },
-            body: JSON.stringify({ title: quiz.title }),
-          })
-            .then(() => {
-              updateNotificationBadge();
-            })
-            .catch((err) => {
-              console.error("[quiz] Failed to notify backend:", err);
-            });
-
           renderTeacherQuizList();
           quizPanel.querySelector("#teacher-quiz-form").reset();
           draftQuestions.length = 0;
@@ -1156,7 +1150,9 @@ document.addEventListener("DOMContentLoaded", () => {
     updateNotificationBadge();
   };
 
-  const getNotificationButtonHTML = () => `
+  const getNotificationButtonHTML = () => {
+    if (localStorage.getItem("userRole") !== "student") return "";
+    return `
     <div class="notification-center">
       <button class="notification-btn" id="notification-btn" type="button" title="الإشعارات" aria-label="الإشعارات">
         <span class="notification-symbol">!</span>
@@ -1171,6 +1167,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
   `;
+  };
 
   // Populate auth placeholders dynamically
   const updateAuthUI = () => {
@@ -1211,8 +1208,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (mobileAuthContainer) {
+        const notificationAction =
+          userRole === "student"
+            ? '<button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>'
+            : "";
         mobileAuthContainer.innerHTML = `
-          <button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>
+          ${notificationAction}
           <button class="btn btn-danger btn-full" id="mobile-logout-btn">تسجيل الخروج (${username})</button>
         `;
       }
@@ -1232,7 +1233,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (mobileAuthContainer) {
         mobileAuthContainer.innerHTML = `
-          <button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>
           <button class="btn btn-primary btn-full" id="mobile-login-btn">تسجيل الدخول</button>
         `;
       }
@@ -1260,8 +1260,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (markNotificationsRead) {
       markNotificationsRead.addEventListener("click", async () => {
         try {
-          await fetchJson("/api/notifications/mark-all-read", {
-            method: "POST",
+          await fetchJson(`${API_BASE}/notifications/read-all`, {
+            method: "PATCH",
             headers: authHeaders(),
           });
           await renderNotificationsMenu();

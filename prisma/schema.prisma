@@ -8,7 +8,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  
 }
 
 enum Role {
@@ -35,7 +34,28 @@ model User {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
+  notifications Notification[]
+
   @@map("users")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  type        String
+  title       String
+  message     String
+  relatedId   String?  @map("related_id")
+  relatedType String?  @map("related_type")
+  link        String?
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 // ---------------------------------------------------------------------------
@@ -49,21 +69,21 @@ model User {
 /// One published exam. Times are absolute windows; durationMinutes is the
 /// per-student countdown length (fractional allowed for tests).
 model Quiz {
-  id              String   @id @default(uuid())
-  createdByTeacherId String? @map("created_by_teacher_id")
-  lessonId        String?  @map("lesson_id")
-  courseId        String?  @map("course_id")
-  isMixed         Boolean  @default(false) @map("is_mixed")
-  title           String
-  questionCount   Int      @map("question_count")
-  startTime       DateTime @map("start_time")
-  endTime         DateTime @map("end_time")
-  durationMinutes Float    @map("duration_minutes")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id                 String   @id @default(uuid())
+  createdByTeacherId String?  @map("created_by_teacher_id")
+  lessonId           String?  @map("lesson_id")
+  courseId           String?  @map("course_id")
+  isMixed            Boolean  @default(false) @map("is_mixed")
+  title              String
+  questionCount      Int      @map("question_count")
+  startTime          DateTime @map("start_time")
+  endTime            DateTime @map("end_time")
+  durationMinutes    Float    @map("duration_minutes")
+  createdAt          DateTime @default(now()) @map("created_at")
 
-  questions     QuizQuestion[]
-  attempts      QuizAttempt[]
-  quizLessons   QuizLesson[]
+  questions   QuizQuestion[]
+  attempts    QuizAttempt[]
+  quizLessons QuizLesson[]
 
   @@index([courseId])
   @@index([lessonId])
@@ -182,13 +202,13 @@ model LessonNote {
 
 /// Student comments on lesson videos.
 model LessonComment {
-  id         String   @id @default(uuid())
-  lessonId   String   @map("lesson_id")
-  studentId  String   @map("student_id")
-  studentName String  @map("student_name")
-  content    String
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid())
+  lessonId    String   @map("lesson_id")
+  studentId   String   @map("student_id")
+  studentName String   @map("student_name")
+  content     String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([lessonId])
   @@index([studentId])

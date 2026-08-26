@@ -38,7 +38,10 @@ const {
 // Sanitize user text before embedding it in the Bunny title:
 // "|" is our metadata separator and must never come from user input.
 const cleanTitlePart = (s) =>
-  String(s || "").replace(/\|/g, "/").replace(/\s+/g, " ").trim();
+  String(s || "")
+    .replace(/\|/g, "/")
+    .replace(/\s+/g, " ")
+    .trim();
 
 // ⚠️ STUB imports — see "STUBS TO REPLACE LATER" in VIDEO_INTEGRATION_README.md
 const {
@@ -49,8 +52,8 @@ const {
   getLessonVideoId,
 } = require("../services/lesson.stub.service.js");
 const {
-  createNotificationForEnrolledStudents,
-} = require("../services/notifications.stub.service.js");
+  createNotificationForApprovedStudents,
+} = require("../services/notifications.service.js");
 
 const router = express.Router();
 
@@ -99,7 +102,7 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
     lessonId,
     cleanTitlePart(rawTitle),
     cleanTitlePart(attachmentUrl),
-    cleanTitlePart(description)
+    cleanTitlePart(description),
   );
 
   try {
@@ -112,10 +115,14 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
     // Bunny's title remains the source of truth).
     await saveLessonVideoId(lessonId, bunnyVideoId);
 
-    // Trigger notification for enrolled students using the shared function
-    const notifyMessage = `فيديو جديد لدرس "${rawTitle}" متاح الآن للمشاهدة.`;
-    const notifyLink = `/lesson-view.html?lesson=${lessonId}`;
-    await createNotificationForEnrolledStudents("biology", notifyMessage, notifyLink);
+    await createNotificationForApprovedStudents({
+      type: "video",
+      title: "فيديو جديد",
+      message: `تم إضافة فيديو جديد: ${rawTitle}`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+    });
 
     return res.status(201).json({
       message:
@@ -130,7 +137,10 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       accessKey: require("../config/bunny.env.config.js").apiKey,
     });
   } catch (error) {
-    console.error(`[video.routes] Upload prep failed for lesson ${lessonId}:`, error);
+    console.error(
+      `[video.routes] Upload prep failed for lesson ${lessonId}:`,
+      error,
+    );
     return res.status(500).json({
       error: "Failed to prepare the video upload. Please try again later.",
     });
@@ -164,7 +174,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
    * ====================================================================== */
   const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
     req.user.id,
-    req.params.lessonId
+    req.params.lessonId,
   );
 
   if (!studentIsEnrolled) {
@@ -196,7 +206,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
     // share a working link forever.
     const playbackUrl = generateSignedPlaybackUrl(
       lessonVideoId,
-      PLAYBACK_URL_LIFETIME_SECONDS
+      PLAYBACK_URL_LIFETIME_SECONDS,
     );
 
     return res.json({
@@ -208,7 +218,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
   } catch (error) {
     console.error(
       `[video.routes] Playback URL failed for lesson ${req.params.lessonId}:`,
-      error
+      error,
     );
     return res.status(500).json({
       error: "Failed to create the playback URL. Please try again later.",
@@ -251,7 +261,7 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
   } catch (error) {
     console.error(
       `[video.routes] Status check failed for lesson ${req.params.lessonId}:`,
-      error
+      error,
     );
     return res.status(500).json({
       error: "Failed to check the video status. Please try again later.",
@@ -269,7 +279,7 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
 router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
     req.user.id,
-    req.params.lessonId
+    req.params.lessonId,
   );
   if (!studentIsEnrolled) {
     return res.status(403).json({
@@ -292,7 +302,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
         dateUploaded: video.dateUploaded,
         playbackUrl: generateSignedPlaybackUrl(
           video.guid,
-          PLAYBACK_URL_LIFETIME_SECONDS
+          PLAYBACK_URL_LIFETIME_SECONDS,
         ),
         expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
       })),
@@ -300,7 +310,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   } catch (error) {
     console.error(
       `[video.routes] Video list failed for lesson ${req.params.lessonId}:`,
-      error
+      error,
     );
     return res.status(500).json({
       error: "Failed to load the lesson videos. Please try again later.",
