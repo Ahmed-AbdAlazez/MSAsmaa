@@ -84,7 +84,7 @@ const deleteStudent = catchAsync(async (req, res, next) => {
     return next(new AppError('Only STUDENT accounts can be deleted through this endpoint.', 400));
   }
 
-  // User currently has no Prisma relations. Quiz/comment rows store studentId
+  // User currently has no Prisma relations. Quiz rows store studentId
   // as plain strings, so this delete does not trigger foreign-key cascades or
   // affect teacher/course records.
   await prisma.user.delete({ where: { id: student.id } });

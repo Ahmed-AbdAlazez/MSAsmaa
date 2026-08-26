@@ -173,6 +173,7 @@ router.get("/quizzes/available", requireAuth, async (req, res) => {
       startTime: quiz.startTime,
       endTime: quiz.endTime,
       durationMinutes: quiz.durationMinutes,
+      createdAt: quiz.createdAt,
       status:
         now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
     };
@@ -279,6 +280,7 @@ router.get("/quizzes/for-lesson/:lessonId", requireAuth, async (req, res) => {
       startTime: quiz.startTime,
       endTime: quiz.endTime,
       durationMinutes: quiz.durationMinutes,
+      createdAt: quiz.createdAt,
       status: now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
     };
   });

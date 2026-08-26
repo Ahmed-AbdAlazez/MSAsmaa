@@ -199,18 +199,3 @@ model LessonNote {
   @@index([lessonId])
   @@map("lesson_notes")
 }
-
-/// Student comments on lesson videos.
-model LessonComment {
-  id          String   @id @default(uuid())
-  lessonId    String   @map("lesson_id")
-  studentId   String   @map("student_id")
-  studentName String   @map("student_name")
-  content     String
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@index([lessonId])
-  @@index([studentId])
-  @@map("lesson_comments")
-}

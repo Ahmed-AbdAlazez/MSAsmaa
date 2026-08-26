@@ -140,10 +140,21 @@ function examCardHtml(exam) {
   const exhausted = Boolean(submitted) && remaining <= 0;
 
   let badgeLabel = STATUS_LABELS[exam.status];
-  if (exam.status === "active" && submitted && !canResume) {
-    badgeLabel = exhausted ? "تم التسليم ✓" : "تم التسليم — إعادة متاحة";
+  let isActionableActive = false;
+  if (exam.status === "active") {
+    if (submitted && !canResume) {
+      badgeLabel = exhausted ? "تم التسليم ✓" : "تم التسليم — إعادة متاحة";
+      if (!exhausted) {
+        isActionableActive = true;
+      }
+    } else {
+      isActionableActive = true;
+      badgeLabel = "الاختبار متاح الآن";
+    }
   }
-  const badge = `<span class="exam-status ${exam.status}${submitted ? " submitted" : ""}">${badgeLabel}</span>`;
+
+  const pulsingDot = isActionableActive ? `<span class="pulse-dot"></span>` : "";
+  const badge = `<span class="exam-status ${exam.status}${submitted ? " submitted" : ""}${isActionableActive ? " actionable-active" : ""}">${pulsingDot}${badgeLabel}</span>`;
 
   let action;
   if (exam.status === "active") {
@@ -191,6 +202,13 @@ function examCardHtml(exam) {
 }
 
 function renderExams(exams, tab) {
+  // Sort exams descending by createdAt so the most recently created one appears first
+  exams.sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+
   const byLesson = document.getElementById("exams-by-lesson");
   const all = document.getElementById("exams-all");
   const mixed = document.getElementById("exams-mixed");

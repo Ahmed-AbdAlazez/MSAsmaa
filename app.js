@@ -86,7 +86,7 @@ app.use("/api", notificationsRoutes);
 // QUIZ_README.md for flows, stubs, and testing.
 app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
 
-// Lesson notes (teacher) and student comments on lessons.
+// Lesson notes (teacher).
 app.use("/api", require("./src/routes/lessonNotesComments.routes.js"));
 
 /* ==========================================================================
