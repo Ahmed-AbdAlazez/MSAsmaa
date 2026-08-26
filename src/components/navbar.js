@@ -5,28 +5,32 @@
  */
 
 export function initNavbar() {
-  const navbarElement = document.querySelector('.navbar');
+  const navbarElement = document.querySelector(".navbar");
   if (!navbarElement) return;
 
   // Clean the navbar class list to ensure it's not restricted by .container
-  navbarElement.className = 'navbar';
+  navbarElement.className = "navbar";
 
   const currentPath = window.location.pathname;
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('userRole');
+  const token = localStorage.getItem("token");
+  const userRole = localStorage.getItem("userRole");
   const isLoggedIn = !!token;
-  const isTeacher = userRole === 'teacher';
-  const isStudent = userRole === 'student';
+  const isTeacher = userRole === "teacher";
+  const isStudent = userRole === "student";
 
   // Helper to determine active state of nav links
   const getActive = (paths) => {
-    const isMatch = paths.some(path => {
-      if (path === 'index.html') {
-        return currentPath === '/' || currentPath.endsWith('index.html') || currentPath === '';
+    const isMatch = paths.some((path) => {
+      if (path === "index.html") {
+        return (
+          currentPath === "/" ||
+          currentPath.endsWith("index.html") ||
+          currentPath === ""
+        );
       }
       return currentPath.includes(path);
     });
-    return isMatch ? 'active' : '';
+    return isMatch ? "active" : "";
   };
 
   if (!isLoggedIn) {
@@ -48,17 +52,17 @@ export function initNavbar() {
     `;
 
     // Mobile drawer for logged-out state
-    let overlay = document.querySelector('.drawer-overlay');
+    let overlay = document.querySelector(".drawer-overlay");
     if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.className = 'drawer-overlay';
+      overlay = document.createElement("div");
+      overlay.className = "drawer-overlay";
       document.body.appendChild(overlay);
     }
 
-    let drawer = document.querySelector('.mobile-drawer');
+    let drawer = document.querySelector(".mobile-drawer");
     if (!drawer) {
-      drawer = document.createElement('div');
-      drawer.className = 'mobile-drawer';
+      drawer = document.createElement("div");
+      drawer.className = "mobile-drawer";
       document.body.appendChild(drawer);
     }
 
@@ -82,22 +86,28 @@ export function initNavbar() {
     // LOGGED IN STATE: Show full navbar with all navigation links
 
     // Build dashboard link based on role
-    let dashboardLink = '';
-    let mobileDashboardLink = '';
+    let dashboardLink = "";
+    let mobileDashboardLink = "";
     if (isTeacher) {
-      dashboardLink = `<li><a href="dashboard-teacher.html" class="nav-link ${getActive(['dashboard-teacher.html'])}">لوحة المعلمة</a></li>`;
-      mobileDashboardLink = `<li><a href="dashboard-teacher.html" class="mobile-link ${getActive(['dashboard-teacher.html'])}">لوحة المعلمة</a></li>`;
+      dashboardLink = `<li><a href="dashboard-teacher.html" class="nav-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
+      mobileDashboardLink = `<li><a href="dashboard-teacher.html" class="mobile-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
     } else if (isStudent) {
-      dashboardLink = `<li><a href="dashboard-student.html" class="nav-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
-      mobileDashboardLink = `<li><a href="dashboard-student.html" class="mobile-link ${getActive(['dashboard-student.html'])}">لوحة الطالب</a></li>`;
+      dashboardLink = `<li><a href="dashboard-student.html" class="nav-link ${getActive(["dashboard-student.html"])}">لوحة الطالب</a></li>`;
+      mobileDashboardLink = `<li><a href="dashboard-student.html" class="mobile-link ${getActive(["dashboard-student.html"])}">لوحة الطالب</a></li>`;
     }
 
     const registrationRequestsLink = isTeacher
-      ? `<li><a href="registration-requests.html" class="nav-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
-      : '';
+      ? `<li><a href="registration-requests.html" class="nav-link ${getActive(["registration-requests.html"])}">Registration Requests</a></li>`
+      : "";
     const mobileRegistrationRequestsLink = isTeacher
-      ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(['registration-requests.html'])}">Registration Requests</a></li>`
-      : '';
+      ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(["registration-requests.html"])}">Registration Requests</a></li>`
+      : "";
+    const studentsManagementLink = isTeacher
+      ? `<li><a href="students.html" class="nav-link ${getActive(["students.html"])}">الطلاب</a></li>`
+      : "";
+    const mobileStudentsManagementLink = isTeacher
+      ? `<li><a href="students.html" class="mobile-link ${getActive(["students.html"])}">الطلاب</a></li>`
+      : "";
 
     // Generate navbar inner HTML
     navbarElement.innerHTML = `
@@ -107,12 +117,13 @@ export function initNavbar() {
           <span>المرسال</span>
         </a>
         <ul class="nav-links">
-          <li><a href="index.html" class="nav-link ${getActive(['index.html'])}">الرئيسية</a></li>
-          <li><a href="course-biology.html" class="nav-link ${getActive(['course-biology.html', 'lessons.html', 'lesson-view.html'])}">الأحياء (3ث)</a></li>
-          <li><a href="exams.html" class="nav-link ${getActive(['exams.html'])}">الاختبارات</a></li>
-          <li><a href="chatbots.html" class="nav-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
+          <li><a href="index.html" class="nav-link ${getActive(["index.html"])}">الرئيسية</a></li>
+          <li><a href="course-biology.html" class="nav-link ${getActive(["course-biology.html", "lessons.html", "lesson-view.html"])}">الأحياء (3ث)</a></li>
+          <li><a href="exams.html" class="nav-link ${getActive(["exams.html"])}">الاختبارات</a></li>
+          <li><a href="chatbots.html" class="nav-link ${getActive(["chatbots.html"])}">المحادثات</a></li>
           ${dashboardLink}
           ${registrationRequestsLink}
+          ${studentsManagementLink}
         </ul>
         <div class="nav-actions">
           <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
@@ -125,17 +136,17 @@ export function initNavbar() {
     `;
 
     // Inject Mobile Drawer Overlay & Sidebar if they are not already in the DOM
-    let overlay = document.querySelector('.drawer-overlay');
+    let overlay = document.querySelector(".drawer-overlay");
     if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.className = 'drawer-overlay';
+      overlay = document.createElement("div");
+      overlay.className = "drawer-overlay";
       document.body.appendChild(overlay);
     }
 
-    let drawer = document.querySelector('.mobile-drawer');
+    let drawer = document.querySelector(".mobile-drawer");
     if (!drawer) {
-      drawer = document.createElement('div');
-      drawer.className = 'mobile-drawer';
+      drawer = document.createElement("div");
+      drawer.className = "mobile-drawer";
       document.body.appendChild(drawer);
     }
 
@@ -151,12 +162,13 @@ export function initNavbar() {
         <button class="mobile-drawer-close">✕</button>
       </div>
       <ul class="mobile-links">
-        <li><a href="index.html" class="mobile-link ${getActive(['index.html'])}">الرئيسية</a></li>
-        <li><a href="course-biology.html" class="mobile-link ${getActive(['course-biology.html', 'lessons.html', 'lesson-view.html'])}">الأحياء (3ث)</a></li>
-        <li><a href="exams.html" class="mobile-link ${getActive(['exams.html'])}">الاختبارات</a></li>
-        <li><a href="chatbots.html" class="mobile-link ${getActive(['chatbots.html'])}">المحادثات</a></li>
+        <li><a href="index.html" class="mobile-link ${getActive(["index.html"])}">الرئيسية</a></li>
+        <li><a href="course-biology.html" class="mobile-link ${getActive(["course-biology.html", "lessons.html", "lesson-view.html"])}">الأحياء (3ث)</a></li>
+        <li><a href="exams.html" class="mobile-link ${getActive(["exams.html"])}">الاختبارات</a></li>
+        <li><a href="chatbots.html" class="mobile-link ${getActive(["chatbots.html"])}">المحادثات</a></li>
         ${mobileDashboardLink}
         ${mobileRegistrationRequestsLink}
+        ${mobileStudentsManagementLink}
       </ul>
       <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
     `;

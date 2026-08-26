@@ -1,22 +1,29 @@
-import { initNavbar } from './components/navbar.js';
+import { initNavbar } from "./components/navbar.js";
+import { initStudentsPage } from "./studentsPage.js";
 
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
 // 'storage' event fires only in other tabs/documents, so flipping dark
 // mode on one page instantly updates all the others without a reload.
-window.addEventListener('storage', (event) => {
-  if (event.key === 'theme' && (event.newValue === 'dark' || event.newValue === 'light')) {
-    document.documentElement.setAttribute('data-theme', event.newValue);
+window.addEventListener("storage", (event) => {
+  if (
+    event.key === "theme" &&
+    (event.newValue === "dark" || event.newValue === "light")
+  ) {
+    document.documentElement.setAttribute("data-theme", event.newValue);
   }
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-  const isTeacherOnlyPage = window.location.pathname.includes('registration-requests.html')
-    || window.location.pathname.includes('dashboard-teacher.html');
+document.addEventListener("DOMContentLoaded", () => {
+  const isStudentsPage = window.location.pathname.includes("students.html");
+  const isTeacherOnlyPage =
+    window.location.pathname.includes("registration-requests.html") ||
+    window.location.pathname.includes("dashboard-teacher.html") ||
+    isStudentsPage;
   if (isTeacherOnlyPage) {
-    const role = String(localStorage.getItem('userRole') || '').toLowerCase();
-    const token = localStorage.getItem('token');
-    if (role !== 'teacher' || !token) {
-      window.location.replace('index.html');
+    const role = String(localStorage.getItem("userRole") || "").toLowerCase();
+    const token = localStorage.getItem("token");
+    if (role !== "teacher" || !token) {
+      window.location.replace(isStudentsPage ? "login.html" : "index.html");
       return;
     }
   }
@@ -27,38 +34,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Dark / light theme toggle ---
     const themeRoot = document.documentElement;
-    document.querySelectorAll('.theme-toggle').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const next = themeRoot.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        themeRoot.setAttribute('data-theme', next);
+    document.querySelectorAll(".theme-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const next =
+          themeRoot.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        themeRoot.setAttribute("data-theme", next);
         try {
-          localStorage.setItem('theme', next);
-        } catch (_) { /* storage unavailable — theme still applies for this visit */ }
+          localStorage.setItem("theme", next);
+        } catch (_) {
+          /* storage unavailable — theme still applies for this visit */
+        }
       });
     });
 
     // --- Mobile Drawer Menu ---
-    const navToggle = document.querySelector('.nav-toggle');
-    const drawerClose = document.querySelector('.mobile-drawer-close');
-    const drawer = document.querySelector('.mobile-drawer');
-    const overlay = document.querySelector('.drawer-overlay');
+    const navToggle = document.querySelector(".nav-toggle");
+    const drawerClose = document.querySelector(".mobile-drawer-close");
+    const drawer = document.querySelector(".mobile-drawer");
+    const overlay = document.querySelector(".drawer-overlay");
 
     if (navToggle && drawer && overlay) {
-      navToggle.addEventListener('click', () => {
-        drawer.classList.add('open');
-        overlay.classList.add('show');
+      navToggle.addEventListener("click", () => {
+        drawer.classList.add("open");
+        overlay.classList.add("show");
       });
     }
 
     const closeDrawer = () => {
       if (drawer && overlay) {
-        drawer.classList.remove('open');
-        overlay.classList.remove('show');
+        drawer.classList.remove("open");
+        overlay.classList.remove("show");
       }
     };
 
-    if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
-    if (overlay) overlay.addEventListener('click', closeDrawer);
+    if (drawerClose) drawerClose.addEventListener("click", closeDrawer);
+    if (overlay) overlay.addEventListener("click", closeDrawer);
   };
 
   reinitializeNavbarUI();
@@ -71,28 +81,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // Login/signup now live on the dedicated auth page (login.html) instead of
   // a modal dialog. Every trigger navigates there; ?mode=signup deep-links
   // straight to the signup tab.
-  document.addEventListener('click', (event) => {
-    const loginTrigger = event.target.closest('.js-login-trigger');
+  document.addEventListener("click", (event) => {
+    const loginTrigger = event.target.closest(".js-login-trigger");
     if (!loginTrigger) return;
 
     event.preventDefault();
-    window.location.href = 'login.html';
+    window.location.href = "login.html";
   });
 
   // --- Dynamic Toast System ---
-  window.showToast = (message, type = 'success') => {
+  window.showToast = (message, type = "success") => {
     // Remove existing toast if visible
-    const existing = document.querySelector('.toast');
+    const existing = document.querySelector(".toast");
     if (existing) existing.remove();
 
     // Create toast
-    const toast = document.createElement('div');
+    const toast = document.createElement("div");
     toast.className = `toast toast-${type} show`;
 
     // Icon selection
-    let icon = '✓';
-    if (type === 'danger') icon = '✕';
-    if (type === 'warning') icon = '⚠';
+    let icon = "✓";
+    if (type === "danger") icon = "✕";
+    if (type === "warning") icon = "⚠";
 
     toast.innerHTML = `
       <span style="font-weight: bold; font-size: 1.2rem;">${icon}</span>
@@ -103,10 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fade out after 3 seconds
     setTimeout(() => {
-      toast.classList.remove('show');
+      toast.classList.remove("show");
       setTimeout(() => toast.remove(), 400);
     }, 3000);
-  }
+  };
 
   // --- Backend API helpers -------------------------------------------------
   // --- Backend API configuration -------------------------------------------
@@ -123,9 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   const getAuthToken = () => {
     try {
-      return localStorage.getItem('token') || '';
+      return localStorage.getItem("token") || "";
     } catch (_) {
-      return '';
+      return "";
     }
   };
 
@@ -158,15 +168,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ensure = () => {
       if (el) return;
-      el = document.createElement('div');
-      el.className = 'upload-floating-status';
+      el = document.createElement("div");
+      el.className = "upload-floating-status";
       el.innerHTML =
         '<strong class="ufl-title"></strong>' +
         '<div class="upload-progress-bar"><div></div></div>' +
         '<small class="ufl-label"></small>';
       document.body.appendChild(el);
-      bar = el.querySelector('.upload-progress-bar > div');
-      label = el.querySelector('.ufl-label');
+      bar = el.querySelector(".upload-progress-bar > div");
+      label = el.querySelector(".ufl-label");
     };
 
     return {
@@ -176,24 +186,24 @@ document.addEventListener('DOMContentLoaded', () => {
       show(titleText) {
         if (swOwned) return;
         ensure();
-        el.style.display = 'block';
+        el.style.display = "block";
         active = true;
-        bar.style.width = '0%';
-        el.querySelector('.ufl-title').textContent = titleText;
-        label.textContent = '0%';
+        bar.style.width = "0%";
+        el.querySelector(".ufl-title").textContent = titleText;
+        label.textContent = "0%";
       },
       update(pct, message) {
         if (!el || swOwned) return;
-        bar.style.width = pct + '%';
-        label.textContent = message || pct + '%';
+        bar.style.width = pct + "%";
+        label.textContent = message || pct + "%";
       },
       done(message) {
         swOwned = false;
         if (!el) return;
-        bar.style.width = '100%';
+        bar.style.width = "100%";
         label.textContent = message;
         setTimeout(() => {
-          if (el) el.style.display = 'none';
+          if (el) el.style.display = "none";
           active = false;
         }, 4000);
       },
@@ -202,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!el) return;
         label.textContent = message;
         setTimeout(() => {
-          if (el) el.style.display = 'none';
+          if (el) el.style.display = "none";
           active = false;
         }, 6000);
       },
@@ -219,19 +229,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // over a BroadcastChannel and drives the floating card from any page.
   // Browsers without SW fall back to the classic inline upload.
   // ------------------------------------------------------------------
-  const UPLOAD_CHANNEL_NAME = 'msasmaa-uploads';
+  const UPLOAD_CHANNEL_NAME = "msasmaa-uploads";
   const swUploadAvailable =
-    'serviceWorker' in navigator && typeof BroadcastChannel !== 'undefined';
+    "serviceWorker" in navigator && typeof BroadcastChannel !== "undefined";
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline/dev */ });
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      /* offline/dev */
+    });
   }
 
   function openUploadDb() {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('msasmaa-uploads', 1);
+      const request = indexedDB.open("msasmaa-uploads", 1);
       request.onupgradeneeded = () => {
-        request.result.createObjectStore('jobs', { keyPath: 'id' });
+        request.result.createObjectStore("jobs", { keyPath: "id" });
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -241,8 +253,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function idbPutJob(job) {
     const db = await openUploadDb();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('jobs', 'readwrite');
-      tx.objectStore('jobs').put(job);
+      const tx = db.transaction("jobs", "readwrite");
+      tx.objectStore("jobs").put(job);
       tx.oncomplete = resolve;
       tx.onerror = () => reject(tx.error);
     });
@@ -255,19 +267,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const handler = (event) => {
         const m = event.data || {};
         if (m.jobId !== jobId) return;
-        if (m.type === 'done') {
+        if (m.type === "done") {
           cleanup();
           resolve({ ok: true, kind: m.kind });
-        } else if (m.type === 'failed') {
+        } else if (m.type === "failed") {
           cleanup();
           resolve({ ok: false, error: m.error });
         }
       };
       const cleanup = () => {
-        channel.removeEventListener('message', handler);
+        channel.removeEventListener("message", handler);
         channel.close();
       };
-      channel.addEventListener('message', handler);
+      channel.addEventListener("message", handler);
     });
   }
 
@@ -280,32 +292,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const channel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
     channel.onmessage = (event) => {
       const m = event.data || {};
-      if (m.type === 'started') {
+      if (m.type === "started") {
         UploadFloat.markSwOwned(true);
-        UploadFloat.show(m.label || 'جاري رفع ملف');
-      } else if (m.type === 'progress') {
-        UploadFloat.update(m.pct, m.stage === 'finalizing'
-          ? 'جاري تحسين الملف على السيرفر...'
-          : `جاري الرفع... ${m.pct}%`);
-      } else if (m.type === 'done') {
-        UploadFloat.done('تم الرفع بنجاح ✔');
-      } else if (m.type === 'failed') {
-        UploadFloat.fail(`فشل الرفع: ${m.error || ''}`);
+        UploadFloat.show(m.label || "جاري رفع ملف");
+      } else if (m.type === "progress") {
+        UploadFloat.update(
+          m.pct,
+          m.stage === "finalizing"
+            ? "جاري تحسين الملف على السيرفر..."
+            : `جاري الرفع... ${m.pct}%`,
+        );
+      } else if (m.type === "done") {
+        UploadFloat.done("تم الرفع بنجاح ✔");
+      } else if (m.type === "failed") {
+        UploadFloat.fail(`فشل الرفع: ${m.error || ""}`);
       }
     };
 
     // Restore the card after navigation if jobs are still running.
     navigator.serviceWorker.ready.then((registration) => {
       if (registration.active) {
-        registration.active.postMessage({ type: 'GET_ACTIVE_JOBS' });
+        registration.active.postMessage({ type: "GET_ACTIVE_JOBS" });
       }
     });
 
     const stateChannel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
     stateChannel.onmessage = (event) => {
       const m = event.data || {};
-      if (m.type === 'ACTIVE_JOBS' && m.jobs && m.jobs.length) {
-        UploadFloat.show(m.jobs[0].label || 'جاري رفع ملف');
+      if (m.type === "ACTIVE_JOBS" && m.jobs && m.jobs.length) {
+        UploadFloat.show(m.jobs[0].label || "جاري رفع ملف");
       }
     };
   }
@@ -316,16 +331,20 @@ document.addEventListener('DOMContentLoaded', () => {
     await idbPutJob(job);
     try {
       const registration = await navigator.serviceWorker.ready;
-      (registration.active || navigator.serviceWorker.controller)
-        .postMessage({ type: 'START_UPLOAD', jobId: job.id });
+      (registration.active || navigator.serviceWorker.controller).postMessage({
+        type: "START_UPLOAD",
+        jobId: job.id,
+      });
     } catch (error) {
       // Worker unreachable — remove the queued job and signal failure so
       // the caller can fall back to the inline path cleanly.
       try {
         const db = await openUploadDb();
-        const tx = db.transaction('jobs', 'readwrite');
-        tx.objectStore('jobs').delete(job.id);
-      } catch (_) { /* ignore */ }
+        const tx = db.transaction("jobs", "readwrite");
+        tx.objectStore("jobs").delete(job.id);
+      } catch (_) {
+        /* ignore */
+      }
       return { ok: false, error: error.message };
     }
     return waitForUploadOutcome(job.id);
@@ -334,16 +353,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Warn before closing/leaving mid-upload ONLY in fallback mode — with the
   // service worker active, uploads survive navigating to other pages, so
   // warning on every click would just be annoying.
-  window.addEventListener('beforeunload', (event) => {
+  window.addEventListener("beforeunload", (event) => {
     if (!swUploadAvailable && UploadFloat.isActive) {
       event.preventDefault();
-      event.returnValue = '';
+      event.returnValue = "";
     }
   });
 
   // Persist upload form fields so typed info (video name, links...) survives
   // navigating between pages and back within the same tab.
-  const UPLOAD_PERSIST_FIELDS = ['upload-title', 'upload-attachment', 'upload-description'];
+  const UPLOAD_PERSIST_FIELDS = [
+    "upload-title",
+    "upload-attachment",
+    "upload-description",
+  ];
   const restoreUploadFormFields = () => {
     UPLOAD_PERSIST_FIELDS.forEach((fieldId) => {
       const field = document.querySelector(`#${fieldId}`);
@@ -351,10 +374,12 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const savedValue = sessionStorage.getItem(`uploadForm:${fieldId}`);
         if (savedValue !== null && !field.value) field.value = savedValue;
-        field.addEventListener('input', () => {
+        field.addEventListener("input", () => {
           sessionStorage.setItem(`uploadForm:${fieldId}`, field.value);
         });
-      } catch (_) { /* best-effort */ }
+      } catch (_) {
+        /* best-effort */
+      }
     });
   };
   restoreUploadFormFields();
@@ -365,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
       response = await fetch(url, options);
     } catch (networkError) {
       throw new Error(
-        `لا يمكن الوصول إلى السيرفر (${url}). تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.`
+        `لا يمكن الوصول إلى السيرفر (${url}). تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.`,
       );
     }
 
@@ -375,16 +400,21 @@ document.addEventListener('DOMContentLoaded', () => {
       data = raw ? JSON.parse(raw) : {};
     } catch (parseError) {
       // Non-JSON response: usually HTML from a static host or an error page.
-      const preview = raw.replace(/<[^>]*>/g, ' ').trim().slice(0, 80);
+      const preview = raw
+        .replace(/<[^>]*>/g, " ")
+        .trim()
+        .slice(0, 80);
       throw new Error(
-        `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ''}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`
+        `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ""}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`,
       );
     }
 
     if (!response.ok) {
       // The v1 backend sends { message } (errorMiddleware); older routes send
       // { error }. Show whichever the backend actually returned.
-      throw new Error(data.message || data.error || `خطأ من السيرفر (${response.status}).`);
+      throw new Error(
+        data.message || data.error || `خطأ من السيرفر (${response.status}).`,
+      );
     }
     return data;
   };
@@ -393,91 +423,111 @@ document.addEventListener('DOMContentLoaded', () => {
   // This page uses the existing fetchJson/authHeaders/toast helpers. Its
   // count is always derived from the single GET response; no count endpoint
   // is requested.
-  const requestsPage = document.querySelector('#registration-requests-page');
+  const requestsPage = document.querySelector("#registration-requests-page");
   if (requestsPage) {
-    const list = document.querySelector('#registration-requests-list');
-    const count = document.querySelector('#pending-requests-count');
+    const list = document.querySelector("#registration-requests-list");
+    const count = document.querySelector("#pending-requests-count");
     let requests = [];
-    let activeRequestId = '';
+    let activeRequestId = "";
 
     const renderRequests = () => {
       count.textContent = String(requests.length);
       list.replaceChildren();
 
       if (!requests.length) {
-        const empty = document.createElement('p');
-        empty.className = 'text-muted registration-requests-empty';
-        empty.textContent = 'No pending registration requests.';
+        const empty = document.createElement("p");
+        empty.className = "text-muted registration-requests-empty";
+        empty.textContent = "No pending registration requests.";
         list.appendChild(empty);
         return;
       }
 
-      const table = document.createElement('table');
-      table.className = 'table registration-requests-table';
-      table.innerHTML = '<thead><tr><th>Student Name</th><th>Student Code</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>';
-      const body = document.createElement('tbody');
+      const table = document.createElement("table");
+      table.className = "table registration-requests-table";
+      table.innerHTML =
+        "<thead><tr><th>Student Name</th><th>Student Code</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>";
+      const body = document.createElement("tbody");
 
       requests.forEach((request) => {
-        const row = document.createElement('tr');
+        const row = document.createElement("tr");
         const date = request.createdAt ? new Date(request.createdAt) : null;
-        const displayDate = date && !Number.isNaN(date.getTime())
-          ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
-          : '—';
+        const displayDate =
+          date && !Number.isNaN(date.getTime())
+            ? new Intl.DateTimeFormat("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }).format(date)
+            : "—";
 
-        const cells = [request.name || '—', request.studentCode || '—', displayDate];
+        const cells = [
+          request.name || "—",
+          request.studentCode || "—",
+          displayDate,
+        ];
         cells.forEach((value) => {
-          const cell = document.createElement('td');
+          const cell = document.createElement("td");
           cell.textContent = value;
           row.appendChild(cell);
         });
 
-        const statusCell = document.createElement('td');
-        const status = document.createElement('span');
-        status.className = 'badge badge-warning';
-        status.textContent = request.status || 'PENDING';
+        const statusCell = document.createElement("td");
+        const status = document.createElement("span");
+        status.className = "badge badge-warning";
+        status.textContent = request.status || "PENDING";
         statusCell.appendChild(status);
         row.appendChild(statusCell);
 
-        const actionsCell = document.createElement('td');
-        actionsCell.className = 'registration-request-actions';
-        const approve = document.createElement('button');
-        approve.className = 'btn btn-primary';
-        approve.type = 'button';
-        approve.textContent = activeRequestId === request.id ? 'Approving...' : 'Approve';
+        const actionsCell = document.createElement("td");
+        actionsCell.className = "registration-request-actions";
+        const approve = document.createElement("button");
+        approve.className = "btn btn-primary";
+        approve.type = "button";
+        approve.textContent =
+          activeRequestId === request.id ? "Approving..." : "Approve";
         approve.disabled = Boolean(activeRequestId);
-        approve.addEventListener('click', () => processRequest(request.id, 'approve'));
+        approve.addEventListener("click", () =>
+          processRequest(request.id, "approve"),
+        );
 
-        const reject = document.createElement('button');
-        reject.className = 'btn btn-danger';
-        reject.type = 'button';
-        reject.textContent = activeRequestId === request.id ? 'Rejecting...' : 'Reject';
+        const reject = document.createElement("button");
+        reject.className = "btn btn-danger";
+        reject.type = "button";
+        reject.textContent =
+          activeRequestId === request.id ? "Rejecting..." : "Reject";
         reject.disabled = Boolean(activeRequestId);
-        reject.addEventListener('click', () => processRequest(request.id, 'reject'));
+        reject.addEventListener("click", () =>
+          processRequest(request.id, "reject"),
+        );
         actionsCell.append(approve, reject);
         row.appendChild(actionsCell);
         body.appendChild(row);
       });
 
       table.appendChild(body);
-      const wrapper = document.createElement('div');
-      wrapper.className = 'table-responsive';
+      const wrapper = document.createElement("div");
+      wrapper.className = "table-responsive";
       wrapper.appendChild(table);
       list.appendChild(wrapper);
     };
 
     const loadRequests = async () => {
-      list.innerHTML = '<p class="text-muted registration-requests-loading">Loading registration requests...</p>';
+      list.innerHTML =
+        '<p class="text-muted registration-requests-loading">Loading registration requests...</p>';
       try {
         const data = await fetchJson(`${API_BASE}/registration-requests`, {
           headers: authHeaders(),
         });
-        requests = Array.isArray(data?.data?.requests) ? data.data.requests : [];
+        requests = Array.isArray(data?.data?.requests)
+          ? data.data.requests
+          : [];
         renderRequests();
       } catch (error) {
         requests = [];
-        count.textContent = '0';
-        list.innerHTML = '<p class="text-muted registration-requests-empty">Unable to load registration requests.</p>';
-        showToast(error.message, 'danger');
+        count.textContent = "0";
+        list.innerHTML =
+          '<p class="text-muted registration-requests-empty">Unable to load registration requests.</p>';
+        showToast(error.message, "danger");
       }
     };
 
@@ -486,251 +536,130 @@ document.addEventListener('DOMContentLoaded', () => {
       activeRequestId = id;
       renderRequests();
       try {
-        const data = await fetchJson(`${API_BASE}/registration-requests/${encodeURIComponent(id)}/${action}`, {
-          method: 'PATCH',
-          headers: authHeaders(),
-        });
-        showToast(data.message || `Registration request ${action}d successfully.`, 'success');
-        activeRequestId = '';
+        const data = await fetchJson(
+          `${API_BASE}/registration-requests/${encodeURIComponent(id)}/${action}`,
+          {
+            method: "PATCH",
+            headers: authHeaders(),
+          },
+        );
+        showToast(
+          data.message || `Registration request ${action}d successfully.`,
+          "success",
+        );
+        activeRequestId = "";
         await loadRequests();
       } catch (error) {
-        activeRequestId = '';
+        activeRequestId = "";
         renderRequests();
-        showToast(error.message, 'danger');
+        showToast(error.message, "danger");
       }
     };
 
     loadRequests();
   }
 
-  // --- Approved students management (teacher dashboard) -------------------
-  const studentsSection = document.querySelector('#teacher-students-section');
+  const studentsSection = document.querySelector("#teacher-students-section");
   if (studentsSection) {
-    const list = document.querySelector('#approved-students-list');
-    const count = document.querySelector('#approved-students-count');
-    const searchInput = document.querySelector('#approved-students-search');
-    const pagination = document.querySelector('#approved-students-pagination');
-    let students = [];
-    let page = 1;
-    let pageInfo = { page: 1, totalPages: 0, total: 0 };
-    let searchTimer;
-    let deletingId = '';
-
-    const formatDate = (value) => {
-      const date = value ? new Date(value) : null;
-      return date && !Number.isNaN(date.getTime())
-        ? new Intl.DateTimeFormat('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }).format(date)
-        : '—';
-    };
-
-    const renderStudents = () => {
-      list.replaceChildren();
-      pagination.replaceChildren();
-      if (!students.length) {
-        const empty = document.createElement('p');
-        empty.className = 'text-muted';
-        empty.textContent = 'لا يوجد طلاب مقبولون حاليًا.';
-        list.appendChild(empty);
-        return;
-      }
-
-      const table = document.createElement('table');
-      table.className = 'table';
-      table.innerHTML = '<thead><tr><th>الطالب</th><th>كود الطالب</th><th>Gmail</th><th>تاريخ الانضمام</th><th>الحالة</th><th>الإجراءات</th></tr></thead>';
-      const body = document.createElement('tbody');
-      students.forEach((student) => {
-        const row = document.createElement('tr');
-        [student.name || '—', student.studentCode || '—', student.email || '—', formatDate(student.createdAt)].forEach((value) => {
-          const cell = document.createElement('td');
-          cell.textContent = value;
-          row.appendChild(cell);
-        });
-        const statusCell = document.createElement('td');
-        const status = document.createElement('span');
-        status.className = 'badge badge-success';
-        status.textContent = student.status || 'APPROVED';
-        statusCell.appendChild(status);
-        row.appendChild(statusCell);
-
-        const actions = document.createElement('td');
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'btn btn-danger';
-        remove.style.cssText = 'font-size:.8rem; padding:.35rem .75rem;';
-        remove.textContent = deletingId === student.id ? 'جارٍ الحذف...' : 'حذف الطالب';
-        remove.disabled = Boolean(deletingId);
-        remove.addEventListener('click', () => deleteStudent(student));
-        actions.appendChild(remove);
-        row.appendChild(actions);
-        body.appendChild(row);
-      });
-      table.appendChild(body);
-      const wrapper = document.createElement('div');
-      wrapper.className = 'table-responsive';
-      wrapper.appendChild(table);
-      list.appendChild(wrapper);
-
-      if (pageInfo.totalPages > 1) {
-        const previous = document.createElement('button');
-        previous.type = 'button';
-        previous.className = 'btn btn-light';
-        previous.textContent = 'السابق';
-        previous.disabled = page <= 1;
-        previous.addEventListener('click', () => loadStudents(page - 1));
-        const label = document.createElement('span');
-        label.className = 'text-muted';
-        label.textContent = `صفحة ${pageInfo.page} من ${pageInfo.totalPages}`;
-        const next = document.createElement('button');
-        next.type = 'button';
-        next.className = 'btn btn-light';
-        next.textContent = 'التالي';
-        next.disabled = page >= pageInfo.totalPages;
-        next.addEventListener('click', () => loadStudents(page + 1));
-        pagination.append(previous, label, next);
-      }
-    };
-
-    const loadCount = async () => {
-      const data = await fetchJson(`${API_BASE}/students/count`, { headers: authHeaders() });
-      count.textContent = String(data?.data?.count ?? 0);
-    };
-
-    const loadStudents = async (requestedPage = 1) => {
-      list.innerHTML = '<p class="text-muted">جارٍ تحميل الطلاب...</p>';
-      try {
-        const params = new URLSearchParams({ page: String(requestedPage), limit: '50' });
-        const query = String(searchInput.value || '').trim();
-        if (query) params.set('search', query);
-        const data = await fetchJson(`${API_BASE}/students?${params.toString()}`, { headers: authHeaders() });
-        students = Array.isArray(data?.data?.students) ? data.data.students : [];
-        pageInfo = data?.data?.pagination || pageInfo;
-        page = pageInfo.page || requestedPage;
-        // A deletion can leave the current page beyond the last result.
-        if (!students.length && page > 1 && pageInfo.total > 0) return loadStudents(page - 1);
-        renderStudents();
-      } catch (error) {
-        students = [];
-        list.innerHTML = '<p class="text-muted">تعذر تحميل الطلاب المقبولين.</p>';
-        pagination.replaceChildren();
-        showToast(error.message, 'danger');
-      }
-    };
-
-    const deleteStudent = async (student) => {
-      if (deletingId || !window.confirm('هل أنت متأكد من حذف هذا الطالب؟')) return;
-      deletingId = student.id;
-      renderStudents();
-      try {
-        await fetchJson(`${API_BASE}/students/${encodeURIComponent(student.id)}`, {
-          method: 'DELETE', headers: authHeaders(),
-        });
-        showToast('تم حذف الطالب بنجاح.', 'success');
-        deletingId = '';
-        await Promise.all([loadCount(), loadStudents(page)]);
-      } catch (error) {
-        deletingId = '';
-        renderStudents();
-        showToast(error.message, 'danger');
-      }
-    };
-
-    searchInput.addEventListener('input', () => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => loadStudents(1), 250);
-    });
-    Promise.all([loadCount(), loadStudents()]).catch(() => {});
+    initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
   // --- Tab Switcher Logic (e.g., Lesson Page) ---
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabPanels = document.querySelectorAll('.tab-panel');
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  const tabPanels = document.querySelectorAll(".tab-panel");
 
   if (tabBtns.length > 0) {
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetTab = btn.getAttribute('data-tab');
+    tabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetTab = btn.getAttribute("data-tab");
 
         // Remove active from all buttons & panels
-        tabBtns.forEach(b => b.classList.remove('active'));
-        tabPanels.forEach(p => p.classList.remove('active'));
+        tabBtns.forEach((b) => b.classList.remove("active"));
+        tabPanels.forEach((p) => p.classList.remove("active"));
 
         // Set active on click
-        btn.classList.add('active');
+        btn.classList.add("active");
         const panel = document.getElementById(targetTab);
-        if (panel) panel.classList.add('active');
+        if (panel) panel.classList.add("active");
       });
     });
   }
 
   // --- Lesson Category Filter (Lessons Listing Page) ---
-  const filterBtns = document.querySelectorAll('.filter-btn');
-  const lessonCards = document.querySelectorAll('.lesson-card-item');
+  const filterBtns = document.querySelectorAll(".filter-btn");
+  const lessonCards = document.querySelectorAll(".lesson-card-item");
 
   if (filterBtns.length > 0 && lessonCards.length > 0) {
-    filterBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const filterVal = btn.getAttribute('data-filter');
+    filterBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const filterVal = btn.getAttribute("data-filter");
 
         // Toggle active button class
-        filterBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        filterBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
 
         // Filter cards
-        lessonCards.forEach(card => {
-          const cardCat = card.getAttribute('data-category');
-          if (filterVal === 'all' || cardCat === filterVal) {
-            card.style.display = 'block';
-            card.style.opacity = '0';
+        lessonCards.forEach((card) => {
+          const cardCat = card.getAttribute("data-category");
+          if (filterVal === "all" || cardCat === filterVal) {
+            card.style.display = "block";
+            card.style.opacity = "0";
             setTimeout(() => {
-              card.style.transition = 'opacity 0.3s ease';
-              card.style.opacity = '1';
+              card.style.transition = "opacity 0.3s ease";
+              card.style.opacity = "1";
             }, 50);
           } else {
-            card.style.display = 'none';
+            card.style.display = "none";
           }
         });
       });
     });
   }
 
-
-
   // --- Contact Form Submission ---
-  const contactForm = document.querySelector('#contact-form');
+  const contactForm = document.querySelector("#contact-form");
   if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
+    contactForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const name = document.querySelector('#contact-name').value.trim();
-      const email = document.querySelector('#contact-email').value.trim();
-      const msg = document.querySelector('#contact-message').value.trim();
+      const name = document.querySelector("#contact-name").value.trim();
+      const email = document.querySelector("#contact-email").value.trim();
+      const msg = document.querySelector("#contact-message").value.trim();
 
       if (!name || !email || !msg) {
-        showToast('يرجى إدخال جميع الحقول لإرسال الرسالة الاستفسارية.', 'danger');
+        showToast(
+          "يرجى إدخال جميع الحقول لإرسال الرسالة الاستفسارية.",
+          "danger",
+        );
         return;
       }
 
-      showToast('تم إرسال رسالتك بنجاح! سيقوم الأستاذ أو طاقم الدعم بالتواصل معك قريباً.', 'success');
+      showToast(
+        "تم إرسال رسالتك بنجاح! سيقوم الأستاذ أو طاقم الدعم بالتواصل معك قريباً.",
+        "success",
+      );
       contactForm.reset();
     });
   }
 
   // --- Teacher Dashboard Mock Buttons ---
-  const btnExport = document.querySelector('#btn-teacher-export');
+  const btnExport = document.querySelector("#btn-teacher-export");
   if (btnExport) {
-    btnExport.addEventListener('click', () => {
-      showToast('جاري تصدير درجات الطلاب بصيغة Excel...', 'success');
+    btnExport.addEventListener("click", () => {
+      showToast("جاري تصدير درجات الطلاب بصيغة Excel...", "success");
     });
   }
   // NOTE: The login/signup form used to be a modal injected here
   // (#login-modal-backdrop). It was replaced by the dedicated auth page:
   //   login.html + css/login.css + src/loginPage.js
 
-  const QUIZZES_STORAGE_KEY = 'frontEndQuizzes';
-  const NOTIFICATIONS_STORAGE_KEY = 'frontEndNotifications';
+  const QUIZZES_STORAGE_KEY = "frontEndQuizzes";
+  const NOTIFICATIONS_STORAGE_KEY = "frontEndNotifications";
 
   const getStoredItems = (key, fallbackItems = []) => {
     try {
-      return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallbackItems));
+      return JSON.parse(
+        localStorage.getItem(key) || JSON.stringify(fallbackItems),
+      );
     } catch (error) {
       return fallbackItems;
     }
@@ -740,57 +669,60 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem(key, JSON.stringify(items));
   };
 
-  const getQuizzes = () => getStoredItems(QUIZZES_STORAGE_KEY, [
-    {
-      id: 'quiz-dna-intro',
-      title: 'اختبار سريع: DNA والبروتين',
-      chapter: 'الوراثة الجزيئية',
-      dueDate: 'اليوم 9:00 م',
-      questions: '10',
-      questionItems: [
-        {
-          type: 'mcq',
-          text: 'ما الجزء المسؤول عن حمل الشفرة الوراثية؟',
-          options: ['DNA', 'الجدار الخلوي', 'الريبوسوم', 'السيتوبلازم'],
-          image: ''
-        },
-        {
-          type: 'written',
-          text: 'اشرح باختصار خطوات تضاعف DNA.',
-          options: [],
-          image: ''
-        }
-      ],
-      note: 'اختبار قصير للتأكد من فهم تضاعف DNA والترجمة.',
-      createdAt: 'جاهز الآن'
-    }
-  ]);
+  const getQuizzes = () =>
+    getStoredItems(QUIZZES_STORAGE_KEY, [
+      {
+        id: "quiz-dna-intro",
+        title: "اختبار سريع: DNA والبروتين",
+        chapter: "الوراثة الجزيئية",
+        dueDate: "اليوم 9:00 م",
+        questions: "10",
+        questionItems: [
+          {
+            type: "mcq",
+            text: "ما الجزء المسؤول عن حمل الشفرة الوراثية؟",
+            options: ["DNA", "الجدار الخلوي", "الريبوسوم", "السيتوبلازم"],
+            image: "",
+          },
+          {
+            type: "written",
+            text: "اشرح باختصار خطوات تضاعف DNA.",
+            options: [],
+            image: "",
+          },
+        ],
+        note: "اختبار قصير للتأكد من فهم تضاعف DNA والترجمة.",
+        createdAt: "جاهز الآن",
+      },
+    ]);
 
   let cachedNotifications = [];
 
   const fetchNotifications = async () => {
-    const userId = localStorage.getItem('userId');
+    const userId = localStorage.getItem("userId");
     if (!userId) return [];
     try {
-      const data = await fetchJson('/api/notifications', {
+      const data = await fetchJson("/api/notifications", {
         headers: authHeaders(),
       });
       cachedNotifications = data.notifications || [];
       return cachedNotifications;
     } catch (error) {
-      console.warn('[notifications] Failed to fetch notifications:', error);
+      console.warn("[notifications] Failed to fetch notifications:", error);
       return cachedNotifications;
     }
   };
 
-  const addNotification = (title, message, type = 'news') => {
-    console.warn('[notifications] Local addNotification is deprecated. Trigger notifications via backend instead.');
+  const addNotification = (title, message, type = "news") => {
+    console.warn(
+      "[notifications] Local addNotification is deprecated. Trigger notifications via backend instead.",
+    );
   };
 
   const updateNotificationBadge = async () => {
     const notifications = await fetchNotifications();
     const unreadCount = notifications.filter((item) => !item.read).length;
-    document.querySelectorAll('.notification-count').forEach((badge) => {
+    document.querySelectorAll(".notification-count").forEach((badge) => {
       badge.textContent = unreadCount;
       badge.hidden = unreadCount === 0;
     });
@@ -798,32 +730,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderNotificationsMenu = async () => {
     const notifications = await fetchNotifications();
-    const list = document.querySelector('#notification-list');
+    const list = document.querySelector("#notification-list");
     if (!list) return;
 
     if (!notifications.length) {
-      list.innerHTML = '<div class="notification-empty">لا توجد إشعارات جديدة الآن.</div>';
+      list.innerHTML =
+        '<div class="notification-empty">لا توجد إشعارات جديدة الآن.</div>';
       return;
     }
 
-    list.innerHTML = notifications.slice(0, 6).map((item) => `
-      <div class="notification-item ${item.read ? '' : 'unread'}" data-id="${item.id}" data-link="${item.link || ''}">
-        <div class="notification-item-icon">${item.type === 'quiz' ? '؟' : '!'}</div>
+    list.innerHTML = notifications
+      .slice(0, 6)
+      .map(
+        (item) => `
+      <div class="notification-item ${item.read ? "" : "unread"}" data-id="${item.id}" data-link="${item.link || ""}">
+        <div class="notification-item-icon">${item.type === "quiz" ? "؟" : "!"}</div>
         <div>
           <h4>${item.title}</h4>
           <p>${item.message}</p>
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join("");
 
     // Bind click events on notification items to mark read on the backend and navigate
-    list.querySelectorAll('.notification-item').forEach((item) => {
-      item.addEventListener('click', async () => {
+    list.querySelectorAll(".notification-item").forEach((item) => {
+      item.addEventListener("click", async () => {
         const id = item.dataset.id;
         const link = item.dataset.link;
         try {
           await fetchJson(`/api/notifications/${id}/read`, {
-            method: 'POST',
+            method: "POST",
             headers: authHeaders(),
           });
           await updateNotificationBadge();
@@ -831,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = link;
           }
         } catch (error) {
-          console.error('[notifications] Failed to mark read:', error);
+          console.error("[notifications] Failed to mark read:", error);
           if (link) {
             window.location.href = link;
           }
@@ -840,24 +778,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  const escapeHTML = (value = '') => String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+  const escapeHTML = (value = "") =>
+    String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
 
-  const fileToDataURL = (file) => new Promise((resolve, reject) => {
-    if (!file) {
-      resolve('');
-      return;
-    }
+  const fileToDataURL = (file) =>
+    new Promise((resolve, reject) => {
+      if (!file) {
+        resolve("");
+        return;
+      }
 
-    const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(reader.result));
-    reader.addEventListener('error', reject);
-    reader.readAsDataURL(file);
-  });
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(reader.result));
+      reader.addEventListener("error", reject);
+      reader.readAsDataURL(file);
+    });
 
   const getQuizQuestionCount = (quiz) => {
     if (Array.isArray(quiz.questionItems) && quiz.questionItems.length) {
@@ -868,19 +808,20 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderQuestionSummary = (question, index) => {
-    const typeLabel = question.type === 'written' ? 'Written' : 'MCQ';
-    const options = question.type === 'mcq' && question.options?.length
-      ? `<ol class="quiz-question-options">${question.options.map((option) => `<li>${escapeHTML(option)}</li>`).join('')}</ol>`
-      : '<p class="quiz-written-answer-line">مساحة إجابة كتابية للطالب</p>';
+    const typeLabel = question.type === "written" ? "Written" : "MCQ";
+    const options =
+      question.type === "mcq" && question.options?.length
+        ? `<ol class="quiz-question-options">${question.options.map((option) => `<li>${escapeHTML(option)}</li>`).join("")}</ol>`
+        : '<p class="quiz-written-answer-line">مساحة إجابة كتابية للطالب</p>';
     const image = question.image
       ? `<img src="${question.image}" alt="Question attachment" class="quiz-question-image">`
-      : '';
+      : "";
 
     return `
       <article class="quiz-question-preview">
         <div class="quiz-question-top">
           <span class="quiz-question-number">${index + 1}</span>
-          <span class="badge ${question.type === 'written' ? 'badge-warning' : 'badge-success'}">${typeLabel}</span>
+          <span class="badge ${question.type === "written" ? "badge-warning" : "badge-success"}">${typeLabel}</span>
         </div>
         <p>${escapeHTML(question.text)}</p>
         ${image}
@@ -890,39 +831,51 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderStudentQuizList = () => {
-    const list = document.querySelector('#student-quiz-list');
+    const list = document.querySelector("#student-quiz-list");
     if (!list) return;
 
     const quizzes = getQuizzes();
-    list.innerHTML = quizzes.map((quiz) => `
+    list.innerHTML = quizzes
+      .map(
+        (quiz) => `
       <div class="quiz-item">
         <div class="quiz-item-icon">؟</div>
         <div class="quiz-item-content">
           <h4>${escapeHTML(quiz.title)}</h4>
           <p>${escapeHTML(quiz.chapter)} • ${getQuizQuestionCount(quiz)} أسئلة • التسليم: ${escapeHTML(quiz.dueDate)}</p>
           <div class="quiz-question-preview-list" hidden>
-            ${(quiz.questionItems || []).map(renderQuestionSummary).join('')}
+            ${(quiz.questionItems || []).map(renderQuestionSummary).join("")}
           </div>
         </div>
         <button class="btn btn-primary btn-quiz-start" type="button" data-quiz-title="${escapeHTML(quiz.title)}">ابدأ</button>
       </div>
-    `).join('');
+    `,
+      )
+      .join("");
 
-    list.querySelectorAll('.btn-quiz-start').forEach((button) => {
-      button.addEventListener('click', () => {
-        const previewList = button.closest('.quiz-item')?.querySelector('.quiz-question-preview-list');
+    list.querySelectorAll(".btn-quiz-start").forEach((button) => {
+      button.addEventListener("click", () => {
+        const previewList = button
+          .closest(".quiz-item")
+          ?.querySelector(".quiz-question-preview-list");
         if (previewList) previewList.hidden = !previewList.hidden;
-        showToast(`بدأت اختبار "${button.dataset.quizTitle}" داخل الواجهة فقط.`, 'success');
+        showToast(
+          `بدأت اختبار "${button.dataset.quizTitle}" داخل الواجهة فقط.`,
+          "success",
+        );
       });
     });
   };
 
   const renderTeacherQuizList = () => {
-    const list = document.querySelector('#teacher-quiz-list');
+    const list = document.querySelector("#teacher-quiz-list");
     if (!list) return;
 
     const quizzes = getQuizzes();
-    list.innerHTML = quizzes.slice(0, 5).map((quiz) => `
+    list.innerHTML = quizzes
+      .slice(0, 5)
+      .map(
+        (quiz) => `
       <div class="quiz-mini-row">
         <span class="quiz-mini-icon">؟</span>
         <div>
@@ -930,24 +883,35 @@ document.addEventListener('DOMContentLoaded', () => {
           <small>${quiz.chapter} • ${quiz.dueDate}</small>
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join("");
   };
 
   const initializeQuizExperience = () => {
-    const dashboardContainer = document.querySelector('.dashboard-layout .container');
+    const dashboardContainer = document.querySelector(
+      ".dashboard-layout .container",
+    );
     if (!dashboardContainer) {
       renderNotificationsMenu();
       updateNotificationBadge();
       return;
     }
 
-    if (window.location.pathname.includes('dashboard-teacher.html') && !document.querySelector('#teacher-quiz-panel')) {
-      const studentRecordsTitle = Array.from(document.querySelectorAll('.dashboard-section-title')).find((title) =>
-        title.textContent.includes('قائمة') || title.textContent.includes('أداء')
+    if (
+      window.location.pathname.includes("dashboard-teacher.html") &&
+      !document.querySelector("#teacher-quiz-panel")
+    ) {
+      const studentRecordsTitle = Array.from(
+        document.querySelectorAll(".dashboard-section-title"),
+      ).find(
+        (title) =>
+          title.textContent.includes("قائمة") ||
+          title.textContent.includes("أداء"),
       );
-      const quizPanel = document.createElement('section');
-      quizPanel.id = 'teacher-quiz-panel';
-      quizPanel.className = 'quiz-workspace teacher-quiz-workspace';
+      const quizPanel = document.createElement("section");
+      quizPanel.id = "teacher-quiz-panel";
+      quizPanel.className = "quiz-workspace teacher-quiz-workspace";
       quizPanel.innerHTML = `
         <div class="quiz-panel-header">
           <div>
@@ -1029,124 +993,144 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const draftQuestions = [];
-      const questionTypeSelect = quizPanel.querySelector('#quiz-question-type');
-      const questionTextInput = quizPanel.querySelector('#quiz-question-text');
-      const questionImageInput = quizPanel.querySelector('#quiz-question-image');
-      const mcqOptionsBox = quizPanel.querySelector('#quiz-mcq-options');
-      const draftQuestionsList = quizPanel.querySelector('#quiz-draft-questions');
-      const draftCount = quizPanel.querySelector('#quiz-draft-count');
+      const questionTypeSelect = quizPanel.querySelector("#quiz-question-type");
+      const questionTextInput = quizPanel.querySelector("#quiz-question-text");
+      const questionImageInput = quizPanel.querySelector(
+        "#quiz-question-image",
+      );
+      const mcqOptionsBox = quizPanel.querySelector("#quiz-mcq-options");
+      const draftQuestionsList = quizPanel.querySelector(
+        "#quiz-draft-questions",
+      );
+      const draftCount = quizPanel.querySelector("#quiz-draft-count");
 
       const resetQuestionBuilder = () => {
-        questionTextInput.value = '';
-        questionImageInput.value = '';
-        quizPanel.querySelectorAll('.quiz-option-input').forEach((input) => {
-          input.value = '';
+        questionTextInput.value = "";
+        questionImageInput.value = "";
+        quizPanel.querySelectorAll(".quiz-option-input").forEach((input) => {
+          input.value = "";
         });
       };
 
       const renderDraftQuestions = () => {
         draftCount.textContent = `${draftQuestions.length} أسئلة`;
         draftQuestionsList.innerHTML = draftQuestions.length
-          ? draftQuestions.map(renderQuestionSummary).join('')
+          ? draftQuestions.map(renderQuestionSummary).join("")
           : '<p class="quiz-draft-empty">لم تتم إضافة أسئلة بعد.</p>';
       };
 
-      questionTypeSelect.addEventListener('change', () => {
-        mcqOptionsBox.hidden = questionTypeSelect.value === 'written';
+      questionTypeSelect.addEventListener("change", () => {
+        mcqOptionsBox.hidden = questionTypeSelect.value === "written";
       });
 
-      quizPanel.querySelector('#btn-add-quiz-question').addEventListener('click', async () => {
-        const questionText = questionTextInput.value.trim();
-        const questionType = questionTypeSelect.value;
-        const options = Array.from(quizPanel.querySelectorAll('.quiz-option-input'))
-          .map((input) => input.value.trim())
-          .filter(Boolean);
+      quizPanel
+        .querySelector("#btn-add-quiz-question")
+        .addEventListener("click", async () => {
+          const questionText = questionTextInput.value.trim();
+          const questionType = questionTypeSelect.value;
+          const options = Array.from(
+            quizPanel.querySelectorAll(".quiz-option-input"),
+          )
+            .map((input) => input.value.trim())
+            .filter(Boolean);
 
-        if (!questionText) {
-          showToast('اكتبي نص السؤال أولاً.', 'warning');
-          questionTextInput.focus();
-          return;
-        }
+          if (!questionText) {
+            showToast("اكتبي نص السؤال أولاً.", "warning");
+            questionTextInput.focus();
+            return;
+          }
 
-        if (questionType === 'mcq' && options.length < 2) {
-          showToast('سؤال MCQ يحتاج اختيارين على الأقل.', 'warning');
-          return;
-        }
+          if (questionType === "mcq" && options.length < 2) {
+            showToast("سؤال MCQ يحتاج اختيارين على الأقل.", "warning");
+            return;
+          }
 
-        const image = await fileToDataURL(questionImageInput.files[0]);
-        draftQuestions.push({
-          type: questionType,
-          text: questionText,
-          options: questionType === 'mcq' ? options : [],
-          image
+          const image = await fileToDataURL(questionImageInput.files[0]);
+          draftQuestions.push({
+            type: questionType,
+            text: questionText,
+            options: questionType === "mcq" ? options : [],
+            image,
+          });
+
+          renderDraftQuestions();
+          resetQuestionBuilder();
+          showToast("تمت إضافة السؤال للامتحان.", "success");
         });
-
-        renderDraftQuestions();
-        resetQuestionBuilder();
-        showToast('تمت إضافة السؤال للامتحان.', 'success');
-      });
 
       renderDraftQuestions();
 
-      quizPanel.querySelector('#teacher-quiz-form').addEventListener('submit', (event) => {
-        event.preventDefault();
-        const quiz = {
-          id: `quiz-${Date.now()}`,
-          title: document.querySelector('#quiz-title').value.trim(),
-          chapter: document.querySelector('#quiz-chapter').value,
-          dueDate: document.querySelector('#quiz-due-date').value.trim(),
-          questions: draftQuestions.length,
-          questionItems: [...draftQuestions],
-          note: document.querySelector('#quiz-note').value.trim(),
-          createdAt: 'تم الإرسال الآن'
-        };
+      quizPanel
+        .querySelector("#teacher-quiz-form")
+        .addEventListener("submit", (event) => {
+          event.preventDefault();
+          const quiz = {
+            id: `quiz-${Date.now()}`,
+            title: document.querySelector("#quiz-title").value.trim(),
+            chapter: document.querySelector("#quiz-chapter").value,
+            dueDate: document.querySelector("#quiz-due-date").value.trim(),
+            questions: draftQuestions.length,
+            questionItems: [...draftQuestions],
+            note: document.querySelector("#quiz-note").value.trim(),
+            createdAt: "تم الإرسال الآن",
+          };
 
-        if (!quiz.title || !quiz.dueDate || !quiz.note) {
-          showToast('يرجى إكمال بيانات الاختبار قبل الإرسال.', 'warning');
-          return;
-        }
+          if (!quiz.title || !quiz.dueDate || !quiz.note) {
+            showToast("يرجى إكمال بيانات الاختبار قبل الإرسال.", "warning");
+            return;
+          }
 
-        if (!draftQuestions.length) {
-          showToast('أضيفي سؤالاً واحداً على الأقل قبل إرسال الامتحان.', 'warning');
-          return;
-        }
+          if (!draftQuestions.length) {
+            showToast(
+              "أضيفي سؤالاً واحداً على الأقل قبل إرسال الامتحان.",
+              "warning",
+            );
+            return;
+          }
 
-        const quizzes = getQuizzes();
-        quizzes.unshift(quiz);
-        setStoredItems(QUIZZES_STORAGE_KEY, quizzes);
-        
-        // Publish notification to backend
-        fetchJson('/api/notifications/quiz', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders(),
-          },
-          body: JSON.stringify({ title: quiz.title }),
-        })
-          .then(() => {
-            updateNotificationBadge();
+          const quizzes = getQuizzes();
+          quizzes.unshift(quiz);
+          setStoredItems(QUIZZES_STORAGE_KEY, quizzes);
+
+          // Publish notification to backend
+          fetchJson("/api/notifications/quiz", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+            body: JSON.stringify({ title: quiz.title }),
           })
-          .catch((err) => {
-            console.error('[quiz] Failed to notify backend:', err);
-          });
+            .then(() => {
+              updateNotificationBadge();
+            })
+            .catch((err) => {
+              console.error("[quiz] Failed to notify backend:", err);
+            });
 
-        renderTeacherQuizList();
-        quizPanel.querySelector('#teacher-quiz-form').reset();
-        draftQuestions.length = 0;
-        renderDraftQuestions();
-        document.querySelector('#quiz-questions').value = 10;
-        showToast('تم إرسال الاختبار للطلاب وظهوره في الإشعارات.', 'success');
-      });
+          renderTeacherQuizList();
+          quizPanel.querySelector("#teacher-quiz-form").reset();
+          draftQuestions.length = 0;
+          renderDraftQuestions();
+          document.querySelector("#quiz-questions").value = 10;
+          showToast("تم إرسال الاختبار للطلاب وظهوره في الإشعارات.", "success");
+        });
     }
 
-    if (window.location.pathname.includes('dashboard-student.html') && !document.querySelector('#student-quiz-panel')) {
-      const tasksTitle = Array.from(document.querySelectorAll('.dashboard-section-title')).find((title) =>
-        title.textContent.includes('المهام') || title.textContent.includes('الواجبات')
+    if (
+      window.location.pathname.includes("dashboard-student.html") &&
+      !document.querySelector("#student-quiz-panel")
+    ) {
+      const tasksTitle = Array.from(
+        document.querySelectorAll(".dashboard-section-title"),
+      ).find(
+        (title) =>
+          title.textContent.includes("المهام") ||
+          title.textContent.includes("الواجبات"),
       );
-      const quizPanel = document.createElement('section');
-      quizPanel.id = 'student-quiz-panel';
-      quizPanel.className = 'quiz-workspace student-quiz-workspace';
+      const quizPanel = document.createElement("section");
+      quizPanel.id = "student-quiz-panel";
+      quizPanel.className = "quiz-workspace student-quiz-workspace";
       quizPanel.innerHTML = `
         <div class="quiz-panel-header">
           <div>
@@ -1193,17 +1177,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reinitialize the entire navbar (switches between minimal and full navbar)
     reinitializeNavbarUI();
 
-    const userRole = localStorage.getItem('userRole');
-    const username = localStorage.getItem('username') || '';
+    const userRole = localStorage.getItem("userRole");
+    const username = localStorage.getItem("username") || "";
 
     // Update any username greeting placeholders on dashboard
-    const namePlaceholders = document.querySelectorAll('.student-name-placeholder');
-    namePlaceholders.forEach(el => {
-      el.textContent = username || 'طالب زائر';
+    const namePlaceholders = document.querySelectorAll(
+      ".student-name-placeholder",
+    );
+    namePlaceholders.forEach((el) => {
+      el.textContent = username || "طالب زائر";
     });
 
-    const navAuthContainer = document.querySelector('.nav-auth-container');
-    const mobileAuthContainer = document.querySelector('.mobile-auth-container');
+    const navAuthContainer = document.querySelector(".nav-auth-container");
+    const mobileAuthContainer = document.querySelector(
+      ".mobile-auth-container",
+    );
 
     if (userRole) {
       // User is logged in
@@ -1251,55 +1239,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Bind Auth Button Clicks
-    const authBtn = document.querySelector('#auth-action-btn');
+    const authBtn = document.querySelector("#auth-action-btn");
     if (authBtn) {
-      authBtn.addEventListener('click', handleAuthAction);
+      authBtn.addEventListener("click", handleAuthAction);
     }
 
-    const notificationBtn = document.querySelector('#notification-btn');
-    const notificationMenu = document.querySelector('#notification-menu');
+    const notificationBtn = document.querySelector("#notification-btn");
+    const notificationMenu = document.querySelector("#notification-menu");
     if (notificationBtn && notificationMenu) {
-      notificationBtn.addEventListener('click', async (event) => {
+      notificationBtn.addEventListener("click", async (event) => {
         event.stopPropagation();
         await renderNotificationsMenu();
-        notificationMenu.classList.toggle('show');
+        notificationMenu.classList.toggle("show");
       });
     }
 
-    const markNotificationsRead = document.querySelector('#mark-notifications-read');
+    const markNotificationsRead = document.querySelector(
+      "#mark-notifications-read",
+    );
     if (markNotificationsRead) {
-      markNotificationsRead.addEventListener('click', async () => {
+      markNotificationsRead.addEventListener("click", async () => {
         try {
-          await fetchJson('/api/notifications/mark-all-read', {
-            method: 'POST',
+          await fetchJson("/api/notifications/mark-all-read", {
+            method: "POST",
             headers: authHeaders(),
           });
           await renderNotificationsMenu();
           await updateNotificationBadge();
         } catch (error) {
-          console.error('[notifications] Failed to mark all read:', error);
+          console.error("[notifications] Failed to mark all read:", error);
         }
       });
     }
 
-    const mobileNotificationsBtn = document.querySelector('#mobile-notifications-btn');
+    const mobileNotificationsBtn = document.querySelector(
+      "#mobile-notifications-btn",
+    );
     if (mobileNotificationsBtn) {
-      mobileNotificationsBtn.addEventListener('click', async () => {
+      mobileNotificationsBtn.addEventListener("click", async () => {
         const notifications = await fetchNotifications();
         const latestNotification = notifications[0];
-        showToast(latestNotification?.message || 'لا توجد إشعارات جديدة الآن.', latestNotification?.type === 'quiz' ? 'success' : 'warning');
+        showToast(
+          latestNotification?.message || "لا توجد إشعارات جديدة الآن.",
+          latestNotification?.type === "quiz" ? "success" : "warning",
+        );
       });
     }
 
-    const mobileLogoutBtn = document.querySelector('#mobile-logout-btn');
+    const mobileLogoutBtn = document.querySelector("#mobile-logout-btn");
     if (mobileLogoutBtn) {
-      mobileLogoutBtn.addEventListener('click', handleLogout);
+      mobileLogoutBtn.addEventListener("click", handleLogout);
     }
 
-    const mobileLoginBtn = document.querySelector('#mobile-login-btn');
+    const mobileLoginBtn = document.querySelector("#mobile-login-btn");
     if (mobileLoginBtn) {
-      mobileLoginBtn.addEventListener('click', () => {
-        window.location.href = 'login.html';
+      mobileLoginBtn.addEventListener("click", () => {
+        window.location.href = "login.html";
       });
     }
 
@@ -1307,34 +1302,38 @@ document.addEventListener('DOMContentLoaded', () => {
     updateNotificationBadge();
   };
 
-  document.addEventListener('click', (event) => {
-    const notificationCenter = document.querySelector('.notification-center');
-    const notificationMenu = document.querySelector('#notification-menu');
-    if (notificationCenter && notificationMenu && !notificationCenter.contains(event.target)) {
-      notificationMenu.classList.remove('show');
+  document.addEventListener("click", (event) => {
+    const notificationCenter = document.querySelector(".notification-center");
+    const notificationMenu = document.querySelector("#notification-menu");
+    if (
+      notificationCenter &&
+      notificationMenu &&
+      !notificationCenter.contains(event.target)
+    ) {
+      notificationMenu.classList.remove("show");
     }
   });
 
   const handleAuthAction = () => {
-    const userRole = localStorage.getItem('userRole');
+    const userRole = localStorage.getItem("userRole");
     if (userRole) {
       handleLogout();
     } else {
-      window.location.href = 'login.html';
+      window.location.href = "login.html";
     }
   };
 
   const handleLogout = () => {
-    if (confirm('هل تريد بالتأكيد تسجيل الخروج من الحساب؟')) {
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('username');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('token');
-      showToast('تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋', 'success');
+    if (confirm("هل تريد بالتأكيد تسجيل الخروج من الحساب؟")) {
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("username");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("token");
+      showToast("تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋", "success");
       updateAuthUI();
       // Redirect to index page
       setTimeout(() => {
-        window.location.href = 'index.html';
+        window.location.href = "index.html";
       }, 800);
     }
   };
@@ -1347,45 +1346,50 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeQuizExperience();
 
   // Add teacher student addition mock button trigger
-  const btnAddStudent = document.querySelector('#btn-teacher-add');
+  const btnAddStudent = document.querySelector("#btn-teacher-add");
   if (btnAddStudent) {
-    btnAddStudent.addEventListener('click', () => {
-      const studentName = prompt('أدخل اسم الطالب الجديد لتسجيله:');
+    btnAddStudent.addEventListener("click", () => {
+      const studentName = prompt("أدخل اسم الطالب الجديد لتسجيله:");
       if (studentName) {
-        showToast(`تم تسجيل الطالب "${studentName}" بنجاح في المنصة!`, 'success');
+        showToast(
+          `تم تسجيل الطالب "${studentName}" بنجاح في المنصة!`,
+          "success",
+        );
       }
     });
   }
 
   // --- Accordion Expand/Collapse Logic ---
-  const accordionHeaders = document.querySelectorAll('.accordion-header');
-  accordionHeaders.forEach(header => {
-    header.addEventListener('click', () => {
+  const accordionHeaders = document.querySelectorAll(".accordion-header");
+  accordionHeaders.forEach((header) => {
+    header.addEventListener("click", () => {
       const item = header.parentElement;
-      const body = item.querySelector('.accordion-body');
+      const body = item.querySelector(".accordion-body");
 
-      const isActive = item.classList.contains('active');
+      const isActive = item.classList.contains("active");
 
       if (isActive) {
-        item.classList.remove('active');
+        item.classList.remove("active");
         body.style.maxHeight = null;
       } else {
-        item.classList.add('active');
-        body.style.maxHeight = body.scrollHeight + 'px';
+        item.classList.add("active");
+        body.style.maxHeight = body.scrollHeight + "px";
       }
     });
   });
 
   // Initialize active accordions heights
-  const activeAccordions = document.querySelectorAll('.accordion-item.active .accordion-body');
-  activeAccordions.forEach(body => {
-    body.style.maxHeight = body.scrollHeight + 'px';
+  const activeAccordions = document.querySelectorAll(
+    ".accordion-item.active .accordion-body",
+  );
+  activeAccordions.forEach((body) => {
+    body.style.maxHeight = body.scrollHeight + "px";
   });
 
   // --- Dynamic URL Parameter Parsing for lesson-view.html ---
-  if (window.location.pathname.includes('lesson-view.html')) {
+  if (window.location.pathname.includes("lesson-view.html")) {
     const urlParams = new URLSearchParams(window.location.search);
-    const titleParam = urlParams.get('title');
+    const titleParam = urlParams.get("title");
     if (titleParam) {
       const decodedTitle = decodeURIComponent(titleParam);
 
@@ -1393,36 +1397,37 @@ document.addEventListener('DOMContentLoaded', () => {
       document.title = `عرض الدرس | ${decodedTitle} | منصة المرسال`;
 
       // Update breadcrumbs title
-      const bcTitle = document.querySelector('#lesson-breadcrumb-title');
+      const bcTitle = document.querySelector("#lesson-breadcrumb-title");
       if (bcTitle) {
         bcTitle.textContent = decodedTitle;
       }
 
       // Update page heading
-      const heading = document.querySelector('#lesson-name-heading');
+      const heading = document.querySelector("#lesson-name-heading");
       if (heading) {
         heading.textContent = decodedTitle;
       }
 
       // Update video overlay player title
-      const videoTitle = document.querySelector('#lesson-video-title');
+      const videoTitle = document.querySelector("#lesson-video-title");
       if (videoTitle) {
         videoTitle.textContent = `شرح درس: ${decodedTitle}`;
       }
     }
 
     // --- Lesson identity + shared page elements ---
-    const lessonId = urlParams.get('lesson') || urlParams.get('id') || 'lesson-1';
-    const playBtn = document.querySelector('.video-play-btn');
-    const playerBox = document.querySelector('.video-player-mock');
-    const durationEl = document.querySelector('#lesson-video-duration');
-    const materialsBox = document.querySelector('#lesson-materials-list');
+    const lessonId =
+      urlParams.get("lesson") || urlParams.get("id") || "lesson-1";
+    const playBtn = document.querySelector(".video-play-btn");
+    const playerBox = document.querySelector(".video-player-mock");
+    const durationEl = document.querySelector("#lesson-video-duration");
+    const materialsBox = document.querySelector("#lesson-materials-list");
 
     // Inline PDF viewer (markup lives in lesson-view.html).
-    const viewerPanel = document.querySelector('#lesson-pdf-viewer');
-    const viewerTitle = document.querySelector('#lesson-pdf-viewer-title');
-    const viewerFrame = document.querySelector('#lesson-pdf-frame');
-    const viewerClose = document.querySelector('#lesson-pdf-viewer-close');
+    const viewerPanel = document.querySelector("#lesson-pdf-viewer");
+    const viewerTitle = document.querySelector("#lesson-pdf-viewer-title");
+    const viewerFrame = document.querySelector("#lesson-pdf-frame");
+    const viewerClose = document.querySelector("#lesson-pdf-viewer-close");
 
     // Auth headers come from the shared JWT helper (authHeaders() above).
 
@@ -1434,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const formatDuration = (totalSeconds) => {
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = Math.floor(totalSeconds % 60);
-      return `${minutes}:${String(seconds).padStart(2, '0')}`;
+      return `${minutes}:${String(seconds).padStart(2, "0")}`;
     };
 
     /** Swaps the mock overlay for the Bunny embed player iframe. */
@@ -1451,35 +1456,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderVideoChooser = () => {
       if (!playerBox || lessonVideos.length <= 1) return;
 
-      let chooser = document.querySelector('#lesson-video-chooser');
+      let chooser = document.querySelector("#lesson-video-chooser");
       if (!chooser) {
-        chooser = document.createElement('div');
-        chooser.id = 'lesson-video-chooser';
+        chooser = document.createElement("div");
+        chooser.id = "lesson-video-chooser";
         chooser.style.cssText =
-          'display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;';
-        playerBox.insertAdjacentElement('afterend', chooser);
+          "display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;";
+        playerBox.insertAdjacentElement("afterend", chooser);
       }
-      chooser.innerHTML = '';
+      chooser.innerHTML = "";
 
       lessonVideos.forEach((video, idx) => {
-        const partBtn = document.createElement('button');
-        partBtn.type = 'button';
-        partBtn.className = 'btn btn-secondary';
+        const partBtn = document.createElement("button");
+        partBtn.type = "button";
+        partBtn.className = "btn btn-secondary";
         partBtn.style.cssText =
-          'font-size:0.85rem; padding:0.4rem 0.9rem;' +
-          (idx === currentVideoIdx ? ' font-weight:700;' : '');
+          "font-size:0.85rem; padding:0.4rem 0.9rem;" +
+          (idx === currentVideoIdx ? " font-weight:700;" : "");
         partBtn.textContent = video.name || `الجزء ${idx + 1}`;
-        if (!video.ready) partBtn.textContent += ' (قيد المعالجة)';
-        partBtn.addEventListener('click', () => {
+        if (!video.ready) partBtn.textContent += " (قيد المعالجة)";
+        partBtn.addEventListener("click", () => {
           currentVideoIdx = idx;
           renderVideoChooser();
           // Once playback started, switching parts loads them instantly.
-          if (playerBox.querySelector('iframe')) {
+          if (playerBox.querySelector("iframe")) {
             if (video.ready) {
-              showToast(`جاري تشغيل: ${partBtn.textContent}`, 'success');
+              showToast(`جاري تشغيل: ${partBtn.textContent}`, "success");
               loadIframe(video);
             } else {
-              showToast('هذا الجزء ما زال قيد المعالجة على Bunny.', 'warning');
+              showToast("هذا الجزء ما زال قيد المعالجة على Bunny.", "warning");
             }
           }
         });
@@ -1493,18 +1498,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (triggerButton) triggerButton.disabled = true;
         const data = await fetchJson(
           `/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
-          { headers: authHeaders() }
+          { headers: authHeaders() },
         );
         if (!viewerPanel || !viewerFrame) {
-          window.open(data.downloadUrl, '_blank', 'noopener');
+          window.open(data.downloadUrl, "_blank", "noopener");
           return;
         }
-        viewerTitle.textContent = material.title || 'ملف PDF';
+        viewerTitle.textContent = material.title || "ملف PDF";
         viewerFrame.src = data.downloadUrl;
         viewerPanel.hidden = false;
-        viewerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        viewerPanel.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (error) {
-        showToast(error.message, 'danger');
+        showToast(error.message, "danger");
       } finally {
         if (triggerButton) triggerButton.disabled = false;
       }
@@ -1513,17 +1518,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const closePdfViewer = () => {
       if (!viewerPanel) return;
       viewerPanel.hidden = true;
-      if (viewerFrame) viewerFrame.src = 'about:blank';
+      if (viewerFrame) viewerFrame.src = "about:blank";
     };
 
     if (viewerClose && viewerPanel) {
-      viewerClose.addEventListener('click', closePdfViewer);
+      viewerClose.addEventListener("click", closePdfViewer);
     }
 
     /** Renders the PDF materials list in the sidebar. */
     const renderLessonMaterials = (materialsList) => {
       if (!materialsBox) return;
-      materialsBox.innerHTML = '';
+      materialsBox.innerHTML = "";
 
       if (!materialsList.length) {
         materialsBox.innerHTML =
@@ -1532,41 +1537,43 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       materialsList.forEach((material) => {
-        const row = document.createElement('div');
-        row.className = 'lesson-material-item';
+        const row = document.createElement("div");
+        row.className = "lesson-material-item";
 
-        const title = document.createElement('div');
-        title.className = 'lesson-material-title';
-        title.textContent = material.title || 'ملف PDF';
+        const title = document.createElement("div");
+        title.className = "lesson-material-title";
+        title.textContent = material.title || "ملف PDF";
 
-        const actionsBox = document.createElement('div');
-        actionsBox.className = 'lesson-material-actions';
+        const actionsBox = document.createElement("div");
+        actionsBox.className = "lesson-material-actions";
 
         // عرض: renders the PDF inline beside/below the video player.
-        const viewButton = document.createElement('button');
-        viewButton.className = 'btn btn-secondary lesson-material-download';
-        viewButton.type = 'button';
-        viewButton.textContent = 'عرض';
-        viewButton.addEventListener('click', () => openMaterialInViewer(material, viewButton));
+        const viewButton = document.createElement("button");
+        viewButton.className = "btn btn-secondary lesson-material-download";
+        viewButton.type = "button";
+        viewButton.textContent = "عرض";
+        viewButton.addEventListener("click", () =>
+          openMaterialInViewer(material, viewButton),
+        );
 
-        const downloadButton = document.createElement('button');
-        downloadButton.className = 'btn btn-secondary lesson-material-download';
-        downloadButton.type = 'button';
-        downloadButton.textContent = 'تحميل';
-        downloadButton.addEventListener('click', async () => {
+        const downloadButton = document.createElement("button");
+        downloadButton.className = "btn btn-secondary lesson-material-download";
+        downloadButton.type = "button";
+        downloadButton.textContent = "تحميل";
+        downloadButton.addEventListener("click", async () => {
           try {
             downloadButton.disabled = true;
-            downloadButton.textContent = 'جاري...';
+            downloadButton.textContent = "جاري...";
             const data = await fetchJson(
               `/api/materials/${encodeURIComponent(material.id)}/download`,
-              { headers: authHeaders() }
+              { headers: authHeaders() },
             );
-            window.open(data.downloadUrl, '_blank', 'noopener');
+            window.open(data.downloadUrl, "_blank", "noopener");
           } catch (error) {
-            showToast(error.message, 'danger');
+            showToast(error.message, "danger");
           } finally {
             downloadButton.disabled = false;
-            downloadButton.textContent = 'تحميل';
+            downloadButton.textContent = "تحميل";
           }
         });
 
@@ -1575,7 +1582,6 @@ document.addEventListener('DOMContentLoaded', () => {
         materialsBox.appendChild(row);
       });
     };
-
 
     // ------------------------------------------------------------------
     // Stale-while-revalidate cache for lesson content. The site is a
@@ -1594,7 +1600,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const raw = sessionStorage.getItem(`lessonCache:${kind}:${id}`);
         if (!raw) return null;
         const entry = JSON.parse(raw);
-        if (!entry || typeof entry.fetchedAt !== 'number') return null;
+        if (!entry || typeof entry.fetchedAt !== "number") return null;
         return {
           data: entry.data,
           fresh: Date.now() - entry.fetchedAt < LESSON_CACHE_TTL_MS,
@@ -1608,12 +1614,14 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         sessionStorage.setItem(
           `lessonCache:${kind}:${id}`,
-          JSON.stringify({ data, fetchedAt: Date.now() })
+          JSON.stringify({ data, fetchedAt: Date.now() }),
         );
-      } catch (_) { /* storage full/unavailable — caching stays best-effort */ }
+      } catch (_) {
+        /* storage full/unavailable — caching stays best-effort */
+      }
     };
 
-    const cachedMaterials = lessonCacheRead('materials', lessonId);
+    const cachedMaterials = lessonCacheRead("materials", lessonId);
     if (cachedMaterials && cachedMaterials.fresh) {
       renderLessonMaterials(cachedMaterials.data || []);
       fetchJson(`/api/lessons/${lessonId}/materials`, {
@@ -1621,30 +1629,33 @@ document.addEventListener('DOMContentLoaded', () => {
       })
         .then((freshData) => {
           const nextMaterials = freshData.materials || [];
-          lessonCacheWrite('materials', lessonId, nextMaterials);
+          lessonCacheWrite("materials", lessonId, nextMaterials);
           if (
-            JSON.stringify(nextMaterials) !== JSON.stringify(cachedMaterials.data)
+            JSON.stringify(nextMaterials) !==
+            JSON.stringify(cachedMaterials.data)
           ) {
             renderLessonMaterials(nextMaterials);
           }
         })
-        .catch(() => { /* keep showing cached list */ });
+        .catch(() => {
+          /* keep showing cached list */
+        });
     } else {
       fetchJson(`/api/lessons/${lessonId}/materials`, {
         headers: authHeaders(),
       })
         .then((data) => {
           const materials = data.materials || [];
-          lessonCacheWrite('materials', lessonId, materials);
+          lessonCacheWrite("materials", lessonId, materials);
           renderLessonMaterials(materials);
         })
         .catch((error) => {
-          const materialsBox = document.querySelector('#lesson-materials-list');
+          const materialsBox = document.querySelector("#lesson-materials-list");
           if (materialsBox) {
             materialsBox.innerHTML =
               '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
           }
-          console.warn('[materials] list failed:', error);
+          console.warn("[materials] list failed:", error);
         });
     }
 
@@ -1653,7 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!lessonVideos.length) {
         if (durationEl) {
-          durationEl.textContent = 'لا يوجد فيديو مرفوع لهذا الدرس بعد';
+          durationEl.textContent = "لا يوجد فيديو مرفوع لهذا الدرس بعد";
         }
         return;
       }
@@ -1662,10 +1673,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const readyVideo = lessonVideos.find((v) => v.ready);
       if (durationEl) {
         if (!readyVideo) {
-          durationEl.textContent = 'أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...';
+          durationEl.textContent = "أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...";
         } else if (readyVideo.lengthSeconds) {
-          durationEl.textContent =
-            `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
+          durationEl.textContent = `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
         }
       }
 
@@ -1676,7 +1686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderVideoChooser();
     };
 
-    const cachedVideos = lessonCacheRead('videos', lessonId);
+    const cachedVideos = lessonCacheRead("videos", lessonId);
     if (cachedVideos && cachedVideos.fresh) {
       applyVideosData(cachedVideos.data);
       fetchJson(`/api/lessons/${lessonId}/videos`, {
@@ -1684,18 +1694,22 @@ document.addEventListener('DOMContentLoaded', () => {
       })
         .then((freshData) => {
           const nextVideos = freshData.videos || [];
-          lessonCacheWrite('videos', lessonId, nextVideos);
-          if (JSON.stringify(nextVideos) !== JSON.stringify(cachedVideos.data)) {
+          lessonCacheWrite("videos", lessonId, nextVideos);
+          if (
+            JSON.stringify(nextVideos) !== JSON.stringify(cachedVideos.data)
+          ) {
             applyVideosData(freshData);
           }
         })
-        .catch(() => { /* keep showing cached playlist */ });
+        .catch(() => {
+          /* keep showing cached playlist */
+        });
     } else {
       fetchJson(`/api/lessons/${lessonId}/videos`, {
         headers: authHeaders(),
       })
         .then((data) => {
-          lessonCacheWrite('videos', lessonId, data.videos || []);
+          lessonCacheWrite("videos", lessonId, data.videos || []);
           applyVideosData(data);
         })
         .catch(() => {
@@ -1704,119 +1718,141 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (playBtn && playerBox) {
-      playBtn.addEventListener('click', async () => {
+      playBtn.addEventListener("click", async () => {
         if (!lessonVideos.length) {
-          showToast('لا يوجد فيديو مرفوع لهذا الدرس بعد.', 'warning');
+          showToast("لا يوجد فيديو مرفوع لهذا الدرس بعد.", "warning");
           return;
         }
 
         const videoEntry = lessonVideos[currentVideoIdx];
         if (!videoEntry.ready) {
-          showToast('الفيديو ما زال قيد المعالجة على Bunny، حاولي بعد قليل.', 'warning');
+          showToast(
+            "الفيديو ما زال قيد المعالجة على Bunny، حاولي بعد قليل.",
+            "warning",
+          );
           return;
         }
 
         playBtn.disabled = true;
-        showToast('جاري تشغيل الفيديو...', 'success');
+        showToast("جاري تشغيل الفيديو...", "success");
         loadIframe(videoEntry);
       });
     }
 
     // --- Teacher Notes (dynamic) ---
-    const notesContainer = document.querySelector('#teacher-notes-container');
-    const isTeacher = localStorage.getItem('userRole') === 'teacher';
+    const notesContainer = document.querySelector("#teacher-notes-container");
+    const isTeacher = localStorage.getItem("userRole") === "teacher";
 
     const renderNotes = (notes) => {
       if (!notesContainer) return;
-      notesContainer.innerHTML = '';
+      notesContainer.innerHTML = "";
 
       if (isTeacher) {
-        const addBox = document.createElement('div');
-        addBox.className = 'teacher-note-add-box';
+        const addBox = document.createElement("div");
+        addBox.className = "teacher-note-add-box";
         addBox.innerHTML = `
           <textarea id="new-note-input" class="form-input" rows="3" placeholder="أضيفي ملاحظة جديدة للطلاب..." style="width: 100%; margin-bottom: 0.75rem;"></textarea>
           <button id="btn-add-note" class="btn btn-primary" style="min-width: 120px;">إضافة ملاحظة</button>
         `;
         notesContainer.appendChild(addBox);
 
-        addBox.querySelector('#btn-add-note').addEventListener('click', async () => {
-          const input = addBox.querySelector('#new-note-input');
-          const content = input.value.trim();
-          if (!content) {
-            showToast('اكتب الملاحظة أولاً.', 'warning');
-            return;
-          }
-          try {
-            await fetchJson(`/api/lessons/${lessonId}/notes`, {
-              method: 'POST',
-              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content }),
-            });
-            input.value = '';
-            showToast('تم إضافة الملاحظة بنجاح.', 'success');
-            loadNotes();
-          } catch (err) {
-            showToast(err.message, 'danger');
-          }
-        });
+        addBox
+          .querySelector("#btn-add-note")
+          .addEventListener("click", async () => {
+            const input = addBox.querySelector("#new-note-input");
+            const content = input.value.trim();
+            if (!content) {
+              showToast("اكتب الملاحظة أولاً.", "warning");
+              return;
+            }
+            try {
+              await fetchJson(`/api/lessons/${lessonId}/notes`, {
+                method: "POST",
+                headers: {
+                  ...authHeaders(),
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ content }),
+              });
+              input.value = "";
+              showToast("تم إضافة الملاحظة بنجاح.", "success");
+              loadNotes();
+            } catch (err) {
+              showToast(err.message, "danger");
+            }
+          });
       }
 
       if (!notes.length && !isTeacher) {
-        notesContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">لا توجد ملاحظات من المعلمة لهذا الدرس بعد.</p>';
+        notesContainer.innerHTML =
+          '<p class="text-muted" style="font-size: 0.9rem;">لا توجد ملاحظات من المعلمة لهذا الدرس بعد.</p>';
         return;
       }
 
       notes.forEach((note) => {
-        const card = document.createElement('div');
-        card.className = 'teacher-note-card';
+        const card = document.createElement("div");
+        card.className = "teacher-note-card";
         card.innerHTML = `
           <div class="teacher-note-content">${note.content}</div>
-          <div class="teacher-note-meta">${new Date(note.createdAt).toLocaleDateString('ar-EG')}</div>
+          <div class="teacher-note-meta">${new Date(note.createdAt).toLocaleDateString("ar-EG")}</div>
         `;
         if (isTeacher) {
-          const actions = document.createElement('div');
-          actions.className = 'teacher-note-actions';
+          const actions = document.createElement("div");
+          actions.className = "teacher-note-actions";
           actions.innerHTML = `
             <button class="btn btn-secondary btn-sm note-edit-btn">تعديل</button>
             <button class="btn btn-secondary btn-sm note-delete-btn" style="color: var(--color-danger);">حذف</button>
           `;
-          actions.querySelector('.note-edit-btn').addEventListener('click', () => {
-            const contentEl = card.querySelector('.teacher-note-content');
-            const currentText = contentEl.textContent;
-            contentEl.innerHTML = `<textarea class="form-input note-edit-textarea" rows="2" style="width:100%; margin-bottom:0.5rem;">${currentText}</textarea>
+          actions
+            .querySelector(".note-edit-btn")
+            .addEventListener("click", () => {
+              const contentEl = card.querySelector(".teacher-note-content");
+              const currentText = contentEl.textContent;
+              contentEl.innerHTML = `<textarea class="form-input note-edit-textarea" rows="2" style="width:100%; margin-bottom:0.5rem;">${currentText}</textarea>
               <button class="btn btn-primary btn-sm note-save-btn">حفظ</button>
               <button class="btn btn-secondary btn-sm note-cancel-btn">إلغاء</button>`;
-            actions.remove();
-            contentEl.querySelector('.note-save-btn').addEventListener('click', async () => {
-              const newContent = contentEl.querySelector('.note-edit-textarea').value.trim();
-              if (!newContent) return;
+              actions.remove();
+              contentEl
+                .querySelector(".note-save-btn")
+                .addEventListener("click", async () => {
+                  const newContent = contentEl
+                    .querySelector(".note-edit-textarea")
+                    .value.trim();
+                  if (!newContent) return;
+                  try {
+                    await fetchJson(`/api/notes/${note.id}`, {
+                      method: "PATCH",
+                      headers: {
+                        ...authHeaders(),
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ content: newContent }),
+                    });
+                    showToast("تم تحديث الملاحظة.", "success");
+                    loadNotes();
+                  } catch (err) {
+                    showToast(err.message, "danger");
+                  }
+                });
+              contentEl
+                .querySelector(".note-cancel-btn")
+                .addEventListener("click", () => loadNotes());
+            });
+          actions
+            .querySelector(".note-delete-btn")
+            .addEventListener("click", async () => {
+              if (!confirm("هل أنت متأكد من حذف هذه الملاحظة؟")) return;
               try {
                 await fetchJson(`/api/notes/${note.id}`, {
-                  method: 'PATCH',
-                  headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ content: newContent }),
+                  method: "DELETE",
+                  headers: authHeaders(),
                 });
-                showToast('تم تحديث الملاحظة.', 'success');
+                showToast("تم حذف الملاحظة.", "success");
                 loadNotes();
               } catch (err) {
-                showToast(err.message, 'danger');
+                showToast(err.message, "danger");
               }
             });
-            contentEl.querySelector('.note-cancel-btn').addEventListener('click', () => loadNotes());
-          });
-          actions.querySelector('.note-delete-btn').addEventListener('click', async () => {
-            if (!confirm('هل أنت متأكد من حذف هذه الملاحظة؟')) return;
-            try {
-              await fetchJson(`/api/notes/${note.id}`, {
-                method: 'DELETE',
-                headers: authHeaders(),
-              });
-              showToast('تم حذف الملاحظة.', 'success');
-              loadNotes();
-            } catch (err) {
-              showToast(err.message, 'danger');
-            }
-          });
           card.appendChild(actions);
         }
         notesContainer.appendChild(card);
@@ -1825,62 +1861,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const loadNotes = async () => {
       try {
-        const data = await fetchJson(`/api/lessons/${lessonId}/notes`, { headers: authHeaders() });
+        const data = await fetchJson(`/api/lessons/${lessonId}/notes`, {
+          headers: authHeaders(),
+        });
         renderNotes(data.notes || []);
       } catch (err) {
-        if (notesContainer) notesContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الملاحظات.</p>';
+        if (notesContainer)
+          notesContainer.innerHTML =
+            '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الملاحظات.</p>';
       }
     };
     loadNotes();
 
     // --- Student Comments ---
-    const commentsList = document.querySelector('#comments-list');
-    const commentFormContainer = document.querySelector('#comment-form-container');
-    const commentInput = document.querySelector('#comment-input');
-    const postCommentBtn = document.querySelector('#btn-post-comment');
-    const userRole = localStorage.getItem('userRole');
-    const userName = localStorage.getItem('userName') || 'طالب';
+    const commentsList = document.querySelector("#comments-list");
+    const commentFormContainer = document.querySelector(
+      "#comment-form-container",
+    );
+    const commentInput = document.querySelector("#comment-input");
+    const postCommentBtn = document.querySelector("#btn-post-comment");
+    const userRole = localStorage.getItem("userRole");
+    const userName = localStorage.getItem("userName") || "طالب";
 
-    if (userRole === 'student' && commentFormContainer) {
-      commentFormContainer.style.display = 'block';
+    if (userRole === "student" && commentFormContainer) {
+      commentFormContainer.style.display = "block";
     }
 
     const renderComments = (comments) => {
       if (!commentsList) return;
-      commentsList.innerHTML = '';
+      commentsList.innerHTML = "";
 
       if (!comments.length) {
-        commentsList.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">لا توجد تعليقات بعد. كن أول من يعلق!</p>';
+        commentsList.innerHTML =
+          '<p class="text-muted" style="font-size: 0.9rem;">لا توجد تعليقات بعد. كن أول من يعلق!</p>';
         return;
       }
 
       comments.forEach((comment) => {
-        const isOwn = comment.studentId === localStorage.getItem('userId');
+        const isOwn = comment.studentId === localStorage.getItem("userId");
         const canDelete = isTeacher || isOwn;
-        const item = document.createElement('div');
-        item.className = 'comment-item';
+        const item = document.createElement("div");
+        item.className = "comment-item";
         item.innerHTML = `
           <div class="comment-header">
             <span class="comment-author">${comment.studentName}</span>
-            <span class="comment-date">${new Date(comment.createdAt).toLocaleDateString('ar-EG')}</span>
+            <span class="comment-date">${new Date(comment.createdAt).toLocaleDateString("ar-EG")}</span>
           </div>
           <div class="comment-body">${comment.content}</div>
-          ${canDelete ? '<button class="btn btn-secondary btn-sm comment-delete-btn" style="color: var(--color-danger); font-size: 0.75rem;">حذف</button>' : ''}
+          ${canDelete ? '<button class="btn btn-secondary btn-sm comment-delete-btn" style="color: var(--color-danger); font-size: 0.75rem;">حذف</button>' : ""}
         `;
         if (canDelete) {
-          item.querySelector('.comment-delete-btn').addEventListener('click', async () => {
-            if (!confirm('هل أنت متأكد من حذف هذا التعليق؟')) return;
-            try {
-              await fetchJson(`/api/comments/${comment.id}`, {
-                method: 'DELETE',
-                headers: authHeaders(),
-              });
-              showToast('تم حذف التعليق.', 'success');
-              loadComments();
-            } catch (err) {
-              showToast(err.message, 'danger');
-            }
-          });
+          item
+            .querySelector(".comment-delete-btn")
+            .addEventListener("click", async () => {
+              if (!confirm("هل أنت متأكد من حذف هذا التعليق؟")) return;
+              try {
+                await fetchJson(`/api/comments/${comment.id}`, {
+                  method: "DELETE",
+                  headers: authHeaders(),
+                });
+                showToast("تم حذف التعليق.", "success");
+                loadComments();
+              } catch (err) {
+                showToast(err.message, "danger");
+              }
+            });
         }
         commentsList.appendChild(item);
       });
@@ -1888,33 +1933,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const loadComments = async () => {
       try {
-        const data = await fetchJson(`/api/lessons/${lessonId}/comments`, { headers: authHeaders() });
+        const data = await fetchJson(`/api/lessons/${lessonId}/comments`, {
+          headers: authHeaders(),
+        });
         renderComments(data.comments || []);
       } catch (err) {
-        if (commentsList) commentsList.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل التعليقات.</p>';
+        if (commentsList)
+          commentsList.innerHTML =
+            '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل التعليقات.</p>';
       }
     };
     loadComments();
 
     if (postCommentBtn) {
-      postCommentBtn.addEventListener('click', async () => {
+      postCommentBtn.addEventListener("click", async () => {
         const content = commentInput?.value.trim();
         if (!content) {
-          showToast('اكتب تعليقك أولاً.', 'warning');
+          showToast("اكتب تعليقك أولاً.", "warning");
           return;
         }
         try {
           postCommentBtn.disabled = true;
           await fetchJson(`/api/lessons/${lessonId}/comments`, {
-            method: 'POST',
-            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            method: "POST",
+            headers: { ...authHeaders(), "Content-Type": "application/json" },
             body: JSON.stringify({ content, studentName: userName }),
           });
-          commentInput.value = '';
-          showToast('تم نشر التعليق.', 'success');
+          commentInput.value = "";
+          showToast("تم نشر التعليق.", "success");
           loadComments();
         } catch (err) {
-          showToast(err.message, 'danger');
+          showToast(err.message, "danger");
         } finally {
           postCommentBtn.disabled = false;
         }
@@ -1922,83 +1971,100 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Lesson Exams Tab ---
-    const examsContainer = document.querySelector('#lesson-exams-container');
+    const examsContainer = document.querySelector("#lesson-exams-container");
     let lessonExamsLoaded = false;
 
     const statusLabel = (status) => {
-      if (status === 'upcoming') return 'قادم';
-      if (status === 'active') return 'نشط';
-      return 'منتهي';
+      if (status === "upcoming") return "قادم";
+      if (status === "active") return "نشط";
+      return "منتهي";
     };
 
     const renderLessonExams = (exams, attempts) => {
       if (!examsContainer) return;
-      examsContainer.innerHTML = '';
+      examsContainer.innerHTML = "";
 
       if (!exams.length) {
-        examsContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">لا توجد امتحانات متاحة لهذا الدرس حاليًا.</p>';
+        examsContainer.innerHTML =
+          '<p class="text-muted" style="font-size: 0.9rem;">لا توجد امتحانات متاحة لهذا الدرس حاليًا.</p>';
         return;
       }
 
       exams.forEach((exam) => {
         const attempt = attempts[exam.id] || {};
-        const card = document.createElement('div');
-        card.className = 'lesson-exam-card';
+        const card = document.createElement("div");
+        card.className = "lesson-exam-card";
 
-        const titleRow = document.createElement('div');
-        titleRow.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:0.6rem;';
+        const titleRow = document.createElement("div");
+        titleRow.style.cssText =
+          "display:flex; align-items:center; justify-content:space-between; gap:0.6rem;";
 
-        const title = document.createElement('span');
-        title.className = 'lesson-exam-title';
+        const title = document.createElement("span");
+        title.className = "lesson-exam-title";
         title.textContent = exam.title;
 
-        const status = document.createElement('span');
+        const status = document.createElement("span");
         status.className = `lesson-exam-status status-${exam.status}`;
         status.textContent = statusLabel(exam.status);
 
         titleRow.append(title, status);
 
-        const meta = document.createElement('div');
-        meta.className = 'lesson-exam-meta';
+        const meta = document.createElement("div");
+        meta.className = "lesson-exam-meta";
         meta.innerHTML = `<span>${exam.questionCount} سؤال</span><span>${exam.durationMinutes} دقيقة</span>`;
         if (exam.isMixed) {
-          meta.innerHTML += '<span>اختبار مجمع</span>';
+          meta.innerHTML += "<span>اختبار مجمع</span>";
         }
 
-        const foot = document.createElement('div');
-        foot.className = 'lesson-exam-foot';
+        const foot = document.createElement("div");
+        foot.className = "lesson-exam-foot";
 
         // Score chip for completed attempts
-        if (attempt.status === 'submitted' && attempt.latestSubmitted) {
-          const score = document.createElement('span');
-          score.className = 'lesson-exam-score';
+        if (attempt.status === "submitted" && attempt.latestSubmitted) {
+          const score = document.createElement("span");
+          score.className = "lesson-exam-score";
           score.textContent = `${attempt.latestSubmitted.score}/${attempt.latestSubmitted.totalMcq}`;
           foot.appendChild(score);
         }
 
         // Action button
-        if (exam.status === 'active') {
-          const canStart = attempt.status === 'not_started' || attempt.status === 'in_progress' || (attempt.status === 'submitted' && attempt.remainingAttempts > 0);
+        if (exam.status === "active") {
+          const canStart =
+            attempt.status === "not_started" ||
+            attempt.status === "in_progress" ||
+            (attempt.status === "submitted" && attempt.remainingAttempts > 0);
           if (canStart) {
-            const btn = document.createElement('a');
+            const btn = document.createElement("a");
             btn.href = `/exams.html?start=${encodeURIComponent(exam.id)}`;
-            btn.className = 'btn btn-primary';
-            btn.style.cssText = 'font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;';
-            btn.textContent = attempt.status === 'in_progress' ? 'استئناف الاختبار' : 'بدء الاختبار';
+            btn.className = "btn btn-primary";
+            btn.style.cssText =
+              "font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;";
+            btn.textContent =
+              attempt.status === "in_progress"
+                ? "استئناف الاختبار"
+                : "بدء الاختبار";
             foot.appendChild(btn);
-          } else if (attempt.status === 'submitted' && attempt.remainingAttempts === 0) {
-            const noAttempts = document.createElement('span');
-            noAttempts.className = 'text-muted';
-            noAttempts.style.cssText = 'font-size:0.82rem;';
-            noAttempts.textContent = 'لا محاولات متبقية';
+          } else if (
+            attempt.status === "submitted" &&
+            attempt.remainingAttempts === 0
+          ) {
+            const noAttempts = document.createElement("span");
+            noAttempts.className = "text-muted";
+            noAttempts.style.cssText = "font-size:0.82rem;";
+            noAttempts.textContent = "لا محاولات متبقية";
             foot.appendChild(noAttempts);
           }
-        } else if (exam.status === 'ended' && attempt.status === 'submitted' && attempt.latestSubmitted) {
-          const resultBtn = document.createElement('a');
+        } else if (
+          exam.status === "ended" &&
+          attempt.status === "submitted" &&
+          attempt.latestSubmitted
+        ) {
+          const resultBtn = document.createElement("a");
           resultBtn.href = `/exams.html`;
-          resultBtn.className = 'btn btn-secondary';
-          resultBtn.style.cssText = 'font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;';
-          resultBtn.textContent = 'عرض النتيجة';
+          resultBtn.className = "btn btn-secondary";
+          resultBtn.style.cssText =
+            "font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;";
+          resultBtn.textContent = "عرض النتيجة";
           foot.appendChild(resultBtn);
         }
 
@@ -2012,19 +2078,22 @@ document.addEventListener('DOMContentLoaded', () => {
       lessonExamsLoaded = true;
 
       try {
-        const data = await fetchJson(`/api/quizzes/for-lesson/${lessonId}`, { headers: authHeaders() });
+        const data = await fetchJson(`/api/quizzes/for-lesson/${lessonId}`, {
+          headers: authHeaders(),
+        });
         renderLessonExams(data.exams || [], data.attempts || {});
       } catch (err) {
         if (examsContainer) {
-          examsContainer.innerHTML = '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الاختبارات.</p>';
+          examsContainer.innerHTML =
+            '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الاختبارات.</p>';
         }
       }
     };
 
     // Lazy-load exams when the Exams tab is clicked
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (btn.getAttribute('data-tab') === 'tab-exams') {
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.getAttribute("data-tab") === "tab-exams") {
           loadLessonExams();
         }
       });
@@ -2032,58 +2101,60 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Teacher dashboard: video upload to Bunny Stream ---
-  const chapterSelect = document.querySelector('#upload-chapter');
-  const lessonSelect = document.querySelector('#upload-lesson');
+  const chapterSelect = document.querySelector("#upload-chapter");
+  const lessonSelect = document.querySelector("#upload-lesson");
 
   // Populate the chapter -> lesson dependent dropdowns from the curriculum.
   if (chapterSelect && lessonSelect && window.CURRICULUM) {
     const fillLessons = (chapterIdx) => {
       const chapter = window.CURRICULUM.biology[chapterIdx];
-      lessonSelect.innerHTML = '';
+      lessonSelect.innerHTML = "";
       chapter.lessons.forEach((lesson) => {
-        const opt = document.createElement('option');
+        const opt = document.createElement("option");
         opt.value = lesson.id;
-        opt.textContent = `${chapter.name.split(':')[0]} — ${lesson.name} (${lesson.id})`;
+        opt.textContent = `${chapter.name.split(":")[0]} — ${lesson.name} (${lesson.id})`;
         lessonSelect.appendChild(opt);
       });
     };
 
     window.CURRICULUM.biology.forEach((chapter, idx) => {
-      const opt = document.createElement('option');
+      const opt = document.createElement("option");
       opt.value = String(idx);
       opt.textContent = chapter.name;
       chapterSelect.appendChild(opt);
     });
 
-    chapterSelect.addEventListener('change', () => fillLessons(Number(chapterSelect.value)));
+    chapterSelect.addEventListener("change", () =>
+      fillLessons(Number(chapterSelect.value)),
+    );
     fillLessons(0);
   }
 
-  const uploadBtn = document.querySelector('#btn-upload-video');
-  const uploadMaterialBtn = document.querySelector('#btn-upload-material');
+  const uploadBtn = document.querySelector("#btn-upload-video");
+  const uploadMaterialBtn = document.querySelector("#btn-upload-material");
   const uploadSelectedMaterial = async (onProgress) => {
-    const titleInput = document.querySelector('#upload-title');
-    const pdfInput = document.querySelector('#upload-pdf-file');
-    const lessonId = lessonSelect ? lessonSelect.value : '';
+    const titleInput = document.querySelector("#upload-title");
+    const pdfInput = document.querySelector("#upload-pdf-file");
+    const lessonId = lessonSelect ? lessonSelect.value : "";
     const pdfFile = pdfInput?.files[0];
 
     if (!lessonId) {
-      showToast('اختاري الفصل والدرس أولاً.', 'warning');
+      showToast("اختاري الفصل والدرس أولاً.", "warning");
       return null;
     }
 
     if (!pdfFile) {
-      showToast('اختاري ملف PDF أولاً.', 'warning');
+      showToast("اختاري ملف PDF أولاً.", "warning");
       return null;
     }
 
-    if (pdfFile.type !== 'application/pdf' && !/\.pdf$/i.test(pdfFile.name)) {
-      showToast('ملفات PDF فقط مسموح بها.', 'warning');
+    if (pdfFile.type !== "application/pdf" && !/\.pdf$/i.test(pdfFile.name)) {
+      showToast("ملفات PDF فقط مسموح بها.", "warning");
       return null;
     }
 
-    if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
-      showToast('رفع ملفات PDF متاح لحساب المعلمة فقط.', 'danger');
+    if ((localStorage.getItem("userRole") || "student") !== "teacher") {
+      showToast("رفع ملفات PDF متاح لحساب المعلمة فقط.", "danger");
       return null;
     }
 
@@ -2101,31 +2172,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const prepared = await fetchJson(
       `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ fileName: pdfFile.name }),
-      }
+      },
     );
 
     let result;
     if (swUploadAvailable) {
       // BACKGROUND PATH: hand the whole upload (bytes PUT + finalize) to the
       // service worker so navigating to other pages cannot interrupt it.
-      const jobId = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const jobId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       const outcome = await startSwUploadJob({
         id: jobId,
-        kind: 'pdf',
+        kind: "pdf",
         url: prepared.signedUrl,
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/pdf' },
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
         blob: pdfFile,
         finalize: {
           url: `/api/materials/finalize`,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             lessonId,
             filePath: prepared.filePath,
@@ -2133,29 +2205,29 @@ document.addEventListener('DOMContentLoaded', () => {
           }),
         },
         meta: { lessonId, label: `PDF: ${formDataTitle}` },
-        status: 'queued',
+        status: "queued",
       });
 
       if (!outcome.ok) {
-        throw new Error(outcome.error || 'فشل رفع ملف PDF.');
+        throw new Error(outcome.error || "فشل رفع ملف PDF.");
       }
       result = {};
     } else {
       // INLINE FALLBACK (no service worker): classic in-page XHR upload.
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('PUT', prepared.signedUrl);
-        xhr.setRequestHeader('Content-Type', 'application/pdf');
+        xhr.open("PUT", prepared.signedUrl);
+        xhr.setRequestHeader("Content-Type", "application/pdf");
 
-        if (typeof onProgress === 'function') {
-          xhr.upload.addEventListener('progress', (e) => {
+        if (typeof onProgress === "function") {
+          xhr.upload.addEventListener("progress", (e) => {
             if (e.lengthComputable) {
               onProgress(Math.round((e.loaded / e.total) * 100), null);
             }
           });
         }
 
-        xhr.addEventListener('load', () => {
+        xhr.addEventListener("load", () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve();
           } else {
@@ -2163,18 +2235,19 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
 
-        xhr.addEventListener('error', () =>
-          reject(new Error('انقطع الاتصال أثناء رفع ملف PDF.'))
+        xhr.addEventListener("error", () =>
+          reject(new Error("انقطع الاتصال أثناء رفع ملف PDF.")),
         );
 
         xhr.send(pdfFile);
       });
 
-      if (typeof onProgress === 'function') onProgress(100, 'جاري تحسين الملف على السيرفر...');
+      if (typeof onProgress === "function")
+        onProgress(100, "جاري تحسين الملف على السيرفر...");
 
       result = await fetchJson(`/api/materials/finalize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
           lessonId,
           filePath: prepared.filePath,
@@ -2188,46 +2261,52 @@ document.addEventListener('DOMContentLoaded', () => {
     // pre-upload list would keep hiding it for up to 7 minutes).
     try {
       sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
-    } catch (_) { /* best-effort */ }
+    } catch (_) {
+      /* best-effort */
+    }
 
-    pdfInput.value = '';
-    showToast('تم رفع ملف PDF للدرس بنجاح.', 'success');
+    pdfInput.value = "";
+    showToast("تم رفع ملف PDF للدرس بنجاح.", "success");
     return result;
   };
 
   if (uploadMaterialBtn) {
-    uploadMaterialBtn.addEventListener('click', async () => {
+    uploadMaterialBtn.addEventListener("click", async () => {
       // Same progress UI the video upload uses.
-      const progressArea = document.querySelector('#upload-progress-area');
-      const progressBar = document.querySelector('#upload-progress-bar');
-      const statusText = document.querySelector('#upload-status-text');
+      const progressArea = document.querySelector("#upload-progress-area");
+      const progressBar = document.querySelector("#upload-progress-bar");
+      const statusText = document.querySelector("#upload-status-text");
 
       try {
         uploadMaterialBtn.disabled = true;
-        UploadFloat.show('جاري رفع ملف PDF');
+        UploadFloat.show("جاري رفع ملف PDF");
         if (progressArea && progressBar && statusText) {
-          progressArea.style.display = 'block';
-          progressBar.style.width = '0%';
-          statusText.textContent = 'جاري تجهيز الملف...';
+          progressArea.style.display = "block";
+          progressBar.style.width = "0%";
+          statusText.textContent = "جاري تجهيز الملف...";
         }
 
         await uploadSelectedMaterial((pct, statusMsg) => {
           if (progressBar && statusText) {
-            progressBar.style.width = pct + '%';
-            statusText.textContent = statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`;
+            progressBar.style.width = pct + "%";
+            statusText.textContent =
+              statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`;
           }
-          UploadFloat.update(pct, statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`);
+          UploadFloat.update(
+            pct,
+            statusMsg || `جاري رفع ملف الـ PDF... ${pct}%`,
+          );
         });
 
         if (progressBar && statusText) {
-          progressBar.style.width = '100%';
-          statusText.textContent = 'تم رفع ملف PDF للدرس بنجاح ✔';
+          progressBar.style.width = "100%";
+          statusText.textContent = "تم رفع ملف PDF للدرس بنجاح ✔";
         }
-        UploadFloat.done('تم رفع ملف PDF للدرس بنجاح ✔');
+        UploadFloat.done("تم رفع ملف PDF للدرس بنجاح ✔");
       } catch (error) {
-        showToast(error.message, 'danger');
-        if (statusText) statusText.textContent = 'فشل رفع ملف PDF.';
-        UploadFloat.fail('فشل رفع ملف PDF.');
+        showToast(error.message, "danger");
+        if (statusText) statusText.textContent = "فشل رفع ملف PDF.";
+        UploadFloat.fail("فشل رفع ملف PDF.");
       } finally {
         uploadMaterialBtn.disabled = false;
       }
@@ -2235,56 +2314,56 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (uploadBtn) {
-    uploadBtn.addEventListener('click', async () => {
-      const titleInput = document.querySelector('#upload-title');
-      const attachmentInput = document.querySelector('#upload-attachment');
-      const descriptionInput = document.querySelector('#upload-description');
-      const fileInput = document.querySelector('#upload-file');
-      const pdfInput = document.querySelector('#upload-pdf-file');
-      const progressArea = document.querySelector('#upload-progress-area');
-      const progressBar = document.querySelector('#upload-progress-bar');
-      const statusText = document.querySelector('#upload-status-text');
+    uploadBtn.addEventListener("click", async () => {
+      const titleInput = document.querySelector("#upload-title");
+      const attachmentInput = document.querySelector("#upload-attachment");
+      const descriptionInput = document.querySelector("#upload-description");
+      const fileInput = document.querySelector("#upload-file");
+      const pdfInput = document.querySelector("#upload-pdf-file");
+      const progressArea = document.querySelector("#upload-progress-area");
+      const progressBar = document.querySelector("#upload-progress-bar");
+      const statusText = document.querySelector("#upload-status-text");
 
-      const lessonId = lessonSelect ? lessonSelect.value : '';
-      const videoName = (titleInput?.value || '').trim();
-      const attachmentUrl = (attachmentInput?.value || '').trim();
-      const description = (descriptionInput?.value || '').trim();
+      const lessonId = lessonSelect ? lessonSelect.value : "";
+      const videoName = (titleInput?.value || "").trim();
+      const attachmentUrl = (attachmentInput?.value || "").trim();
+      const description = (descriptionInput?.value || "").trim();
       const file = fileInput?.files[0];
       const pdfFile = pdfInput?.files[0];
 
       if (!lessonId) {
-        showToast('اختاري الفصل والدرس أولاً.', 'warning');
+        showToast("اختاري الفصل والدرس أولاً.", "warning");
         return;
       }
       if (!videoName) {
-        showToast('اكتبي اسم الفيديو.', 'warning');
+        showToast("اكتبي اسم الفيديو.", "warning");
         titleInput.focus();
         return;
       }
       if (!file) {
-        showToast('اختاري ملف الفيديو.', 'warning');
+        showToast("اختاري ملف الفيديو.", "warning");
         return;
       }
 
       // Only teachers may upload (UI hint only — the backend enforces the
       // real role from the JWT).
-      if ((localStorage.getItem('userRole') || 'student') !== 'teacher') {
-        showToast('رفع الفيديوهات متاح لحساب المعلمة فقط.', 'danger');
+      if ((localStorage.getItem("userRole") || "student") !== "teacher") {
+        showToast("رفع الفيديوهات متاح لحساب المعلمة فقط.", "danger");
         return;
       }
 
       try {
         uploadBtn.disabled = true;
-        progressArea.style.display = 'block';
-        progressBar.style.width = '0%';
-        statusText.textContent = 'جاري تجهيز الفيديو على سيرفر البث...';
-        UploadFloat.show('جاري رفع الفيديو');
-        UploadFloat.update(0, 'جاري تجهيز الفيديو على سيرفر البث...');
+        progressArea.style.display = "block";
+        progressBar.style.width = "0%";
+        statusText.textContent = "جاري تجهيز الفيديو على سيرفر البث...";
+        UploadFloat.show("جاري رفع الفيديو");
+        UploadFloat.update(0, "جاري تجهيز الفيديو على سيرفر البث...");
 
         // Step 1: reserve a slot on Bunny (title follows the lesson convention).
         const prepared = await fetchJson(`/api/lessons/${lessonId}/video`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             title: videoName,
             attachmentUrl,
@@ -2294,13 +2373,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (pdfFile) {
           await uploadSelectedMaterial((pct, statusMsg) => {
-            progressBar.style.width = pct + '%';
+            progressBar.style.width = pct + "%";
             statusText.textContent =
               statusMsg || `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
             UploadFloat.update(pct, statusMsg || `جاري رفع ملف PDF... ${pct}%`);
           });
-          statusText.textContent = 'تم رفع الـ PDF ✔ — جاري رفع الفيديو...';
-          progressBar.style.width = '0%';
+          statusText.textContent = "تم رفع الـ PDF ✔ — جاري رفع الفيديو...";
+          progressBar.style.width = "0%";
         }
 
         // Step 2: PUT the raw file straight to Bunny with upload progress.
@@ -2308,55 +2387,58 @@ document.addEventListener('DOMContentLoaded', () => {
           // BACKGROUND PATH: the service worker owns the big video PUT, so
           // the teacher can browse other pages while it runs. Bunny encodes
           // server-side afterwards regardless of who is watching.
-          const jobId = typeof crypto !== 'undefined' && crypto.randomUUID
-            ? crypto.randomUUID()
-            : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const jobId =
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
           const outcome = await startSwUploadJob({
             id: jobId,
-            kind: 'video',
+            kind: "video",
             url: prepared.uploadUrl,
-            method: 'PUT',
+            method: "PUT",
             headers: { AccessKey: prepared.accessKey },
             blob: file,
             meta: { lessonId, label: `فيديو: ${videoName}` },
-            status: 'queued',
+            status: "queued",
           });
 
           if (!outcome.ok) {
-            const rawError = String(outcome.error || '');
+            const rawError = String(outcome.error || "");
             if (/failed to fetch|networkerror|load failed/i.test(rawError)) {
-              throw new Error('انقطع الاتصال أثناء رفع الفيديو. تأكدي من الشبكة وحاولي مرة أخرى.');
+              throw new Error(
+                "انقطع الاتصال أثناء رفع الفيديو. تأكدي من الشبكة وحاولي مرة أخرى.",
+              );
             }
-            throw new Error(outcome.error || 'فشل رفع الملف.');
+            throw new Error(outcome.error || "فشل رفع الملف.");
           }
         } else {
           // INLINE FALLBACK (no service worker).
           await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open('PUT', prepared.uploadUrl);
-            xhr.setRequestHeader('AccessKey', prepared.accessKey);
-            xhr.upload.addEventListener('progress', (e) => {
+            xhr.open("PUT", prepared.uploadUrl);
+            xhr.setRequestHeader("AccessKey", prepared.accessKey);
+            xhr.upload.addEventListener("progress", (e) => {
               if (e.lengthComputable) {
                 const pct = Math.round((e.loaded / e.total) * 100);
-                progressBar.style.width = pct + '%';
+                progressBar.style.width = pct + "%";
                 statusText.textContent = `جاري رفع الملف... ${pct}%`;
                 UploadFloat.update(pct, `جاري رفع الملف... ${pct}%`);
               }
             });
-            xhr.addEventListener('load', () =>
+            xhr.addEventListener("load", () =>
               xhr.status >= 200 && xhr.status < 300
                 ? resolve()
-                : reject(new Error(`فشل رفع الملف (${xhr.status}).`))
+                : reject(new Error(`فشل رفع الملف (${xhr.status}).`)),
             );
-            xhr.addEventListener('error', () =>
-              reject(new Error('انقطع الاتصال أثناء الرفع.'))
+            xhr.addEventListener("error", () =>
+              reject(new Error("انقطع الاتصال أثناء الرفع.")),
             );
             xhr.send(file);
           });
         }
 
-        statusText.textContent = 'تم الرفع! جاري معالجة الفيديو على Bunny...';
+        statusText.textContent = "تم الرفع! جاري معالجة الفيديو على Bunny...";
 
         // Step 3: poll encoding status until the video is watchable.
         // A single failed poll (network blip, radio handoff, laptop sleep)
@@ -2369,24 +2451,30 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const st = await fetchJson(
               `/api/lessons/${lessonId}/video-status`,
-              { headers: authHeaders() }
+              { headers: authHeaders() },
             );
             pollFailures = 0;
-            progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + '%';
-            UploadFloat.update(Math.max(st.encodeProgress || 0, 5), 'جاري معالجة الفيديو على Bunny...');
+            progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + "%";
+            UploadFloat.update(
+              Math.max(st.encodeProgress || 0, 5),
+              "جاري معالجة الفيديو على Bunny...",
+            );
 
             if (st.ready) {
               clearInterval(poll);
-              progressBar.style.width = '100%';
-              statusText.textContent = 'الفيديو جاهز ✅ — تم الرفع بنجاح';
-              showToast('تم رفع الفيديو بنجاح! الطلاب يستطيعون مشاهدته الآن.', 'success');
-              UploadFloat.done('الفيديو جاهز ✅');
+              progressBar.style.width = "100%";
+              statusText.textContent = "الفيديو جاهز ✅ — تم الرفع بنجاح";
+              showToast(
+                "تم رفع الفيديو بنجاح! الطلاب يستطيعون مشاهدته الآن.",
+                "success",
+              );
+              UploadFloat.done("الفيديو جاهز ✅");
               uploadBtn.disabled = false;
             } else if ([5, 6].includes(st.status)) {
               clearInterval(poll);
-              statusText.textContent = 'فشلت معالجة الفيديو على Bunny.';
-              showToast('فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.', 'danger');
-              UploadFloat.fail('فشلت معالجة الفيديو.');
+              statusText.textContent = "فشلت معالجة الفيديو على Bunny.";
+              showToast("فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.", "danger");
+              UploadFloat.fail("فشلت معالجة الفيديو.");
               uploadBtn.disabled = false;
             }
           } catch (pollError) {
@@ -2394,19 +2482,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pollFailures >= MAX_POLL_FAILURES) {
               clearInterval(poll);
               statusText.textContent =
-                'انقطعت المراقبة أثناء معالجة الفيديو، لكن الملف مرفوع. حدّثي صفحة الدرس بعد قليل للتحقق.';
-              showToast('فقدنا الاتصال بمراقبة المعالجة. الملف مرفوع على Bunny وسيظهر في الدرس عند جهوزه.', 'warning');
-              UploadFloat.fail('انقطعت مراقبة المعالجة.');
+                "انقطعت المراقبة أثناء معالجة الفيديو، لكن الملف مرفوع. حدّثي صفحة الدرس بعد قليل للتحقق.";
+              showToast(
+                "فقدنا الاتصال بمراقبة المعالجة. الملف مرفوع على Bunny وسيظهر في الدرس عند جهوزه.",
+                "warning",
+              );
+              UploadFloat.fail("انقطعت مراقبة المعالجة.");
               uploadBtn.disabled = false;
             } else {
-              statusText.textContent =
-                `تعذر التحقق مؤقتاً — سنعيد المحاولة (${pollFailures}/${MAX_POLL_FAILURES})...`;
+              statusText.textContent = `تعذر التحقق مؤقتاً — سنعيد المحاولة (${pollFailures}/${MAX_POLL_FAILURES})...`;
             }
           }
         }, 5000);
       } catch (error) {
-        showToast(error.message, 'danger');
-        progressArea.style.display = 'none';
+        showToast(error.message, "danger");
+        progressArea.style.display = "none";
         UploadFloat.fail(error.message);
         uploadBtn.disabled = false;
       }
@@ -2414,21 +2504,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Front-end only chatbot demos ---
-  const chatbotForms = document.querySelectorAll('.chatbot-form');
+  const chatbotForms = document.querySelectorAll(".chatbot-form");
   const chatbotReplies = {
-    ai: 'هذا رد تجريبي من مساعد المنهج. لاحقاً يمكن ربط هذا المكان بنموذج AI مع RAG على محتوى الدروس والملخصات.',
-    teacher: 'تم حفظ رسالتك داخل الواجهة فقط. لاحقاً يمكن ربط هذه المحادثة برسائل المعلمة أو لوحة تحكم خاصة بها.'
+    ai: "هذا رد تجريبي من مساعد المنهج. لاحقاً يمكن ربط هذا المكان بنموذج AI مع RAG على محتوى الدروس والملخصات.",
+    teacher:
+      "تم حفظ رسالتك داخل الواجهة فقط. لاحقاً يمكن ربط هذه المحادثة برسائل المعلمة أو لوحة تحكم خاصة بها.",
   };
 
   const addChatMessage = (messagesBox, senderName, text, className) => {
-    const message = document.createElement('div');
+    const message = document.createElement("div");
     message.className = `chat-message ${className}`;
 
-    const name = document.createElement('span');
-    name.className = 'chat-message-name';
+    const name = document.createElement("span");
+    name.className = "chat-message-name";
     name.textContent = senderName;
 
-    const body = document.createElement('p');
+    const body = document.createElement("p");
     body.textContent = text;
 
     message.append(name, body);
@@ -2437,49 +2528,59 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   chatbotForms.forEach((form) => {
-    form.addEventListener('submit', (event) => {
+    form.addEventListener("submit", (event) => {
       event.preventDefault();
 
       const chatbotType = form.dataset.chatbotForm;
       const input = form.querySelector('input[name="message"]');
       const messageText = input.value.trim();
-      const messagesBox = document.querySelector(`[data-chatbot-messages="${chatbotType}"]`);
+      const messagesBox = document.querySelector(
+        `[data-chatbot-messages="${chatbotType}"]`,
+      );
 
       if (!messageText || !messagesBox) return;
 
-      addChatMessage(messagesBox, 'أنت', messageText, 'user-message');
-      input.value = '';
+      addChatMessage(messagesBox, "أنت", messageText, "user-message");
+      input.value = "";
 
       setTimeout(() => {
-        const sender = chatbotType === 'teacher' ? 'أ. أسماء' : 'مساعد المنهج';
-        addChatMessage(messagesBox, sender, chatbotReplies[chatbotType], chatbotType === 'teacher' ? 'bot-message teacher-message' : 'bot-message');
+        const sender = chatbotType === "teacher" ? "أ. أسماء" : "مساعد المنهج";
+        addChatMessage(
+          messagesBox,
+          sender,
+          chatbotReplies[chatbotType],
+          chatbotType === "teacher"
+            ? "bot-message teacher-message"
+            : "bot-message",
+        );
       }, 450);
     });
   });
 
   // --- Teacher dashboard: manage already-uploaded videos (edit / delete) ---
-  const manageChapter = document.querySelector('#manage-chapter');
-  const manageLesson = document.querySelector('#manage-lesson');
+  const manageChapter = document.querySelector("#manage-chapter");
+  const manageLesson = document.querySelector("#manage-lesson");
 
   if (manageChapter && manageLesson && window.CURRICULUM) {
     const fillManageLessons = (chapterIdx) => {
       const chapter = window.CURRICULUM.biology[chapterIdx];
-      manageLesson.innerHTML = '';
+      manageLesson.innerHTML = "";
       chapter.lessons.forEach((lesson) => {
-        const opt = document.createElement('option');
+        const opt = document.createElement("option");
         opt.value = lesson.id;
         opt.textContent = `${lesson.name} (${lesson.id})`;
         manageLesson.appendChild(opt);
       });
       // Also refresh the "move to lesson" dropdown in the edit form.
-      const moveSelect = document.querySelector('#edit-move-lesson');
+      const moveSelect = document.querySelector("#edit-move-lesson");
       if (moveSelect) {
-        moveSelect.innerHTML = '<option value="">— إبقاء الدرس الحالي —</option>';
+        moveSelect.innerHTML =
+          '<option value="">— إبقاء الدرس الحالي —</option>';
         window.CURRICULUM.biology.forEach((ch) => {
           ch.lessons.forEach((l) => {
-            const o = document.createElement('option');
+            const o = document.createElement("option");
             o.value = l.id;
-            o.textContent = `${ch.name.split(':')[0]} — ${l.name}`;
+            o.textContent = `${ch.name.split(":")[0]} — ${l.name}`;
             moveSelect.appendChild(o);
           });
         });
@@ -2487,22 +2588,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.CURRICULUM.biology.forEach((chapter, idx) => {
-      const opt = document.createElement('option');
+      const opt = document.createElement("option");
       opt.value = String(idx);
       opt.textContent = chapter.name;
       manageChapter.appendChild(opt);
     });
-    manageChapter.addEventListener('change', () =>
-      fillManageLessons(Number(manageChapter.value))
+    manageChapter.addEventListener("change", () =>
+      fillManageLessons(Number(manageChapter.value)),
     );
     fillManageLessons(0);
 
-    const editForm = document.querySelector('#video-edit-form');
-    const videosListBox = document.querySelector('#manage-videos-list');
+    const editForm = document.querySelector("#video-edit-form");
+    const videosListBox = document.querySelector("#manage-videos-list");
     let loadedVideos = [];
 
     const renderManageList = () => {
-      videosListBox.innerHTML = '';
+      videosListBox.innerHTML = "";
 
       if (!loadedVideos.length) {
         videosListBox.innerHTML =
@@ -2511,49 +2612,58 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       loadedVideos.forEach((v, idx) => {
-        const row = document.createElement('div');
+        const row = document.createElement("div");
         row.style.cssText =
-          'display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;';
+          "display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;";
 
-        const info = document.createElement('div');
-        info.style.cssText = 'flex:1; min-width:200px;';
+        const info = document.createElement("div");
+        info.style.cssText = "flex:1; min-width:200px;";
         info.innerHTML =
-          `<div style="font-weight:700;">${idx + 1}. ${v.name || '(بدون اسم)'}</div>` +
+          `<div style="font-weight:700;">${idx + 1}. ${v.name || "(بدون اسم)"}</div>` +
           `<div class="text-muted" style="font-size:0.8rem;">` +
-          `${v.ready ? `⏱ ${Math.max(1, Math.round(v.lengthSeconds / 60))} دقيقة` : '⏳ قيد المعالجة'}` +
-          `${v.description ? ` • ${v.description.slice(0, 60)}` : ''}</div>`;
+          `${v.ready ? `⏱ ${Math.max(1, Math.round(v.lengthSeconds / 60))} دقيقة` : "⏳ قيد المعالجة"}` +
+          `${v.description ? ` • ${v.description.slice(0, 60)}` : ""}</div>`;
 
-        const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex; gap:0.5rem;';
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex; gap:0.5rem;";
         actions.innerHTML =
           '<button class="btn btn-light js-edit-video" style="font-size:0.8rem;">✏️ تعديل</button>' +
           '<button class="btn btn-light js-delete-video" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
 
         row.append(info, actions);
 
-        row.querySelector('.js-edit-video').addEventListener('click', () => {
-          document.querySelector('#edit-video-id').value = v.videoId;
-          document.querySelector('#edit-name').value = v.name || '';
-          document.querySelector('#edit-attachment').value = v.attachmentUrl || '';
-          document.querySelector('#edit-description').value = v.description || '';
-          document.querySelector('#edit-move-lesson').value = '';
-          editForm.style.display = 'block';
-          editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.querySelector(".js-edit-video").addEventListener("click", () => {
+          document.querySelector("#edit-video-id").value = v.videoId;
+          document.querySelector("#edit-name").value = v.name || "";
+          document.querySelector("#edit-attachment").value =
+            v.attachmentUrl || "";
+          document.querySelector("#edit-description").value =
+            v.description || "";
+          document.querySelector("#edit-move-lesson").value = "";
+          editForm.style.display = "block";
+          editForm.scrollIntoView({ behavior: "smooth", block: "center" });
         });
 
-        row.querySelector('.js-delete-video').addEventListener('click', async () => {
-          if (!confirm(`حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`)) return;
-          try {
-            await fetchJson(`/api/videos/${v.videoId}`, {
-              method: 'DELETE',
-              headers: authHeaders(),
-            });
-            showToast('تم حذف الفيديو بنجاح.', 'success');
-            loadVideosList();
-          } catch (error) {
-            showToast(error.message, 'danger');
-          }
-        });
+        row
+          .querySelector(".js-delete-video")
+          .addEventListener("click", async () => {
+            if (
+              !confirm(
+                `حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`,
+              )
+            )
+              return;
+            try {
+              await fetchJson(`/api/videos/${v.videoId}`, {
+                method: "DELETE",
+                headers: authHeaders(),
+              });
+              showToast("تم حذف الفيديو بنجاح.", "success");
+              loadVideosList();
+            } catch (error) {
+              showToast(error.message, "danger");
+            }
+          });
 
         videosListBox.appendChild(row);
       });
@@ -2564,60 +2674,65 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         videosListBox.innerHTML =
           '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
-        const data = await fetchJson(
-          `/api/lessons/${lessonId}/videos`,
-          { headers: authHeaders() }
-        );
+        const data = await fetchJson(`/api/lessons/${lessonId}/videos`, {
+          headers: authHeaders(),
+        });
         loadedVideos = data.videos || [];
         renderManageList();
       } catch (error) {
         loadedVideos = [];
-        videosListBox.innerHTML = '';
-        showToast(error.message, 'danger');
+        videosListBox.innerHTML = "";
+        showToast(error.message, "danger");
       }
     };
 
     document
-      .querySelector('#btn-load-videos')
-      .addEventListener('click', loadVideosList);
+      .querySelector("#btn-load-videos")
+      .addEventListener("click", loadVideosList);
 
-    document.querySelector('#btn-cancel-edit').addEventListener('click', () => {
-      editForm.style.display = 'none';
+    document.querySelector("#btn-cancel-edit").addEventListener("click", () => {
+      editForm.style.display = "none";
     });
 
-    document.querySelector('#btn-save-edit').addEventListener('click', async () => {
-      const videoId = document.querySelector('#edit-video-id').value;
-      const body = {
-        name: document.querySelector('#edit-name').value,
-        attachmentUrl: document.querySelector('#edit-attachment').value,
-        description: document.querySelector('#edit-description').value,
-      };
-      const moveTo = document.querySelector('#edit-move-lesson').value;
-      if (moveTo) body.lessonId = moveTo;
+    document
+      .querySelector("#btn-save-edit")
+      .addEventListener("click", async () => {
+        const videoId = document.querySelector("#edit-video-id").value;
+        const body = {
+          name: document.querySelector("#edit-name").value,
+          attachmentUrl: document.querySelector("#edit-attachment").value,
+          description: document.querySelector("#edit-description").value,
+        };
+        const moveTo = document.querySelector("#edit-move-lesson").value;
+        if (moveTo) body.lessonId = moveTo;
 
-      try {
-        await fetchJson(`/api/videos/${videoId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders(),
-          },
-          body: JSON.stringify(body),
-        });
-        showToast('تم حفظ التعديلات بنجاح.', 'success');
-        editForm.style.display = 'none';
-        loadVideosList();
-      } catch (error) {
-        showToast(error.message, 'danger');
-      }
-    });
+        try {
+          await fetchJson(`/api/videos/${videoId}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+            body: JSON.stringify(body),
+          });
+          showToast("تم حفظ التعديلات بنجاح.", "success");
+          editForm.style.display = "none";
+          loadVideosList();
+        } catch (error) {
+          showToast(error.message, "danger");
+        }
+      });
   }
 
   // --- Teacher dashboard: manage lesson PDF materials (rename / delete) ---
   // Mirrors the video management block above: same selects pattern, same
   // inline edit form, same native confirm() before deleting.
-  const materialsManageChapter = document.querySelector('#materials-manage-chapter');
-  const materialsManageLesson = document.querySelector('#materials-manage-lesson');
+  const materialsManageChapter = document.querySelector(
+    "#materials-manage-chapter",
+  );
+  const materialsManageLesson = document.querySelector(
+    "#materials-manage-lesson",
+  );
 
   if (materialsManageChapter && materialsManageLesson && window.CURRICULUM) {
     // Auth uses the shared JWT helper — the backend enforces the teacher role.
@@ -2625,9 +2740,9 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Fills the lesson dropdown for the chosen chapter. */
     const fillMaterialsManageLessons = (chapterIdx) => {
       const chapter = window.CURRICULUM.biology[chapterIdx];
-      materialsManageLesson.innerHTML = '';
+      materialsManageLesson.innerHTML = "";
       chapter.lessons.forEach((lesson) => {
-        const opt = document.createElement('option');
+        const opt = document.createElement("option");
         opt.value = lesson.id;
         opt.textContent = `${lesson.name} (${lesson.id})`;
         materialsManageLesson.appendChild(opt);
@@ -2635,39 +2750,40 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.CURRICULUM.biology.forEach((chapter, idx) => {
-      const opt = document.createElement('option');
+      const opt = document.createElement("option");
       opt.value = String(idx);
       opt.textContent = chapter.name;
       materialsManageChapter.appendChild(opt);
     });
-    materialsManageChapter.addEventListener('change', () =>
-      fillMaterialsManageLessons(Number(materialsManageChapter.value))
+    materialsManageChapter.addEventListener("change", () =>
+      fillMaterialsManageLessons(Number(materialsManageChapter.value)),
     );
     fillMaterialsManageLessons(0);
 
-    const materialEditForm = document.querySelector('#material-edit-form');
-    const materialsListBox = document.querySelector('#manage-materials-list');
+    const materialEditForm = document.querySelector("#material-edit-form");
+    const materialsListBox = document.querySelector("#manage-materials-list");
     let loadedMaterials = [];
 
     /** Formats a byte count for the management list ("812 KB" / "1.4 MB"). */
     const formatMaterialSize = (sizeBytes) => {
-      if (!sizeBytes) return '';
-      if (sizeBytes < 1024 * 1024) return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
+      if (!sizeBytes) return "";
+      if (sizeBytes < 1024 * 1024)
+        return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
       return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
     /** Formats an ISO date as a short readable date for the list rows. */
     const formatMaterialDate = (isoDate) => {
-      if (!isoDate) return '';
+      if (!isoDate) return "";
       try {
-        return new Date(isoDate).toLocaleDateString('ar-EG');
+        return new Date(isoDate).toLocaleDateString("ar-EG");
       } catch (error) {
-        return '';
+        return "";
       }
     };
 
     const renderMaterialsManageList = () => {
-      materialsListBox.innerHTML = '';
+      materialsListBox.innerHTML = "";
 
       if (!loadedMaterials.length) {
         materialsListBox.innerHTML =
@@ -2676,48 +2792,64 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       loadedMaterials.forEach((material, idx) => {
-        const row = document.createElement('div');
+        const row = document.createElement("div");
         row.style.cssText =
-          'display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;';
+          "display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;";
 
-        const info = document.createElement('div');
-        info.style.cssText = 'flex:1; min-width:200px;';
+        const info = document.createElement("div");
+        info.style.cssText = "flex:1; min-width:200px;";
         const metaParts = [
           formatMaterialDate(material.createdAt),
           formatMaterialSize(material.sizeBytes),
-        ].filter(Boolean).join(' • ');
+        ]
+          .filter(Boolean)
+          .join(" • ");
         info.innerHTML =
-          `<div style="font-weight:700;">${idx + 1}. ${material.title || '(بدون اسم)'}</div>` +
-          `<div class="text-muted" style="font-size:0.8rem;">📄 PDF${metaParts ? ` • ${metaParts}` : ''}</div>`;
+          `<div style="font-weight:700;">${idx + 1}. ${material.title || "(بدون اسم)"}</div>` +
+          `<div class="text-muted" style="font-size:0.8rem;">📄 PDF${metaParts ? ` • ${metaParts}` : ""}</div>`;
 
-        const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex; gap:0.5rem;';
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex; gap:0.5rem;";
         actions.innerHTML =
           '<button class="btn btn-light js-edit-material" style="font-size:0.8rem;">✏️ تعديل</button>' +
           '<button class="btn btn-light js-delete-material" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
 
         row.append(info, actions);
 
-        row.querySelector('.js-edit-material').addEventListener('click', () => {
-          document.querySelector('#edit-material-id').value = material.id;
-          document.querySelector('#edit-material-title').value = material.title || '';
-          materialEditForm.style.display = 'block';
-          materialEditForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.querySelector(".js-edit-material").addEventListener("click", () => {
+          document.querySelector("#edit-material-id").value = material.id;
+          document.querySelector("#edit-material-title").value =
+            material.title || "";
+          materialEditForm.style.display = "block";
+          materialEditForm.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
         });
 
-        row.querySelector('.js-delete-material').addEventListener('click', async () => {
-          if (!confirm(`حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`)) return;
-          try {
-            await fetchJson(`/api/materials/${encodeURIComponent(material.id)}`, {
-              method: 'DELETE',
-              headers: authHeaders(),
-            });
-            showToast('تم حذف المادة بنجاح.', 'success');
-            loadMaterialsManageList();
-          } catch (error) {
-            showToast(error.message, 'danger');
-          }
-        });
+        row
+          .querySelector(".js-delete-material")
+          .addEventListener("click", async () => {
+            if (
+              !confirm(
+                `حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`,
+              )
+            )
+              return;
+            try {
+              await fetchJson(
+                `/api/materials/${encodeURIComponent(material.id)}`,
+                {
+                  method: "DELETE",
+                  headers: authHeaders(),
+                },
+              );
+              showToast("تم حذف المادة بنجاح.", "success");
+              loadMaterialsManageList();
+            } catch (error) {
+              showToast(error.message, "danger");
+            }
+          });
 
         materialsListBox.appendChild(row);
       });
@@ -2731,50 +2863,53 @@ document.addEventListener('DOMContentLoaded', () => {
           '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
         const data = await fetchJson(
           `/api/lessons/${lessonId}/materials/manage`,
-          { headers: authHeaders() }
+          { headers: authHeaders() },
         );
         loadedMaterials = data.materials || [];
         renderMaterialsManageList();
       } catch (error) {
         loadedMaterials = [];
-        materialsListBox.innerHTML = '';
-        showToast(error.message, 'danger');
+        materialsListBox.innerHTML = "";
+        showToast(error.message, "danger");
       }
     };
 
     document
-      .querySelector('#btn-load-materials')
-      .addEventListener('click', loadMaterialsManageList);
+      .querySelector("#btn-load-materials")
+      .addEventListener("click", loadMaterialsManageList);
 
-    document.querySelector('#btn-cancel-material-edit').addEventListener('click', () => {
-      materialEditForm.style.display = 'none';
-    });
+    document
+      .querySelector("#btn-cancel-material-edit")
+      .addEventListener("click", () => {
+        materialEditForm.style.display = "none";
+      });
 
-    document.querySelector('#btn-save-material-edit').addEventListener('click', async () => {
-      const materialId = document.querySelector('#edit-material-id').value;
-      const newTitle = document.querySelector('#edit-material-title').value;
+    document
+      .querySelector("#btn-save-material-edit")
+      .addEventListener("click", async () => {
+        const materialId = document.querySelector("#edit-material-id").value;
+        const newTitle = document.querySelector("#edit-material-title").value;
 
-      if (!newTitle.trim()) {
-        showToast('اكتبي اسم المادة أولاً.', 'warning');
-        return;
-      }
+        if (!newTitle.trim()) {
+          showToast("اكتبي اسم المادة أولاً.", "warning");
+          return;
+        }
 
-      try {
-        await fetchJson(`/api/materials/${encodeURIComponent(materialId)}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders(),
-          },
-          body: JSON.stringify({ title: newTitle }),
-        });
-        showToast('تم حفظ التعديلات بنجاح.', 'success');
-        materialEditForm.style.display = 'none';
-        loadMaterialsManageList();
-      } catch (error) {
-        showToast(error.message, 'danger');
-      }
-    });
+        try {
+          await fetchJson(`/api/materials/${encodeURIComponent(materialId)}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+            body: JSON.stringify({ title: newTitle }),
+          });
+          showToast("تم حفظ التعديلات بنجاح.", "success");
+          materialEditForm.style.display = "none";
+          loadMaterialsManageList();
+        } catch (error) {
+          showToast(error.message, "danger");
+        }
+      });
   }
 });
-
