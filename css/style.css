@@ -56,6 +56,8 @@
   --section-alt-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 252, 249, 0.96) 100%);
   --cell-art-bg: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.88) 0%, rgba(240, 255, 249, 0.8) 22%, rgba(255, 255, 255, 0.94) 58%, rgba(16, 185, 129, 0.03) 100%);
   --cell-art-border: rgba(15, 76, 58, 0.12);
+
+  --footer-bg: #093327;
 }
 
 /* ==========================================================================
@@ -97,6 +99,35 @@
   --section-alt-bg: linear-gradient(180deg, rgba(12, 20, 32, 0.55) 0%, rgba(14, 26, 36, 0.92) 100%);
   --cell-art-bg: radial-gradient(circle at 35% 35%, rgba(33, 51, 70, 0.95) 0%, rgba(21, 36, 52, 0.9) 30%, rgba(14, 25, 37, 0.96) 70%, rgba(16, 185, 129, 0.05) 100%);
   --cell-art-border: rgba(110, 231, 183, 0.28);
+
+  --footer-bg: #0C1420;
+
+  /* Native dropdowns/selects: tell the browser to render dark OS chrome */
+  select, select option {
+    color-scheme: dark;
+  }
+
+  /* Override any inline background:white on selects */
+  select {
+    background-color: var(--input-bg) !important;
+    color: var(--color-text-main) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  select option {
+    background-color: var(--surface-solid) !important;
+    color: var(--color-text-main) !important;
+  }
+
+  /* Also cover textareas and form-inputs that may have hardcoded bg */
+  textarea, .form-input, .written-answer {
+    color-scheme: dark;
+  }
+
+  /* Footer text stays light on dark footer bg */
+  .footer { color: rgba(255, 255, 255, 0.85); }
+  .footer h3, .footer h4 { color: #fff; }
+  .footer-link { color: rgba(255, 255, 255, 0.7); }
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
@@ -646,7 +677,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Footer */
 .footer {
-  background-color: var(--color-heading);
+  background-color: var(--footer-bg);
   color: rgba(255, 255, 255, 0.8);
   padding: 4rem 0 2rem;
   margin-top: auto;

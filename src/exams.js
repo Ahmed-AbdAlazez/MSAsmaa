@@ -552,7 +552,12 @@ async function submitQuiz(auto = false) {
       { answers: runState.answers }
     );
     closeRun();
-    loadHub(); // refresh statuses
+    if (document.getElementById("exams-by-lesson")) {
+      loadHub(); // refresh statuses
+    }
+    if (typeof window.refreshLessonExams === "function") {
+      window.refreshLessonExams(); // refresh statuses on lesson page
+    }
 
     if (!ok) {
       showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
@@ -575,12 +580,66 @@ async function submitQuiz(auto = false) {
  * travels on the submit/attempt responses) — only the per-question right/
  * wrong breakdown waits for end_time. This banner is therefore rendered
  * straight from the submit response, never from the gated review endpoint.
+ *
+ * Score-circle performance thresholds (easy to adjust):
+ *   HIGH >= 80 %   → green ring
+ *   MID  >= 50 %   → amber/warning ring
+ *   LOW  <  50 %   → red ring
  */
+const SCORE_THRESHOLDS = { high: 80, mid: 50 };
+const RING_CIRCUMFERENCE = 534.07; // 2 * PI * 85 (SVG radius = 85)
+
+function scoreRingClass(pct) {
+  if (pct >= SCORE_THRESHOLDS.high) return "score-ring--high";
+  if (pct >= SCORE_THRESHOLDS.mid)  return "score-ring--mid";
+  return "score-ring--low";
+}
+
 function renderScoreBanner(result) {
   const summary = document.getElementById("result-summary");
   if (!summary || !result || result.score == null) return;
-  summary.innerHTML = `<div class="score-banner">درجتك: ${result.score} من ${result.totalMcq ?? "?"}
-    <span class="muted" style="font-weight:400;">(أسئلة الاختيارات فقط)</span></div>`;
+
+  const score   = Number(result.score);
+  const total   = Number(result.totalMcq) || 0;
+  const pct     = total > 0 ? Math.round((score / total) * 100) : 0;
+  const wrong   = total - score;
+  const ringCls = scoreRingClass(pct);
+  const offset  = RING_CIRCUMFERENCE - (pct / 100) * RING_CIRCUMFERENCE;
+
+  summary.innerHTML = `
+    <div class="score-circle-wrap">
+      <div class="score-ring ${ringCls}">
+        <svg viewBox="0 0 180 180">
+          <circle class="ring-track" cx="90" cy="90" r="85" />
+          <circle class="ring-fill"  cx="90" cy="90" r="85"
+                  data-target-offset="${offset}" />
+        </svg>
+        <div class="score-ring-label">
+          <span class="score-ring-pct">${pct}%</span>
+          <span class="score-ring-sub">نسبة الإجابة الصحيحة</span>
+        </div>
+      </div>
+
+      <div class="score-stats">
+        <div class="score-stat score-stat-correct">
+          <span class="score-stat-icon">✓</span>
+          <span>${score} إجابة صحيحة</span>
+        </div>
+        <div class="score-stat score-stat-wrong">
+          <span class="score-stat-icon">✕</span>
+          <span>${wrong} إجابة خاطئة</span>
+        </div>
+        <div class="score-stat score-stat-grade">
+          ${score} من ${total}
+        </div>
+      </div>
+    </div>`;
+
+  // Trigger the ring-fill animation on the next frame
+  requestAnimationFrame(() => {
+    const ring = summary.querySelector(".ring-fill");
+    if (ring) ring.style.strokeDashoffset = ring.dataset.targetOffset;
+  });
 }
 
 async function openResult(quizId, resultId, summaryData = null) {
@@ -894,19 +953,26 @@ function closeExamLightbox() {
 
 document.addEventListener("DOMContentLoaded", () => {
   const hasToken = Boolean(getToken());
-  document.getElementById("exams-login-gate").style.display = hasToken
-    ? "none"
-    : "";
-  document.getElementById("exams-app").style.display = hasToken ? "" : "none";
+  const loginGate = document.getElementById("exams-login-gate");
+  if (loginGate) loginGate.style.display = hasToken ? "none" : "";
+
+  const examsApp = document.getElementById("exams-app");
+  if (examsApp) examsApp.style.display = hasToken ? "" : "none";
+
   if (!hasToken) return;
 
-  document.getElementById("exams-subtitle").textContent =
-    getRole() === "teacher"
-      ? "أنتِ مسجلة كمعلمة — هذه الصفحة تعرض ما يراه الطلاب."
-      : "كل اختبارات الكورس في مكان واحد: القادمة، الجارية، والمنتهية مع النتائج والترتيب.";
+  const examsSubtitle = document.getElementById("exams-subtitle");
+  if (examsSubtitle) {
+    examsSubtitle.textContent =
+      getRole() === "teacher"
+        ? "أنتِ مسجلة كمعلمة — هذه الصفحة تعرض ما يراه الطلاب."
+        : "كل اختبارات الكورس في مكان واحد: القادمة، الجارية، والمنتهية مع النتائج والترتيب.";
+  }
 
-  loadHub();
-  loadCourseLeaderboard();
+  if (document.getElementById("exams-by-lesson")) {
+    loadHub();
+    loadCourseLeaderboard();
+  }
   setupFullscreenHandler();
 
   document.querySelectorAll(".exam-tab").forEach((button) => {
@@ -916,8 +982,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener("click", (event) => {
     const takeButton = event.target.closest(".btn-take");
     if (takeButton) {
-      const card = takeButton.closest(".exam-card");
-      const title = card.querySelector(".exam-title").textContent;
+      const card = takeButton.closest(".exam-card") || takeButton.closest(".lesson-exam-card");
+      let title = "";
+      if (card) {
+        const titleEl = card.querySelector(".exam-title") || card.querySelector(".lesson-exam-title");
+        if (titleEl) title = titleEl.textContent;
+      }
       beginQuiz(takeButton.dataset.id, title);
       return;
     }
@@ -932,15 +1002,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.getElementById("btn-submit-quiz").addEventListener("click", () => {
-    if (confirm("هل تريدين تسليم الاختبار الآن؟")) submitQuiz(false);
-  });
-  document.getElementById("btn-close-run").addEventListener("click", closeRun);
-  document
-    .getElementById("btn-close-result")
-    .addEventListener("click", () => {
+  const submitBtn = document.getElementById("btn-submit-quiz");
+  if (submitBtn) {
+    submitBtn.addEventListener("click", () => {
+      if (confirm("هل تريدين تسليم الاختبار الآن؟")) submitQuiz(false);
+    });
+  }
+  
+  const closeRunBtn = document.getElementById("btn-close-run");
+  if (closeRunBtn) {
+    closeRunBtn.addEventListener("click", closeRun);
+  }
+
+  const closeResultBtn = document.getElementById("btn-close-result");
+  if (closeResultBtn) {
+    closeResultBtn.addEventListener("click", () => {
       document.getElementById("quiz-result-overlay").style.display = "none";
     });
+  }
 
   // Deep-link: ?start=<quizId> auto-starts a quiz (from lesson page)
   const startParam = new URLSearchParams(window.location.search).get("start");

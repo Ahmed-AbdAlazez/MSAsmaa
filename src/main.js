@@ -1937,11 +1937,11 @@ document.addEventListener("DOMContentLoaded", () => {
             attempt.status === "in_progress" ||
             (attempt.status === "submitted" && attempt.remainingAttempts > 0);
           if (canStart) {
-            const btn = document.createElement("a");
-            btn.href = `/exams.html?start=${encodeURIComponent(exam.id)}`;
-            btn.className = "btn btn-primary";
-            btn.style.cssText =
-              "font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;";
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn btn-primary btn-take";
+            btn.dataset.id = exam.id;
+            btn.style.cssText = "font-size:0.85rem; padding:0.4rem 1rem;";
             btn.textContent =
               attempt.status === "in_progress"
                 ? "استئناف الاختبار"
@@ -1951,22 +1951,24 @@ document.addEventListener("DOMContentLoaded", () => {
             attempt.status === "submitted" &&
             attempt.remainingAttempts === 0
           ) {
-            const noAttempts = document.createElement("span");
-            noAttempts.className = "text-muted";
-            noAttempts.style.cssText = "font-size:0.82rem;";
-            noAttempts.textContent = "لا محاولات متبقية";
-            foot.appendChild(noAttempts);
+            const resultBtn = document.createElement("button");
+            resultBtn.type = "button";
+            resultBtn.className = "btn btn-secondary btn-result";
+            resultBtn.dataset.id = exam.id;
+            resultBtn.style.cssText = "font-size:0.85rem; padding:0.4rem 1rem;";
+            resultBtn.textContent = "عرض النتيجة";
+            foot.appendChild(resultBtn);
           }
         } else if (
           exam.status === "ended" &&
           attempt.status === "submitted" &&
           attempt.latestSubmitted
         ) {
-          const resultBtn = document.createElement("a");
-          resultBtn.href = `/exams.html`;
-          resultBtn.className = "btn btn-secondary";
-          resultBtn.style.cssText =
-            "font-size:0.85rem; padding:0.4rem 1rem; text-decoration:none;";
+          const resultBtn = document.createElement("button");
+          resultBtn.type = "button";
+          resultBtn.className = "btn btn-secondary btn-result";
+          resultBtn.dataset.id = exam.id;
+          resultBtn.style.cssText = "font-size:0.85rem; padding:0.4rem 1rem;";
           resultBtn.textContent = "عرض النتيجة";
           foot.appendChild(resultBtn);
         }
@@ -1976,21 +1978,21 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     };
 
-    const loadLessonExams = async () => {
-      if (lessonExamsLoaded) return;
-      lessonExamsLoaded = true;
-
+    window.refreshLessonExams = async () => {
       try {
         const data = await fetchJson(`/api/quizzes/for-lesson/${lessonId}`, {
           headers: authHeaders(),
         });
         renderLessonExams(data.exams || [], data.attempts || {});
       } catch (err) {
-        if (examsContainer) {
-          examsContainer.innerHTML =
-            '<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الاختبارات.</p>';
-        }
+        console.error("[lesson exams] refresh failed:", err);
       }
+    };
+
+    const loadLessonExams = async () => {
+      if (lessonExamsLoaded) return;
+      lessonExamsLoaded = true;
+      await window.refreshLessonExams();
     };
 
     // Lazy-load exams when the Exams tab is clicked
@@ -2003,20 +2005,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Teacher dashboard: video upload to Bunny Stream ---
+  // --- Teacher dashboard: video & PDF upload dependent dropdowns ---
   const chapterSelect = document.querySelector("#upload-chapter");
   const lessonSelect = document.querySelector("#upload-lesson");
+  const pdfChapterSelect = document.querySelector("#upload-pdf-chapter");
+  const pdfLessonSelect = document.querySelector("#upload-pdf-lesson");
 
-  // Populate the chapter -> lesson dependent dropdowns from the curriculum.
-  if (chapterSelect && lessonSelect && window.CURRICULUM) {
+  const initCurriculumSelects = (chapterSel, lessonSel) => {
+    if (!chapterSel || !lessonSel || !window.CURRICULUM) return;
+
     const fillLessons = (chapterIdx) => {
       const chapter = window.CURRICULUM.biology[chapterIdx];
-      lessonSelect.innerHTML = "";
+      lessonSel.innerHTML = "";
       chapter.lessons.forEach((lesson) => {
         const opt = document.createElement("option");
         opt.value = lesson.id;
         opt.textContent = `${chapter.name.split(":")[0]} — ${lesson.name} (${lesson.id})`;
-        lessonSelect.appendChild(opt);
+        lessonSel.appendChild(opt);
       });
     };
 
@@ -2024,21 +2029,29 @@ document.addEventListener("DOMContentLoaded", () => {
       const opt = document.createElement("option");
       opt.value = String(idx);
       opt.textContent = chapter.name;
-      chapterSelect.appendChild(opt);
+      chapterSel.appendChild(opt);
     });
 
-    chapterSelect.addEventListener("change", () =>
-      fillLessons(Number(chapterSelect.value)),
+    chapterSel.addEventListener("change", () =>
+      fillLessons(Number(chapterSel.value)),
     );
     fillLessons(0);
+  };
+
+  if (chapterSelect && lessonSelect) {
+    initCurriculumSelects(chapterSelect, lessonSelect);
+  }
+  if (pdfChapterSelect && pdfLessonSelect) {
+    initCurriculumSelects(pdfChapterSelect, pdfLessonSelect);
   }
 
   const uploadBtn = document.querySelector("#btn-upload-video");
   const uploadMaterialBtn = document.querySelector("#btn-upload-material");
   const uploadSelectedMaterial = async (onProgress) => {
-    const titleInput = document.querySelector("#upload-title");
+    const titleInput = document.querySelector("#upload-pdf-title");
     const pdfInput = document.querySelector("#upload-pdf-file");
-    const lessonId = lessonSelect ? lessonSelect.value : "";
+    const pdfLessonSelect = document.querySelector("#upload-pdf-lesson");
+    const lessonId = pdfLessonSelect ? pdfLessonSelect.value : "";
     const pdfFile = pdfInput?.files[0];
 
     if (!lessonId) {
@@ -2047,7 +2060,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!pdfFile) {
-      showToast("اختاري ملف PDF أولاً.", "warning");
+      showToast("من فضلك اختاري ملف PDF أولاً", "warning");
       return null;
     }
 
@@ -2175,10 +2188,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (uploadMaterialBtn) {
     uploadMaterialBtn.addEventListener("click", async () => {
-      // Same progress UI the video upload uses.
-      const progressArea = document.querySelector("#upload-progress-area");
-      const progressBar = document.querySelector("#upload-progress-bar");
-      const statusText = document.querySelector("#upload-status-text");
+      const pdfInput = document.querySelector("#upload-pdf-file");
+      const pdfFile = pdfInput?.files[0];
+      if (!pdfFile) {
+        showToast("من فضلك اختاري ملف PDF أولاً", "warning");
+        return;
+      }
+
+      const titleInput = document.querySelector("#upload-pdf-title");
+      if (!titleInput || !titleInput.value.trim()) {
+        showToast("اكتبي اسم ملف PDF.", "warning");
+        if (titleInput) titleInput.focus();
+        return;
+      }
+
+      const progressArea = document.querySelector("#upload-pdf-progress-area");
+      const progressBar = document.querySelector("#upload-pdf-progress-bar");
+      const statusText = document.querySelector("#upload-pdf-status-text");
 
       try {
         uploadMaterialBtn.disabled = true;
@@ -2189,7 +2215,7 @@ document.addEventListener("DOMContentLoaded", () => {
           statusText.textContent = "جاري تجهيز الملف...";
         }
 
-        await uploadSelectedMaterial((pct, statusMsg) => {
+        const result = await uploadSelectedMaterial((pct, statusMsg) => {
           if (progressBar && statusText) {
             progressBar.style.width = pct + "%";
             statusText.textContent =
@@ -2201,11 +2227,14 @@ document.addEventListener("DOMContentLoaded", () => {
           );
         });
 
-        if (progressBar && statusText) {
-          progressBar.style.width = "100%";
-          statusText.textContent = "تم رفع ملف PDF للدرس بنجاح ✔";
+        if (result) {
+          if (progressBar && statusText) {
+            progressBar.style.width = "100%";
+            statusText.textContent = "تم رفع ملف PDF للدرس بنجاح ✔";
+          }
+          UploadFloat.done("تم رفع ملف PDF للدرس بنجاح ✔");
+          if (titleInput) titleInput.value = "";
         }
-        UploadFloat.done("تم رفع ملف PDF للدرس بنجاح ✔");
       } catch (error) {
         showToast(error.message, "danger");
         if (statusText) statusText.textContent = "فشل رفع ملف PDF.";
@@ -2222,7 +2251,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const attachmentInput = document.querySelector("#upload-attachment");
       const descriptionInput = document.querySelector("#upload-description");
       const fileInput = document.querySelector("#upload-file");
-      const pdfInput = document.querySelector("#upload-pdf-file");
       const progressArea = document.querySelector("#upload-progress-area");
       const progressBar = document.querySelector("#upload-progress-bar");
       const statusText = document.querySelector("#upload-status-text");
@@ -2232,7 +2260,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const attachmentUrl = (attachmentInput?.value || "").trim();
       const description = (descriptionInput?.value || "").trim();
       const file = fileInput?.files[0];
-      const pdfFile = pdfInput?.files[0];
 
       if (!lessonId) {
         showToast("اختاري الفصل والدرس أولاً.", "warning");
@@ -2244,7 +2271,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       if (!file) {
-        showToast("اختاري ملف الفيديو.", "warning");
+        showToast("من فضلك اختاري ملف الفيديو أولاً", "warning");
         return;
       }
 
@@ -2273,17 +2300,6 @@ document.addEventListener("DOMContentLoaded", () => {
             description,
           }),
         });
-
-        if (pdfFile) {
-          await uploadSelectedMaterial((pct, statusMsg) => {
-            progressBar.style.width = pct + "%";
-            statusText.textContent =
-              statusMsg || `جاري رفع ملف PDF الخاص بالدرس... ${pct}%`;
-            UploadFloat.update(pct, statusMsg || `جاري رفع ملف PDF... ${pct}%`);
-          });
-          statusText.textContent = "تم رفع الـ PDF ✔ — جاري رفع الفيديو...";
-          progressBar.style.width = "0%";
-        }
 
         // Step 2: PUT the raw file straight to Bunny with upload progress.
         if (swUploadAvailable) {

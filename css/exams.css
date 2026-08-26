@@ -152,7 +152,7 @@
 .pulse-dot {
   width: 8px;
   height: 8px;
-  background-color: #10b981;
+  background-color: var(--color-accent);
   border-radius: 50%;
   display: inline-block;
   animation: pulse-animation 1.5s infinite ease-in-out;
@@ -218,11 +218,11 @@
 }
 .quiz-timer.timer-warning {
   background: rgba(245, 158, 11, 0.18);
-  color: #92400e;
+  color: var(--color-warning);
 }
 .quiz-timer.timer-danger  {
   background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
+  color: var(--color-danger);
   animation: pulse 1s infinite;
 }
 @keyframes pulse { 50% { opacity: 0.65; } }
@@ -263,6 +263,141 @@
 
 /* ---------- Result / review ---------- */
 .result-section { margin-top: 1.75rem; }
+
+/* ================================================================
+   SCORE CIRCLE — circular progress indicator shown after quiz submit
+   ================================================================ */
+.score-circle-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem 1rem 1rem;
+}
+
+/* -- The SVG ring container -- */
+.score-ring {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.score-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* start fill from top */
+}
+
+/* Track (muted background circle) */
+.score-ring .ring-track {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 10;
+}
+
+/* Filled portion — animated on appear */
+.score-ring .ring-fill {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  /* circumference = 2 * PI * r = 2 * 3.14159 * 85 ≈ 534.07 */
+  stroke-dasharray: 534.07;
+  stroke-dashoffset: 534.07; /* start fully hidden */
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Centered text overlay */
+.score-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-ring-pct {
+  font-size: 2.8rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-heading);
+}
+
+.score-ring-sub {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-top: 0.2rem;
+}
+
+/* -- Stats row below the circle -- */
+.score-stats {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.score-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.score-stat-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.score-stat-correct .score-stat-icon {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-accent-dark);
+}
+
+.score-stat-wrong .score-stat-icon {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-danger);
+}
+
+.score-stat-grade {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Performance color themes for the ring stroke */
+.score-ring--high .ring-fill { stroke: var(--color-accent); }
+.score-ring--mid  .ring-fill { stroke: var(--color-warning); }
+.score-ring--low  .ring-fill { stroke: var(--color-danger); }
+
+/* Subtle glow behind the ring for high scores */
+.score-ring--high .ring-fill {
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.3));
+}
+.score-ring--mid .ring-fill {
+  filter: drop-shadow(0 0 6px rgba(217, 119, 6, 0.3));
+}
+.score-ring--low .ring-fill {
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.3));
+}
+
+/* -- Mobile responsive -- */
+@media (max-width: 480px) {
+  .score-ring { width: 160px; height: 160px; }
+  .score-ring-pct { font-size: 2.2rem; }
+  .score-stats { gap: 1.25rem; }
+  .score-stat { font-size: 0.88rem; }
+}
 .score-banner {
   text-align: center;
   font-size: 1.15rem;
@@ -326,7 +461,7 @@
 .locked-note {
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #92400e;
+  color: var(--color-warning);
   border-radius: var(--radius-sm);
   padding: 0.75rem 0.9rem;
   font-size: 0.92rem;
@@ -408,7 +543,7 @@
 .btn-sm { padding: 0.3rem 0.65rem !important; font-size: 0.85rem !important; }
 .btn-danger {
   background: rgba(239, 68, 68, 0.13) !important;
-  color: #b91c1c !important;
+  color: var(--color-danger) !important;
 }
 
 /* flatpickr RTL niceties */
@@ -455,11 +590,11 @@
 }
 .quiz-status-badge.editable {
   background: rgba(34, 197, 94, 0.15);
-  color: #16a34a;
+  color: var(--color-accent-dark);
 }
 .quiz-status-badge.locked {
   background: rgba(107, 114, 128, 0.15);
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .quiz-card-actions {
@@ -514,7 +649,7 @@
 .lock-badge {
   font-size: 0.8rem;
   background: rgba(107, 114, 128, 0.15);
-  color: #6b7280;
+  color: var(--color-text-muted);
   padding: 0.2rem 0.5rem;
   border-radius: var(--radius-sm);
 }
@@ -555,7 +690,7 @@
 }
 .choices-preview li.correct {
   background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
+  color: var(--color-accent-dark);
   font-weight: 600;
 }
 
@@ -774,12 +909,12 @@
 }
 #quiz-run-overlay.exam-fullscreen .quiz-timer.timer-warning {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08));
-  color: #92400e;
+  color: var(--color-warning);
   border-color: rgba(245, 158, 11, 0.3);
 }
 #quiz-run-overlay.exam-fullscreen .quiz-timer.timer-danger {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
-  color: #b91c1c;
+  color: var(--color-danger);
   border-color: rgba(239, 68, 68, 0.3);
   animation: pulse 1s infinite;
 }
