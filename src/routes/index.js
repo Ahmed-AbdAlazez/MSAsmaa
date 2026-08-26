@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./authRoutes');
 const registrationRequestRoutes = require('./registrationRequestRoutes');
+const studentRoutes = require('./studentRoutes');
 const quizRoutes = require('./quizzes/quiz.routes.js');
 
 const router = express.Router();
@@ -37,10 +38,12 @@ router.get('/', (req, res) => {
 // v1 Resource Routes
 router.use('/v1/auth', authRoutes);
 router.use('/v1/registration-requests', registrationRequestRoutes);
+router.use('/v1/students', studentRoutes);
 
 // Direct aliases for convenience
 router.use('/auth', authRoutes);
 router.use('/registration-requests', registrationRequestRoutes);
+router.use('/students', studentRoutes);
 router.use('/', quizRoutes);
 
 module.exports = router;

@@ -215,6 +215,25 @@
         </div>
       </div>
 
+      <!-- Approved Students Management Section -->
+      <section id="teacher-students-section" class="card" style="margin-bottom:2.5rem; padding:1.5rem; border-radius:14px; box-shadow:var(--shadow-sm,0 2px 8px rgba(0,0,0,.06));">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:end; justify-content:space-between; margin-bottom:1.25rem;">
+          <div>
+            <h2 style="margin:0 0 .35rem;">الطلاب المقبولون</h2>
+            <p class="text-muted" style="margin:0;">إدارة حسابات الطلاب التي تمت الموافقة عليها.</p>
+          </div>
+          <div style="min-width:150px; padding:.75rem 1rem; background:var(--color-bg); border-radius:var(--radius-md);">
+            <div class="text-muted" style="font-size:.85rem;">عدد الطلاب المقبولين</div>
+            <strong id="approved-students-count" style="font-size:1.5rem; color:var(--color-primary);">—</strong>
+          </div>
+        </div>
+        <label for="approved-students-search" class="sr-only">البحث عن طالب</label>
+        <input id="approved-students-search" type="search" placeholder="ابحث بالاسم أو كود الطالب أو Gmail..." autocomplete="off"
+          style="width:100%; max-width:520px; padding:.65rem .8rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; margin-bottom:1rem;">
+        <div id="approved-students-list" aria-live="polite"></div>
+        <div id="approved-students-pagination" style="display:flex; gap:.75rem; align-items:center; justify-content:flex-end; margin-top:1rem;"></div>
+      </section>
+
       <!-- Student Records Section -->
       <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">قائمة أداء الطلاب وتتبع الحضور</h2>
 
