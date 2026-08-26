@@ -1107,7 +1107,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .role-radio:checked + .role-label {
   border-color: var(--color-primary-ink);
-  background-color: rgba(15, 76, 90, 0.04);
+  background-color: var(--color-primary-ghost);
   color: var(--color-primary-ink);
 }
 
@@ -1526,7 +1526,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .table tbody tr:hover {
-  background-color: rgba(248, 250, 252, 0.8);
+  background-color: var(--row-hover);
 }
 
 /* Item Layout (used for dashboard task cards) */
@@ -1848,7 +1848,7 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  background-color: rgba(15, 76, 58, 0.06);
+  background-color: var(--color-primary-ghost);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -1873,7 +1873,7 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 280px;
   max-height: min(80vh, 900px);
   padding: 0;
-  background-color: #f8fafc;
+  background-color: var(--color-bg);
 }
 
 .lesson-pdf-canvas-wrap iframe {
@@ -1881,7 +1881,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   height: min(80vh, 900px);
   border: 0;
-  background-color: #ffffff;
+  background-color: var(--color-surface);
 }
 
 /* Teacher Notes */
@@ -2141,7 +2141,7 @@ h1, h2, h3, h4, h5, h6 {
   color: white;
   font-size: 3rem;
   box-shadow: var(--shadow-md);
-  border: 4px solid white;
+  border: 4px solid var(--color-surface);
 }
 
 /* Contact Info list */
@@ -2222,7 +2222,7 @@ h1, h2, h3, h4, h5, h6 {
   height: auto;
   border-radius: 1.75rem;
   box-shadow: var(--shadow-lg);
-  border: 6px solid rgba(255, 255, 255, 0.85);
+  border: 6px solid var(--surface-glass-strong);
   transition: var(--transition);
 }
 
@@ -2634,7 +2634,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .chatbot-panel {
   min-height: 620px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
@@ -2721,7 +2721,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.25rem;
   overflow-y: auto;
   background:
-    linear-gradient(180deg, rgba(248, 250, 252, 0.64), var(--surface-glass));
+    linear-gradient(180deg, var(--row-hover), var(--surface-glass));
 }
 
 .chat-message {
@@ -2867,7 +2867,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 2.65rem;
   border-radius: 50%;
   border: 2px solid var(--surface-glass-strong);
-  color: #ffffff;
+  color: var(--color-surface);
   font-family: var(--font-family);
   font-size: 1.15rem;
   font-weight: 800;
@@ -2949,7 +2949,7 @@ h1, h2, h3, h4, h5, h6 {
   left: 50%;
   transform: translateX(-50%) translateY(150%);
   background-color: var(--color-primary-dark);
-  color: #ffffff;
+  color: var(--color-surface);
   padding: 0.7rem 1.4rem;
   border-radius: 50px;
   font-size: 0.9rem;
@@ -3032,15 +3032,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 .lesson-exam-status.status-upcoming {
   background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  color: var(--color-accent-cyan);
 }
 .lesson-exam-status.status-active {
   background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  color: var(--color-accent-dark);
 }
 .lesson-exam-status.status-ended {
   background: rgba(107, 114, 128, 0.12);
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 .lesson-exam-score {
   background: rgba(16, 185, 129, 0.14);
