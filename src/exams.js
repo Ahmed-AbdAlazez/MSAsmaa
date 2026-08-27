@@ -367,7 +367,12 @@ async function loadHub() {
     renderHubError(status, reason);
     return;
   }
-  renderExams(data.exams || [], "by-lesson");
+  if (!data || !Array.isArray(data.exams)) {
+    console.error("[exams] invalid available-exams response:", data);
+    renderHubError(502, "تعذر تحميل الاختبارات من استجابة غير صالحة.");
+    return;
+  }
+  renderExams(data.exams, "by-lesson");
 }
 
 function renderHubError(status, message) {
@@ -858,12 +863,17 @@ function reviewQuestionHtml(question) {
 
 async function loadCourseLeaderboard() {
   const body = document.getElementById("course-leaderboard-body");
-  const { ok, data } = await api(
-    "GET",
-    `/api/courses/${COURSE_ID}/leaderboard`,
-  );
+  let response;
+  try {
+    response = await api("GET", `/api/courses/${COURSE_ID}/leaderboard`);
+  } catch (error) {
+    console.error("[exams] failed to load course leaderboard:", error);
+    body.innerHTML = '<p class="muted">تعذر تحميل لوحة الكورس.</p>';
+    return;
+  }
+  const { ok, data } = response;
 
-  if (!ok) {
+  if (!ok || !data || !Array.isArray(data.rankings)) {
     body.innerHTML = '<p class="muted">تعذر تحميل لوحة الكورس.</p>';
     return;
   }
