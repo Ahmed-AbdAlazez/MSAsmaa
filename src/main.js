@@ -229,7 +229,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const overlay = document.createElement("div");
       overlay.className = "custom-modal-overlay";
 
-      const isDestructive = options.isDestructive || /حذف|الغاء|خروج/i.test(message);
+      const isDestructive =
+        options.isDestructive || /حذف|الغاء|خروج/i.test(message);
       const confirmClass = isDestructive
         ? "custom-modal-btn custom-modal-btn-confirm btn-danger"
         : "custom-modal-btn custom-modal-btn-confirm";
@@ -917,7 +918,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return [];
     // Return cached data if still fresh (avoids 4x redundant calls on page load)
-    if (cachedNotifications.length && Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL) {
+    if (
+      cachedNotifications.length &&
+      Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL
+    ) {
       return cachedNotifications;
     }
     try {
@@ -1097,27 +1101,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const renderTeacherQuizList = () => {
-    const list = document.querySelector("#teacher-quiz-list");
-    if (!list) return;
-
-    const quizzes = getQuizzes();
-    list.innerHTML = quizzes
-      .slice(0, 5)
-      .map(
-        (quiz) => `
-      <div class="quiz-mini-row">
-        <span class="quiz-mini-icon">؟</span>
-        <div>
-          <strong>${quiz.title}</strong>
-          <small>${quiz.chapter} • ${quiz.dueDate}</small>
-        </div>
-      </div>
-    `,
-      )
-      .join("");
-  };
-
   const initializeQuizExperience = () => {
     const dashboardContainer = document.querySelector(
       ".dashboard-layout .container",
@@ -1126,209 +1109,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderNotificationsMenu();
       updateNotificationBadge();
       return;
-    }
-
-    if (
-      window.location.pathname.includes("dashboard-teacher.html") &&
-      !document.querySelector("#teacher-quiz-panel")
-    ) {
-      const studentRecordsTitle = Array.from(
-        document.querySelectorAll(".dashboard-section-title"),
-      ).find(
-        (title) =>
-          title.textContent.includes("قائمة") ||
-          title.textContent.includes("أداء"),
-      );
-      const quizPanel = document.createElement("section");
-      quizPanel.id = "teacher-quiz-panel";
-      quizPanel.className = "quiz-workspace teacher-quiz-workspace";
-      quizPanel.innerHTML = `
-        <div class="quiz-panel-header">
-          <div>
-            <span class="section-tag">Quizzes</span>
-            <h2>إرسال اختبار جديد للطلاب</h2>
-            <p>تستطيع أ. أسماء إنشاء اختبار سريع، وسيظهر فوراً في لوحة الطالب مع إشعار جديد.</p>
-          </div>
-          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
-        </div>
-        <form id="teacher-quiz-form" class="quiz-form">
-          <div class="form-group">
-            <label for="quiz-title" class="form-label">عنوان الاختبار</label>
-            <input type="text" id="quiz-title" class="form-input" placeholder="مثال: اختبار الدعامة والحركة" required>
-          </div>
-          <div class="form-group">
-            <label for="quiz-chapter" class="form-label">الفصل</label>
-            <select id="quiz-chapter" class="form-input" required>
-              <option value="الدعامة والحركة">الدعامة والحركة</option>
-              <option value="التنسيق الهرموني">التنسيق الهرموني</option>
-              <option value="التكاثر">التكاثر</option>
-              <option value="DNA و RNA">DNA و RNA</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="quiz-questions" class="form-label">عدد الأسئلة</label>
-            <input type="number" id="quiz-questions" class="form-input" min="1" max="50" value="10" required>
-          </div>
-          <div class="form-group">
-            <label for="quiz-due-date" class="form-label">موعد التسليم</label>
-            <input type="text" id="quiz-due-date" class="form-input" placeholder="اليوم 9:00 م" required>
-          </div>
-          <div class="form-group quiz-form-wide">
-            <label for="quiz-note" class="form-label">ملاحظة للطلاب</label>
-            <textarea id="quiz-note" class="form-input" placeholder="اكتب تعليمات قصيرة للطلاب..." required></textarea>
-          </div>
-          <div class="quiz-question-builder quiz-form-wide">
-            <div class="quiz-question-builder-head">
-              <div>
-                <h3>أسئلة الامتحان</h3>
-                <p>اختاري نوع السؤال، واكتبي السؤال، ويمكنك إضافة صورة توضيحية.</p>
-              </div>
-              <span class="badge badge-success" id="quiz-draft-count">0 أسئلة</span>
-            </div>
-            <div class="quiz-question-grid">
-              <div class="form-group">
-                <label for="quiz-question-type" class="form-label">نوع السؤال</label>
-                <select id="quiz-question-type" class="form-input">
-                  <option value="mcq">اختيار من متعدد MCQ</option>
-                  <option value="written">سؤال مقالي / Written</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="quiz-question-image" class="form-label">صورة مع السؤال</label>
-                <input type="file" id="quiz-question-image" class="form-input" accept="image/*">
-              </div>
-              <div class="form-group quiz-form-wide">
-                <label for="quiz-question-text" class="form-label">نص السؤال</label>
-                <textarea id="quiz-question-text" class="form-input" placeholder="اكتبي السؤال هنا..."></textarea>
-              </div>
-              <div id="quiz-mcq-options" class="quiz-mcq-options quiz-form-wide">
-                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الأول">
-                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الثاني">
-                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الثالث">
-                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الرابع">
-              </div>
-              <button type="button" id="btn-add-quiz-question" class="btn btn-secondary quiz-form-wide">إضافة السؤال للامتحان</button>
-            </div>
-            <div id="quiz-draft-questions" class="quiz-question-preview-list"></div>
-          </div>
-          <button type="submit" class="btn btn-primary quiz-form-wide">إرسال الاختبار للطلاب</button>
-        </form>
-        <div class="quiz-created-list" id="teacher-quiz-list"></div>
-      `;
-
-      if (studentRecordsTitle) {
-        studentRecordsTitle.before(quizPanel);
-      } else {
-        dashboardContainer.appendChild(quizPanel);
-      }
-
-      const draftQuestions = [];
-      const questionTypeSelect = quizPanel.querySelector("#quiz-question-type");
-      const questionTextInput = quizPanel.querySelector("#quiz-question-text");
-      const questionImageInput = quizPanel.querySelector(
-        "#quiz-question-image",
-      );
-      const mcqOptionsBox = quizPanel.querySelector("#quiz-mcq-options");
-      const draftQuestionsList = quizPanel.querySelector(
-        "#quiz-draft-questions",
-      );
-      const draftCount = quizPanel.querySelector("#quiz-draft-count");
-
-      const resetQuestionBuilder = () => {
-        questionTextInput.value = "";
-        questionImageInput.value = "";
-        quizPanel.querySelectorAll(".quiz-option-input").forEach((input) => {
-          input.value = "";
-        });
-      };
-
-      const renderDraftQuestions = () => {
-        draftCount.textContent = `${draftQuestions.length} أسئلة`;
-        draftQuestionsList.innerHTML = draftQuestions.length
-          ? draftQuestions.map(renderQuestionSummary).join("")
-          : '<p class="quiz-draft-empty">لم تتم إضافة أسئلة بعد.</p>';
-      };
-
-      questionTypeSelect.addEventListener("change", () => {
-        mcqOptionsBox.hidden = questionTypeSelect.value === "written";
-      });
-
-      quizPanel
-        .querySelector("#btn-add-quiz-question")
-        .addEventListener("click", async () => {
-          const questionText = questionTextInput.value.trim();
-          const questionType = questionTypeSelect.value;
-          const options = Array.from(
-            quizPanel.querySelectorAll(".quiz-option-input"),
-          )
-            .map((input) => input.value.trim())
-            .filter(Boolean);
-
-          if (!questionText) {
-            showToast("اكتبي نص السؤال أولاً.", "warning");
-            questionTextInput.focus();
-            return;
-          }
-
-          if (questionType === "mcq" && options.length < 2) {
-            showToast("سؤال MCQ يحتاج اختيارين على الأقل.", "warning");
-            return;
-          }
-
-          const image = await fileToDataURL(questionImageInput.files[0]);
-          draftQuestions.push({
-            type: questionType,
-            text: questionText,
-            options: questionType === "mcq" ? options : [],
-            image,
-          });
-
-          renderDraftQuestions();
-          resetQuestionBuilder();
-          showToast("تمت إضافة السؤال للامتحان.", "success");
-        });
-
-      renderDraftQuestions();
-
-      quizPanel
-        .querySelector("#teacher-quiz-form")
-        .addEventListener("submit", (event) => {
-          event.preventDefault();
-          const quiz = {
-            id: `quiz-${Date.now()}`,
-            title: document.querySelector("#quiz-title").value.trim(),
-            chapter: document.querySelector("#quiz-chapter").value,
-            dueDate: document.querySelector("#quiz-due-date").value.trim(),
-            questions: draftQuestions.length,
-            questionItems: [...draftQuestions],
-            note: document.querySelector("#quiz-note").value.trim(),
-            createdAt: "تم الإرسال الآن",
-          };
-
-          if (!quiz.title || !quiz.dueDate || !quiz.note) {
-            showToast("يرجى إكمال بيانات الاختبار قبل الإرسال.", "warning");
-            return;
-          }
-
-          if (!draftQuestions.length) {
-            showToast(
-              "أضيفي سؤالاً واحداً على الأقل قبل إرسال الامتحان.",
-              "warning",
-            );
-            return;
-          }
-
-          const quizzes = getQuizzes();
-          quizzes.unshift(quiz);
-          setStoredItems(QUIZZES_STORAGE_KEY, quizzes);
-
-          renderTeacherQuizList();
-          quizPanel.querySelector("#teacher-quiz-form").reset();
-          draftQuestions.length = 0;
-          renderDraftQuestions();
-          document.querySelector("#quiz-questions").value = 10;
-          showToast("تم إرسال الاختبار للطلاب وظهوره في الإشعارات.", "success");
-        });
     }
 
     if (
@@ -1364,7 +1144,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    renderTeacherQuizList();
     renderStudentQuizList();
     renderNotificationsMenu();
     updateNotificationBadge();

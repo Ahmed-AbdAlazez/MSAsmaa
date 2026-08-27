@@ -20,15 +20,13 @@ import "flatpickr/dist/flatpickr.min.css";
 
 const API = "";
 
-/* Scoped element lookup.
- * All builder controls live inside #teacher-quiz-builder. Resolving ids
- * against this section (instead of the whole document) makes the builder
- * immune to id collisions with other page scripts - e.g. main.js injects
- * a legacy quiz panel that also contains an id="quiz-title" input, which
- * previously stole getElementById("quiz-title") and made publish see an
- * empty title even though the teacher had typed one. */
 let scope = document;
 const byId = (id) => scope.querySelector(`#${id}`);
+
+/* Scoped element lookup.
+ * All builder controls live inside #teacher-quiz-builder. Resolving ids
+ * against this section (instead of the whole document) keeps this module
+ * scoped to its own controls. */
 
 /* ---------------- shared helpers ---------------- */
 
@@ -56,7 +54,8 @@ async function api(method, path, body) {
 function toast(message, kind = "info", ms = 4000) {
   // Reuse main.js's showToast when present; otherwise a quick alert-style
   // fallback keeps this module self-contained for the teacher dashboard.
-  if (typeof window.showToast === "function") return window.showToast(message, kind);
+  if (typeof window.showToast === "function")
+    return window.showToast(message, kind);
   alert(message);
 }
 
@@ -100,17 +99,17 @@ function initPickers() {
   // Default start = the next 5-minute mark (i.e. NOW), NOT +1h — teachers
   // who publish without touching the clock expect the quiz to be live.
   const roundedStart = new Date(
-    Math.ceil(Date.now() / (5 * 60 * 1000)) * 5 * 60 * 1000
+    Math.ceil(Date.now() / (5 * 60 * 1000)) * 5 * 60 * 1000,
   );
   const commonOptions = {
-    enableTime: true,        // combined date + time in one picker
-    time_24hr: false,        // teacher-friendly AM/PM clock
+    enableTime: true, // combined date + time in one picker
+    time_24hr: false, // teacher-friendly AM/PM clock
     minuteIncrement: 5,
     dateFormat: "Y-m-d H:i",
-    altInput: true,          // pretty localized text box...
+    altInput: true, // pretty localized text box...
     altFormat: "j F, H:i K", // ...e.g. "٢٤ أغسطس، ٥:٣٠ م"
     locale: Arabic,
-    disableMobile: true,     // consistent UI everywhere
+    disableMobile: true, // consistent UI everywhere
   };
   startPicker = flatpickr("#quiz-start", {
     ...commonOptions,
@@ -125,7 +124,7 @@ function initPickers() {
   startPicker.config.onChange.push((selectedDates) => {
     if (selectedDates[0] && endPicker.selectedDates[0] < selectedDates[0]) {
       endPicker.setDate(
-        new Date(selectedDates[0].getTime() + 2 * 60 * 60 * 1000)
+        new Date(selectedDates[0].getTime() + 2 * 60 * 60 * 1000),
       );
     }
     updateWindowPreview();
@@ -192,7 +191,8 @@ function populateMixedLessonCheckboxes() {
   for (const chapter of curriculum) {
     for (const lesson of chapter.lessons || []) {
       const label = document.createElement("label");
-      label.style.cssText = "display:flex; align-items:center; gap:.4rem; padding:.25rem 0; cursor:pointer; font-weight:500; font-size:.9rem;";
+      label.style.cssText =
+        "display:flex; align-items:center; gap:.4rem; padding:.25rem 0; cursor:pointer; font-weight:500; font-size:.9rem;";
       label.innerHTML = `<input type="checkbox" value="${lesson.id}" class="mixed-lesson-check"> ${chapter.name.split(":")[0]} — ${lesson.name}`;
       container.appendChild(label);
     }
@@ -236,7 +236,7 @@ function readBuilderForm() {
       return { error: "املئي الاختيارات الأربعة." };
     }
     const correctIndex = Number(
-      document.querySelector('input[name="correct-choice"]:checked')?.value
+      document.querySelector('input[name="correct-choice"]:checked')?.value,
     );
     if (!Number.isInteger(correctIndex)) {
       return { error: "اختاري الإجابة الصحيحة بالضغط على الدائرة أمامها." };
@@ -273,7 +273,7 @@ function renderStagedQuestions() {
             ? question.choices
                 .map(
                   (choice, choiceIndex) =>
-                    `${choiceIndex === question.correctIndex ? "✔" : ""}${choice}`
+                    `${choiceIndex === question.correctIndex ? "✔" : ""}${choice}`,
                 )
                 .join(" | ")
             : `النموذجي: ${question.modelAnswer}`
@@ -284,7 +284,7 @@ function renderStagedQuestions() {
         <button class="btn btn-secondary btn-sm" data-move="down" data-index="${index}" ${index === stagedQuestions.length - 1 ? "disabled" : ""}>↓</button>
         <button class="btn btn-danger btn-sm" data-remove="${index}">✕</button>
       </div>
-    </div>`
+    </div>`,
     )
     .join("");
 }
@@ -302,10 +302,13 @@ async function publishQuiz() {
   const duration = Number(byId("quiz-duration").value);
   const startTime = pickerIso(startPicker);
   const endTime = pickerIso(endPicker);
-  const isMixed = document.querySelector('input[name="quiz-type"]:checked')?.value === "mixed";
+  const isMixed =
+    document.querySelector('input[name="quiz-type"]:checked')?.value ===
+    "mixed";
 
   if (!title) return toast("اكتبي عنوان الاختبار.", "warning");
-  if (!startTime || !endTime) return toast("حددي وقت البداية والنهاية من التقويم.", "warning");
+  if (!startTime || !endTime)
+    return toast("حددي وقت البداية والنهاية من التقويم.", "warning");
   if (!Number.isFinite(duration) || duration <= 0)
     return toast("حددي مدة الحل بالدقائق.", "warning");
   if (stagedQuestions.length === 0)
@@ -322,7 +325,9 @@ async function publishQuiz() {
   };
 
   if (isMixed) {
-    const checked = [...document.querySelectorAll(".mixed-lesson-check:checked")];
+    const checked = [
+      ...document.querySelectorAll(".mixed-lesson-check:checked"),
+    ];
     if (checked.length < 2) {
       return toast("اختاري درسين على الأقل للاختبار المجمع.", "warning");
     }
@@ -348,16 +353,15 @@ async function publishQuiz() {
     // Sequential upload keeps order stable and shows live progress.
     for (let index = 0; index < stagedQuestions.length; index += 1) {
       const question = stagedQuestions[index];
-      byId(
-        "publish-progress"
-      ).textContent = `جارٍ رفع السؤال ${index + 1} من ${stagedQuestions.length}…`;
+      byId("publish-progress").textContent =
+        `جارٍ رفع السؤال ${index + 1} من ${stagedQuestions.length}…`;
 
       const form = new FormData();
       form.append("type", question.type);
       form.append("text", question.text);
       if (question.type === "mcq") {
         question.choices.forEach((choice, choiceIndex) =>
-          form.append(`choice${choiceIndex + 1}`, choice)
+          form.append(`choice${choiceIndex + 1}`, choice),
         );
         form.append("correctIndex", String(question.correctIndex));
       } else {
@@ -412,7 +416,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   scope = mount; // all byId() lookups are scoped to this section
 
-  if (String(localStorage.getItem("userRole") || "").toLowerCase() !== "teacher") {
+  if (
+    String(localStorage.getItem("userRole") || "").toLowerCase() !== "teacher"
+  ) {
     mount.style.display = "none";
     return;
   }
