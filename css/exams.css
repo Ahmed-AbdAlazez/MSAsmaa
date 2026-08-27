@@ -498,69 +498,6 @@
 .toast.danger  { background: var(--color-danger); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
-/* ---------- Teacher quiz builder (dashboard-teacher.html) ---------- */
-#teacher-quiz-builder {
-  background-color: var(--surface-solid);
-  border-color: var(--color-border);
-  color: var(--color-text-main);
-}
-#teacher-quiz-builder h2,
-#teacher-quiz-builder h3 {
-  color: var(--color-heading);
-}
-#teacher-quiz-builder label,
-#teacher-quiz-builder p,
-#teacher-quiz-builder .muted {
-  color: var(--color-text-muted) !important;
-}
-#teacher-quiz-builder label {
-  color: var(--color-text-main) !important;
-}
-#teacher-quiz-builder .form-input,
-#teacher-quiz-builder select,
-#teacher-quiz-builder textarea {
-  background-color: var(--input-bg) !important;
-  color: var(--color-text-main) !important;
-  border-color: var(--color-border) !important;
-}
-#teacher-quiz-builder .form-input::placeholder,
-#teacher-quiz-builder textarea::placeholder {
-  color: var(--color-text-muted);
-  opacity: 0.8;
-}
-#teacher-quiz-builder .form-input:focus,
-#teacher-quiz-builder select:focus,
-#teacher-quiz-builder textarea:focus {
-  border-color: var(--color-accent) !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
-  outline: none;
-}
-#teacher-quiz-builder hr {
-  border-top-color: var(--color-border) !important;
-}
-#teacher-quiz-builder #quiz-lessons-checkboxes,
-#teacher-quiz-builder .staged-card {
-  background-color: var(--row-hover);
-  border-color: var(--color-border) !important;
-}
-#teacher-quiz-builder .btn-secondary {
-  background-color: var(--surface-solid);
-  color: var(--color-primary-ink);
-  border-color: var(--color-primary-ink);
-}
-#teacher-quiz-builder .btn-secondary:hover {
-  background-color: var(--color-primary-ghost);
-}
-#teacher-quiz-builder #btn-publish-quiz {
-  background-color: var(--color-accent-dark);
-  color: #fff;
-  border-color: var(--color-accent-dark);
-}
-#teacher-quiz-builder #btn-publish-quiz:hover {
-  background-color: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
 .choice-edit {
   display: flex;
   align-items: center;
