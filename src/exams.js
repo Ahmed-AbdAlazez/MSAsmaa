@@ -16,8 +16,15 @@
  * enforces its own deadlines regardless of what this UI does).
  */
 
-const API = "";
+// Quiz routes are mounted at /api, while VITE_API_URL may include /api/v1
+// for the auth API. Strip only that version suffix so requests resolve to
+// the deployed quiz endpoints without producing /api/api/v1 URLs.
+const API = String(import.meta.env.VITE_API_URL || "").replace(
+  /\/api\/v1\/?$/,
+  "",
+);
 const COURSE_ID = "biology";
+const REQUEST_TIMEOUT_MS = 15000;
 
 /* ---------------- shared tiny helpers ---------------- */
 
@@ -32,18 +39,23 @@ function getRole() {
 async function api(method, path, body) {
   const headers = { Authorization: `Bearer ${getToken()}` };
   if (body) headers["Content-Type"] = "application/json";
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let res;
   try {
     res = await fetch(`${API}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
   } catch (_) {
     /* Network/DNS failure: normalize to status 0 so every caller's existing
        !ok branch handles it instead of dying as an unhandled rejection
        (which is what made buttons like "Start Exam" silently do nothing). */
     return { ok: false, status: 0, data: null };
+  } finally {
+    clearTimeout(timeoutId);
   }
   let data = null;
   try {
@@ -113,7 +125,7 @@ function examCardHtml(exam) {
     (() => {
       for (const chapter of window.CURRICULUM.biology || []) {
         const found = (chapter.lessons || []).find(
-          (lesson) => lesson.id === exam.lessonId
+          (lesson) => lesson.id === exam.lessonId,
         );
         if (found) return found.name;
       }
@@ -127,7 +139,10 @@ function examCardHtml(exam) {
     for (const lid of exam.lessonIds) {
       for (const chapter of window.CURRICULUM.biology || []) {
         const found = (chapter.lessons || []).find((l) => l.id === lid);
-        if (found) { names.push(found.name); break; }
+        if (found) {
+          names.push(found.name);
+          break;
+        }
       }
     }
     return names;
@@ -153,7 +168,9 @@ function examCardHtml(exam) {
     }
   }
 
-  const pulsingDot = isActionableActive ? `<span class="pulse-dot"></span>` : "";
+  const pulsingDot = isActionableActive
+    ? `<span class="pulse-dot"></span>`
+    : "";
   const badge = `<span class="exam-status ${exam.status}${submitted ? " submitted" : ""}${isActionableActive ? " actionable-active" : ""}">${pulsingDot}${badgeLabel}</span>`;
 
   let action;
@@ -273,7 +290,7 @@ function renderExams(exams, tab) {
             if (window.CURRICULUM) {
               for (const chapter of window.CURRICULUM.biology || []) {
                 const found = (chapter.lessons || []).find(
-                  (l) => l.id === lessonId
+                  (l) => l.id === lessonId,
                 );
                 if (found) lessonName = found.name;
               }
@@ -304,10 +321,21 @@ async function loadHub() {
   // One course per page: ask the backend for THIS course's exams only, so
   // rows from other courses (e.g. synthetic data used by automated tests)
   // can never appear here no matter what is in the database.
-  const [feed, mine] = await Promise.all([
-    api("GET", `/api/quizzes/available?courseId=${encodeURIComponent(COURSE_ID)}`),
-    api("GET", "/api/quizzes/my-attempts"),
-  ]);
+  let feed;
+  let mine;
+  try {
+    [feed, mine] = await Promise.all([
+      api(
+        "GET",
+        `/api/quizzes/available?courseId=${encodeURIComponent(COURSE_ID)}`,
+      ),
+      api("GET", "/api/quizzes/my-attempts"),
+    ]);
+  } catch (error) {
+    console.error("[exams] failed to load exam hub:", error);
+    renderHubError(0);
+    return;
+  }
   const { ok, status, data } = feed;
 
   // Attempt state is an enhancement: if it fails we degrade gracefully to
@@ -315,7 +343,10 @@ async function loadHub() {
   if (mine.ok && mine.data && mine.data.attempts) {
     myAttempts = mine.data.attempts;
   } else if (!mine.ok && mine.status !== 401) {
-    console.error("[exams] failed to load /api/quizzes/my-attempts:", mine.status);
+    console.error(
+      "[exams] failed to load /api/quizzes/my-attempts:",
+      mine.status,
+    );
     myAttempts = {};
   }
 
@@ -325,7 +356,7 @@ async function loadHub() {
     console.error(
       "[exams] failed to load /api/quizzes/available:",
       status,
-      data && data.error ? data.error : data
+      data && data.error ? data.error : data,
     );
     const reason =
       status === 401
@@ -333,12 +364,24 @@ async function loadHub() {
         : status === 0
           ? "تعذر الوصول للسيرفر. تأكدي من تشغيله ثم أعيدي التحميل."
           : `تعذر تحميل الاختبارات (خطأ ${status}).`;
-    document.getElementById("exams-by-lesson").innerHTML =
-      `<p class="muted">${reason}</p>`;
-    document.getElementById("exams-all").innerHTML = "";
+    renderHubError(status, reason);
     return;
   }
   renderExams(data.exams || [], "by-lesson");
+}
+
+function renderHubError(status, message) {
+  const reason =
+    message ||
+    (status === 401
+      ? "تعذر تحميل الاختبارات. تأكدي من تسجيل الدخول."
+      : status === 0
+        ? "تعذر الوصول للسيرفر. تأكدي من تشغيله ثم أعيدي التحميل."
+        : `تعذر تحميل الاختبارات (خطأ ${status}).`);
+  document.getElementById("exams-by-lesson").innerHTML =
+    `<p class="muted">${reason}</p>`;
+  document.getElementById("exams-all").innerHTML = "";
+  document.getElementById("exams-mixed").innerHTML = "";
 }
 
 /* =====================================================================
@@ -352,7 +395,7 @@ const runState = {
   timerInterval: null,
   warned5min: false,
   warned1min: false,
-  starting: false,   // double-click guard for "Start Exam"
+  starting: false, // double-click guard for "Start Exam"
   submitting: false, // double-click guard for submit
   answers: {}, // questionId -> value (client mirror for the final flush)
   inFullscreen: false, // tracking fullscreen mode
@@ -410,9 +453,10 @@ function startTimer(remainingSeconds) {
 function questionBlockHtml(question, savedValue, qIndex) {
   const num = qIndex != null ? qIndex + 1 : "";
   const numBadge = num ? `<span class="q-number">${num}</span>` : "";
-  const typeBadge = question.type === "mcq"
-    ? `<span class="q-type-badge q-type-mcq">اختيارات</span>`
-    : `<span class="q-type-badge q-type-written">مقالي</span>`;
+  const typeBadge =
+    question.type === "mcq"
+      ? `<span class="q-type-badge q-type-mcq">اختيارات</span>`
+      : `<span class="q-type-badge q-type-written">مقالي</span>`;
 
   if (question.type === "mcq") {
     const choiceKeys = ["أ", "ب", "ج", "د"];
@@ -422,7 +466,7 @@ function questionBlockHtml(question, savedValue, qIndex) {
         const selected = savedValue === choice.id ? " selected" : "";
         return `<label class="choice-card${selected}">
                   <input type="radio" name="q-${question.id}" value="${choice.id}" data-qid="${question.id}" class="mcq-choice" ${checked}>
-                  <span class="choice-key">${choiceKeys[ci] || (ci + 1)}</span>
+                  <span class="choice-key">${choiceKeys[ci] || ci + 1}</span>
                   <span class="choice-text">${escapeHtml(choice.text)}</span>
                 </label>`;
       })
@@ -464,7 +508,11 @@ function openRun(payload, quizTitle, quizId) {
 
   document.getElementById("run-questions").innerHTML = payload.questions
     .map((question, qi) =>
-      questionBlockHtml(question, (payload.savedAnswers || {})[question.id], qi)
+      questionBlockHtml(
+        question,
+        (payload.savedAnswers || {})[question.id],
+        qi,
+      ),
     )
     .join("");
 
@@ -498,7 +546,9 @@ function openRun(payload, quizTitle, quizId) {
     if (target.type === "radio") {
       const block = target.closest(".question-block");
       if (block) {
-        block.querySelectorAll(".choice-card").forEach((c) => c.classList.remove("selected"));
+        block
+          .querySelectorAll(".choice-card")
+          .forEach((c) => c.classList.remove("selected"));
         const card = target.closest(".choice-card");
         if (card) card.classList.add("selected");
       }
@@ -515,7 +565,7 @@ function openRun(payload, quizTitle, quizId) {
       openResult(
         runState.quizIdForLookup || runState.quizId,
         save.data.result.resultId,
-        save.data.result
+        save.data.result,
       );
     }
   };
@@ -541,7 +591,7 @@ async function beginQuiz(quizId, quizTitle) {
   try {
     const { ok, status, data } = await api(
       "POST",
-      `/api/quizzes/${quizId}/start`
+      `/api/quizzes/${quizId}/start`,
     );
 
     if (!ok) {
@@ -551,7 +601,7 @@ async function beginQuiz(quizId, quizTitle) {
           : status === 0
             ? "تعذر الوصول للسيرفر. تأكدي من الاتصال ثم أعيدي المحاولة."
             : "تعذر بدء الاختبار.",
-        "danger"
+        "danger",
       );
       return;
     }
@@ -577,7 +627,7 @@ async function submitQuiz(auto = false) {
     const { ok, data } = await api(
       "POST",
       `/api/quizzes/${runState.quizId}/submit`,
-      { answers: runState.answers }
+      { answers: runState.answers },
     );
     closeRun();
     if (document.getElementById("exams-by-lesson")) {
@@ -591,7 +641,10 @@ async function submitQuiz(auto = false) {
       showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
       return;
     }
-    showToast(auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅", "success");
+    showToast(
+      auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅",
+      "success",
+    );
     // data.result carries the graded MCQ score — show it right now.
     openResult(runState.quizId, data.result.resultId, data.result);
   } finally {
@@ -619,7 +672,7 @@ const RING_CIRCUMFERENCE = 534.07; // 2 * PI * 85 (SVG radius = 85)
 
 function scoreRingClass(pct) {
   if (pct >= SCORE_THRESHOLDS.high) return "score-ring--high";
-  if (pct >= SCORE_THRESHOLDS.mid)  return "score-ring--mid";
+  if (pct >= SCORE_THRESHOLDS.mid) return "score-ring--mid";
   return "score-ring--low";
 }
 
@@ -627,12 +680,12 @@ function renderScoreBanner(result) {
   const summary = document.getElementById("result-summary");
   if (!summary || !result || result.score == null) return;
 
-  const score   = Number(result.score);
-  const total   = Number(result.totalMcq) || 0;
-  const pct     = total > 0 ? Math.round((score / total) * 100) : 0;
-  const wrong   = total - score;
+  const score = Number(result.score);
+  const total = Number(result.totalMcq) || 0;
+  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+  const wrong = total - score;
   const ringCls = scoreRingClass(pct);
-  const offset  = RING_CIRCUMFERENCE - (pct / 100) * RING_CIRCUMFERENCE;
+  const offset = RING_CIRCUMFERENCE - (pct / 100) * RING_CIRCUMFERENCE;
 
   summary.innerHTML = `
     <div class="score-circle-wrap">
@@ -723,7 +776,7 @@ async function openResult(quizId, resultId, summaryData = null) {
 
   if (review.status === 403) {
     reviewBody.innerHTML = `<div class="locked-note">🔒 ${escapeHtml(
-      (review.data && review.data.message) || "المراجعة غير متاحة بعد."
+      (review.data && review.data.message) || "المراجعة غير متاحة بعد.",
     )} (${formatDateTime(review.data && review.data.availableAfter)})</div>`;
     return;
   }
@@ -747,11 +800,13 @@ function leaderboardTable(rankings) {
         .map(
           (row) => `<tr class="${row.studentId === me ? "me" : ""}">
             <td>${
-              row.rank <= 3 ? `<span class="rank-medal">${medals[row.rank - 1]}</span>` : ""
+              row.rank <= 3
+                ? `<span class="rank-medal">${medals[row.rank - 1]}</span>`
+                : ""
             } ${row.rank}</td>
             <td>${escapeHtml(row.studentName)}</td>
             <td>${row.bestScore}</td>
-          </tr>`
+          </tr>`,
         )
         .join("")}
     </tbody>
@@ -770,9 +825,11 @@ function reviewQuestionHtml(question) {
       .map((choice) => {
         let classes = "review-choice";
         if (choice.id === question.correctChoiceId) classes += " correct";
-        else if (choice.id === question.studentChoiceId) classes += " wrong-pick";
+        else if (choice.id === question.studentChoiceId)
+          classes += " wrong-pick";
         const marker =
-          choice.id === question.studentChoiceId && choice.id !== question.correctChoiceId
+          choice.id === question.studentChoiceId &&
+          choice.id !== question.correctChoiceId
             ? " ← اختيارك"
             : choice.id === question.correctChoiceId
               ? " ← الإجابة الصحيحة"
@@ -803,7 +860,7 @@ async function loadCourseLeaderboard() {
   const body = document.getElementById("course-leaderboard-body");
   const { ok, data } = await api(
     "GET",
-    `/api/courses/${COURSE_ID}/leaderboard`
+    `/api/courses/${COURSE_ID}/leaderboard`,
   );
 
   if (!ok) {
@@ -834,7 +891,10 @@ function setupFullscreenHandler() {
 
     // Toggle .exam-fullscreen layout class to switch between the
     // small overlay (normal) and the dedicated fullscreen layout.
-    if (document.fullscreenElement && document.fullscreenElement === runOverlay) {
+    if (
+      document.fullscreenElement &&
+      document.fullscreenElement === runOverlay
+    ) {
       runOverlay.classList.add("exam-fullscreen");
       runState.inFullscreen = true;
     } else if (runOverlay) {
@@ -849,11 +909,11 @@ function setupFullscreenHandler() {
         "⚠️ يجب البقاء في وضع ملء الشاشة أثناء الامتحان (خروج من ملء الشاشة: " +
           runState.fullscreenExitCount +
           ")",
-        "warning"
+        "warning",
       );
       // Log to console for teacher review (multiple exits indicate cheating)
       console.warn(
-        `[QUIZ INTEGRITY] Student exited fullscreen ${runState.fullscreenExitCount} time(s) during quiz ${runState.quizId}`
+        `[QUIZ INTEGRITY] Student exited fullscreen ${runState.fullscreenExitCount} time(s) during quiz ${runState.quizId}`,
       );
       // Attempt to re-enter fullscreen
       if (runOverlay && runOverlay.requestFullscreen) {
@@ -897,7 +957,9 @@ function ensureLightbox() {
   lightboxImgEl = overlay.querySelector(".exam-lightbox-img");
 
   // Close handlers
-  overlay.querySelector(".exam-lightbox-close").addEventListener("click", closeExamLightbox);
+  overlay
+    .querySelector(".exam-lightbox-close")
+    .addEventListener("click", closeExamLightbox);
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeExamLightbox();
   });
@@ -920,38 +982,50 @@ function ensureLightbox() {
   });
 
   // Scroll-to-zoom (desktop)
-  lightboxImgEl.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setLightboxScale(Math.max(0.3, Math.min(5, lightboxScale + delta)));
-  }, { passive: false });
+  lightboxImgEl.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      setLightboxScale(Math.max(0.3, Math.min(5, lightboxScale + delta)));
+    },
+    { passive: false },
+  );
 
   // Pinch-to-zoom (mobile)
-  lightboxImgEl.addEventListener("touchstart", (e) => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      lightboxStartDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      lightboxStartScale = lightboxScale;
-    }
-  }, { passive: false });
-
-  lightboxImgEl.addEventListener("touchmove", (e) => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      if (lightboxStartDist > 0) {
-        const newScale = lightboxStartScale * (dist / lightboxStartDist);
-        setLightboxScale(Math.max(0.3, Math.min(5, newScale)));
+  lightboxImgEl.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        lightboxStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        lightboxStartScale = lightboxScale;
       }
-    }
-  }, { passive: false });
+    },
+    { passive: false },
+  );
+
+  lightboxImgEl.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        if (lightboxStartDist > 0) {
+          const newScale = lightboxStartScale * (dist / lightboxStartDist);
+          setLightboxScale(Math.max(0.3, Math.min(5, newScale)));
+        }
+      }
+    },
+    { passive: false },
+  );
 }
 
 function setLightboxScale(s) {
@@ -1009,10 +1083,14 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener("click", (event) => {
     const takeButton = event.target.closest(".btn-take");
     if (takeButton) {
-      const card = takeButton.closest(".exam-card") || takeButton.closest(".lesson-exam-card");
+      const card =
+        takeButton.closest(".exam-card") ||
+        takeButton.closest(".lesson-exam-card");
       let title = "";
       if (card) {
-        const titleEl = card.querySelector(".exam-title") || card.querySelector(".lesson-exam-title");
+        const titleEl =
+          card.querySelector(".exam-title") ||
+          card.querySelector(".lesson-exam-title");
         if (titleEl) title = titleEl.textContent;
       }
       beginQuiz(takeButton.dataset.id, title);
@@ -1035,7 +1113,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (confirm("هل تريدين تسليم الاختبار الآن؟")) submitQuiz(false);
     });
   }
-  
+
   const closeRunBtn = document.getElementById("btn-close-run");
   if (closeRunBtn) {
     closeRunBtn.addEventListener("click", closeRun);
@@ -1054,9 +1132,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const waitForHub = setInterval(() => {
       if (document.querySelector(".exam-card")) {
         clearInterval(waitForHub);
-        const card = document.querySelector(`.btn-take[data-id="${startParam}"]`);
+        const card = document.querySelector(
+          `.btn-take[data-id="${startParam}"]`,
+        );
         if (card) {
-          const title = card.closest(".exam-card").querySelector(".exam-title").textContent;
+          const title = card
+            .closest(".exam-card")
+            .querySelector(".exam-title").textContent;
           beginQuiz(startParam, title);
         } else {
           beginQuiz(startParam, "");
