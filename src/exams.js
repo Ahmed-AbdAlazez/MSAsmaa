@@ -24,7 +24,6 @@ const API = String(import.meta.env.VITE_API_URL || "").replace(
   "",
 );
 const COURSE_ID = "biology";
-const REQUEST_TIMEOUT_MS = 15000;
 
 /* ---------------- shared tiny helpers ---------------- */
 
@@ -39,23 +38,18 @@ function getRole() {
 async function api(method, path, body) {
   const headers = { Authorization: `Bearer ${getToken()}` };
   if (body) headers["Content-Type"] = "application/json";
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let res;
   try {
     res = await fetch(`${API}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
     });
   } catch (_) {
     /* Network/DNS failure: normalize to status 0 so every caller's existing
        !ok branch handles it instead of dying as an unhandled rejection
        (which is what made buttons like "Start Exam" silently do nothing). */
     return { ok: false, status: 0, data: null };
-  } finally {
-    clearTimeout(timeoutId);
   }
   let data = null;
   try {
