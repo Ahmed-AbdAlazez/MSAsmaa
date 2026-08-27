@@ -518,65 +518,115 @@ h1, h2, h3, h4, h5, h6 {
 }
 /* ---------- Teacher quiz builder colors ---------- */
 #teacher-quiz-builder {
-  background-color: var(--surface-solid);
-  border-color: var(--color-border);
-  color: var(--color-text-main);
+  background-color: #eaf7f2 !important;
+  border-color: #b8ddd0 !important;
+  color: #12352d !important;
 }
 #teacher-quiz-builder h2,
 #teacher-quiz-builder h3 {
-  color: var(--color-heading);
+  color: #0b4f3a !important;
 }
 #teacher-quiz-builder label,
 #teacher-quiz-builder p,
 #teacher-quiz-builder .muted {
-  color: var(--color-text-muted) !important;
+  color: #42665c !important;
 }
 #teacher-quiz-builder label {
-  color: var(--color-text-main) !important;
+  color: #173f34 !important;
 }
 #teacher-quiz-builder .form-input,
 #teacher-quiz-builder select,
 #teacher-quiz-builder textarea {
-  background-color: var(--input-bg) !important;
-  color: var(--color-text-main) !important;
-  border-color: var(--color-border) !important;
+  background-color: #fbfffd !important;
+  color: #173f34 !important;
+  border-color: #9bc9ba !important;
 }
 #teacher-quiz-builder .form-input::placeholder,
 #teacher-quiz-builder textarea::placeholder {
-  color: var(--color-text-muted);
+  color: #6b8d82 !important;
   opacity: 0.8;
 }
 #teacher-quiz-builder .form-input:focus,
 #teacher-quiz-builder select:focus,
 #teacher-quiz-builder textarea:focus {
-  border-color: var(--color-accent) !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+  border-color: #0f9f7b !important;
+  box-shadow: 0 0 0 3px rgba(15, 159, 123, 0.22) !important;
   outline: none;
 }
 #teacher-quiz-builder hr {
-  border-top-color: var(--color-border) !important;
+  border-top-color: #b8ddd0 !important;
 }
 #teacher-quiz-builder #quiz-lessons-checkboxes,
 #teacher-quiz-builder .staged-card {
-  background-color: var(--row-hover);
-  border-color: var(--color-border) !important;
+  background-color: #dff1e9 !important;
+  border-color: #a8d2c2 !important;
 }
 #teacher-quiz-builder .btn-secondary {
-  background-color: var(--surface-solid);
-  color: var(--color-primary-ink);
-  border-color: var(--color-primary-ink);
+  background-color: #f5fffb !important;
+  color: #0b5f48 !important;
+  border-color: #18866b !important;
 }
 #teacher-quiz-builder .btn-secondary:hover {
-  background-color: var(--color-primary-ghost);
+  background-color: #ccecdf !important;
 }
 #teacher-quiz-builder #btn-publish-quiz {
-  background-color: var(--color-accent-dark);
+  background-color: #087f68 !important;
   color: #fff;
-  border-color: var(--color-accent-dark);
+  border-color: #087f68 !important;
 }
 #teacher-quiz-builder #btn-publish-quiz:hover {
-  background-color: var(--color-accent);
-  border-color: var(--color-accent);
+  background-color: #0fb898 !important;
+  border-color: #0fb898 !important;
+}
+
+[data-theme="dark"] #teacher-quiz-builder {
+  background-color: #102a2a !important;
+  border-color: #285b55 !important;
+  color: #e3f6ef !important;
+}
+[data-theme="dark"] #teacher-quiz-builder h2,
+[data-theme="dark"] #teacher-quiz-builder h3 {
+  color: #b9f1df !important;
+}
+[data-theme="dark"] #teacher-quiz-builder label {
+  color: #d8eee7 !important;
+}
+[data-theme="dark"] #teacher-quiz-builder p,
+[data-theme="dark"] #teacher-quiz-builder .muted {
+  color: #9fc8ba !important;
+}
+[data-theme="dark"] #teacher-quiz-builder .form-input,
+[data-theme="dark"] #teacher-quiz-builder select,
+[data-theme="dark"] #teacher-quiz-builder textarea {
+  background-color: #0b1f26 !important;
+  color: #e3f6ef !important;
+  border-color: #32685f !important;
+}
+[data-theme="dark"] #teacher-quiz-builder .form-input::placeholder,
+[data-theme="dark"] #teacher-quiz-builder textarea::placeholder {
+  color: #7fa99c !important;
+}
+[data-theme="dark"] #teacher-quiz-builder #quiz-lessons-checkboxes,
+[data-theme="dark"] #teacher-quiz-builder .staged-card {
+  background-color: #173936 !important;
+  border-color: #32685f !important;
+}
+[data-theme="dark"] #teacher-quiz-builder .btn-secondary {
+  background-color: #15332f !important;
+  color: #9cebd4 !important;
+  border-color: #55cdb0 !important;
+}
+[data-theme="dark"] #teacher-quiz-builder .btn-secondary:hover {
+  background-color: #1c5148 !important;
+}
+[data-theme="dark"] #teacher-quiz-builder #btn-publish-quiz {
+  background-color: #2dd4bf !important;
+  color: #073b35 !important;
+  border-color: #2dd4bf !important;
+}
+[data-theme="dark"] #teacher-quiz-builder #btn-publish-quiz:hover {
+  background-color: #5eead4 !important;
+  border-color: #5eead4 !important;
 }
 
 .btn-danger {
