@@ -37,7 +37,7 @@
  * Uses the globalThis-cached instance to avoid connection pool
  * exhaustion on Vercel serverless + Neon.
  * ------------------------------------------------------------------ */
-const { prisma: getPrisma } = require('../config/db');
+const { prisma } = require("../config/db");
 
 /**
  * Runs a Prisma call again when Neon's cold start / transient networking
@@ -59,12 +59,10 @@ async function withColdStartRetry(operation) {
       const message = String(error && error.message);
       const retryable =
         error &&
-        (
-          (typeof error.code === "string" && error.code.startsWith("P")) ||
+        ((typeof error.code === "string" && error.code.startsWith("P")) ||
           error.name === "PrismaClientInitializationError" ||
           message.includes("connection pool") ||
-          RETRYABLE_FRAGMENTS.some((fragment) => message.includes(fragment))
-        );
+          RETRYABLE_FRAGMENTS.some((fragment) => message.includes(fragment)));
       if (!retryable || attempt >= MAX_TRIES) throw error;
       await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
     }
@@ -112,10 +110,7 @@ function mapQuestion(row) {
   };
   if (row.type === "mcq") {
     question.choices = [...row.choices]
-      .sort(
-        (a, b) =>
-          Number(a.key.slice(1)) - Number(b.key.slice(1))
-      )
+      .sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)))
       .map((choice) => ({ id: choice.key, text: choice.text }));
     question.correctChoiceId = row.correctChoiceId;
   } else {
@@ -168,9 +163,9 @@ async function createQuiz(input) {
   const isMixed = Boolean(input.isMixed);
   const lessonIds = Array.isArray(input.lessonIds) ? input.lessonIds : [];
 
-  const row = await getPrisma().quiz.create({
+  const row = await prisma.quiz.create({
     data: {
-      lessonId: isMixed ? null : (input.lessonId ? String(input.lessonId) : null),
+      lessonId: isMixed ? null : input.lessonId ? String(input.lessonId) : null,
       createdByTeacherId: input.createdByTeacherId
         ? String(input.createdByTeacherId)
         : null,
@@ -200,7 +195,7 @@ async function createQuiz(input) {
  * @returns {Promise<string[]>}
  */
 async function getQuizLessons(quizId) {
-  const rows = await getPrisma().quizLesson.findMany({
+  const rows = await prisma.quizLesson.findMany({
     where: { quizId: String(quizId) },
     select: { lessonId: true },
   });
@@ -214,7 +209,7 @@ async function getQuizLessons(quizId) {
  */
 async function getQuizLessonsBatch(quizIds) {
   if (!quizIds.length) return new Map();
-  const rows = await getPrisma().quizLesson.findMany({
+  const rows = await prisma.quizLesson.findMany({
     where: { quizId: { in: quizIds } },
     select: { quizId: true, lessonId: true },
   });
@@ -236,7 +231,7 @@ async function getQuizLessonsBatch(quizIds) {
  * @returns {Promise<object[]>}
  */
 async function listAllQuizzes({ courseId } = {}) {
-  const rows = await getPrisma().quiz.findMany({
+  const rows = await prisma.quiz.findMany({
     where: courseId ? { courseId: String(courseId) } : undefined,
     orderBy: { startTime: "desc" },
     take: 100,
@@ -250,7 +245,7 @@ async function listAllQuizzes({ courseId } = {}) {
  * @returns {Promise<object|null>}
  */
 async function getQuizById(quizId) {
-  const row = await getPrisma().quiz.findUnique({ where: { id: String(quizId) } });
+  const row = await prisma.quiz.findUnique({ where: { id: String(quizId) } });
   return row ? mapQuiz(row) : null;
 }
 
@@ -261,7 +256,7 @@ async function getQuizById(quizId) {
  * @returns {Promise<object[]>}
  */
 async function getQuizzesForLesson(lessonId) {
-  const rows = await getPrisma().quiz.findMany({
+  const rows = await prisma.quiz.findMany({
     where: { lessonId: String(lessonId), isMixed: false },
     orderBy: { createdAt: "desc" },
   });
@@ -275,7 +270,7 @@ async function getQuizzesForLesson(lessonId) {
  * @returns {Promise<object[]>}
  */
 async function getMixedQuizzesForLesson(lessonId) {
-  const rows = await getPrisma().quizLesson.findMany({
+  const rows = await prisma.quizLesson.findMany({
     where: { lessonId: String(lessonId) },
     include: { quiz: true },
   });
@@ -290,7 +285,7 @@ async function getMixedQuizzesForLesson(lessonId) {
  * @returns {Promise<object[]>}
  */
 async function getQuizzesForCourse(courseId) {
-  const rows = await getPrisma().quiz.findMany({
+  const rows = await prisma.quiz.findMany({
     where: { courseId: String(courseId) },
     orderBy: { createdAt: "asc" },
   });
@@ -309,10 +304,10 @@ async function getQuizzesForCourse(courseId) {
  * @returns {Promise<object>} The stored question record.
  */
 async function addQuestionToQuiz(quizId, input) {
-  const quiz = await getPrisma().quiz.findUnique({ where: { id: String(quizId) } });
+  const quiz = await prisma.quiz.findUnique({ where: { id: String(quizId) } });
   if (!quiz) throw new Error("QUIZ_NOT_FOUND");
 
-  const existingCount = await getPrisma().quizQuestion.count({
+  const existingCount = await prisma.quizQuestion.count({
     where: { quizId: quiz.id },
   });
   if (existingCount >= quiz.questionCount) {
@@ -340,7 +335,7 @@ async function addQuestionToQuiz(quizId, input) {
     data.modelAnswer = String(input.modelAnswer).trim();
   }
 
-  const row = await getPrisma().quizQuestion.create({
+  const row = await prisma.quizQuestion.create({
     data,
     include: { choices: true },
   });
@@ -355,7 +350,7 @@ async function addQuestionToQuiz(quizId, input) {
  * @returns {Promise<object[]>}
  */
 async function getQuestionsForQuiz(quizId) {
-  const rows = await getPrisma().quizQuestion.findMany({
+  const rows = await prisma.quizQuestion.findMany({
     where: { quizId: String(quizId) },
     orderBy: { order: "asc" },
     include: { choices: true },
@@ -376,11 +371,11 @@ async function getQuestionsForQuiz(quizId) {
  * @returns {Promise<object>} The fresh attempt record.
  */
 async function createAttempt(quizId, studentId, personalDeadline) {
-  const previousCount = await getPrisma().quizAttempt.count({
+  const previousCount = await prisma.quizAttempt.count({
     where: { quizId: String(quizId), studentId: String(studentId) },
   });
 
-  const row = await getPrisma().quizAttempt.create({
+  const row = await prisma.quizAttempt.create({
     data: {
       quizId: String(quizId),
       studentId: String(studentId),
@@ -401,7 +396,7 @@ async function createAttempt(quizId, studentId, personalDeadline) {
  * @returns {Promise<object[]>}
  */
 async function getAttemptsForStudent(quizId, studentId) {
-  const rows = await getPrisma().quizAttempt.findMany({
+  const rows = await prisma.quizAttempt.findMany({
     where: { quizId: String(quizId), studentId: String(studentId) },
     orderBy: { attemptNumber: "asc" },
     include: ATTEMPT_INCLUDE,
@@ -418,7 +413,7 @@ async function getAttemptsForStudent(quizId, studentId) {
  * @returns {Promise<object[]>}
  */
 async function listAttemptsForStudent(studentId) {
-  const rows = await getPrisma().quizAttempt.findMany({
+  const rows = await prisma.quizAttempt.findMany({
     where: { studentId: String(studentId) },
     orderBy: { startedAt: "desc" },
     take: 100, // safety cap — a student is unlikely to exceed this
@@ -433,7 +428,7 @@ async function listAttemptsForStudent(studentId) {
  * @returns {Promise<object|null>}
  */
 async function getAttemptById(resultId) {
-  const row = await getPrisma().quizAttempt.findUnique({
+  const row = await prisma.quizAttempt.findUnique({
     where: { id: String(resultId) },
     include: ATTEMPT_INCLUDE,
   });
@@ -450,14 +445,14 @@ async function getAttemptById(resultId) {
  * @returns {Promise<boolean>} true if saved, false otherwise.
  */
 async function saveInProgressAnswer(attemptId, questionId, value) {
-  const attempt = await getPrisma().quizAttempt.findUnique({
+  const attempt = await prisma.quizAttempt.findUnique({
     where: { id: String(attemptId) },
     select: { status: true },
   });
   if (!attempt || attempt.status !== "in_progress") return false;
 
   const data = { value: String(value == null ? "" : value) };
-  await getPrisma().studentAnswer.upsert({
+  await prisma.studentAnswer.upsert({
     where: {
       attemptId_questionId: {
         attemptId: String(attemptId),
@@ -484,7 +479,7 @@ async function saveInProgressAnswer(attemptId, questionId, value) {
  * @returns {Promise<object>} The updated attempt record.
  */
 async function setAttemptOrdering(attemptId, ordering) {
-  const row = await getPrisma().quizAttempt.update({
+  const row = await prisma.quizAttempt.update({
     where: { id: String(attemptId) },
     data: { ordering },
     include: ATTEMPT_INCLUDE,
@@ -500,13 +495,13 @@ async function setAttemptOrdering(attemptId, ordering) {
  * @returns {Promise<object|null>}
  */
 async function finalizeAttempt(attemptId, result) {
-  const existing = await getPrisma().quizAttempt.findUnique({
+  const existing = await prisma.quizAttempt.findUnique({
     where: { id: String(attemptId) },
     select: { status: true },
   });
   if (!existing || existing.status === "submitted") return null;
 
-  const row = await getPrisma().quizAttempt.update({
+  const row = await prisma.quizAttempt.update({
     where: { id: String(attemptId) },
     data: {
       status: "submitted",
@@ -529,7 +524,7 @@ async function finalizeAttempt(attemptId, result) {
  * @returns {Promise<number>}
  */
 async function countSubmittedAttempts(quizId, studentId) {
-  return getPrisma().quizAttempt.count({
+  return prisma.quizAttempt.count({
     where: {
       quizId: String(quizId),
       studentId: String(studentId),
@@ -545,9 +540,12 @@ async function countSubmittedAttempts(quizId, studentId) {
  * @returns {Promise<number>}
  */
 async function getAllowedAttemptCount(quizId, studentId) {
-  const row = await getPrisma().quizExtraAttempt.findUnique({
+  const row = await prisma.quizExtraAttempt.findUnique({
     where: {
-      quizId_studentId: { quizId: String(quizId), studentId: String(studentId) },
+      quizId_studentId: {
+        quizId: String(quizId),
+        studentId: String(studentId),
+      },
     },
   });
   return 1 + (row ? row.extraCount : 0);
@@ -562,7 +560,7 @@ async function getAllowedAttemptCount(quizId, studentId) {
  */
 async function getAllowedAttemptCounts(quizId, studentIds) {
   if (!studentIds.length) return new Map();
-  const rows = await getPrisma().quizExtraAttempt.findMany({
+  const rows = await prisma.quizExtraAttempt.findMany({
     where: {
       quizId: String(quizId),
       studentId: { in: studentIds.map(String) },
@@ -570,7 +568,7 @@ async function getAllowedAttemptCounts(quizId, studentIds) {
   });
   const extraMap = new Map(rows.map((r) => [r.studentId, r.extraCount]));
   return new Map(
-    studentIds.map((id) => [String(id), 1 + (extraMap.get(String(id)) || 0)])
+    studentIds.map((id) => [String(id), 1 + (extraMap.get(String(id)) || 0)]),
   );
 }
 
@@ -582,9 +580,12 @@ async function getAllowedAttemptCounts(quizId, studentIds) {
  * @returns {Promise<number>}
  */
 async function grantAdditionalAttempt(quizId, studentId) {
-  const row = await getPrisma().quizExtraAttempt.upsert({
+  const row = await prisma.quizExtraAttempt.upsert({
     where: {
-      quizId_studentId: { quizId: String(quizId), studentId: String(studentId) },
+      quizId_studentId: {
+        quizId: String(quizId),
+        studentId: String(studentId),
+      },
     },
     update: { extraCount: { increment: 1 } },
     create: {
@@ -606,7 +607,7 @@ async function grantAdditionalAttempt(quizId, studentId) {
  * @returns {Promise<object[]>}
  */
 async function getAllAttemptsForQuiz(quizId) {
-  const rows = await getPrisma().quizAttempt.findMany({
+  const rows = await prisma.quizAttempt.findMany({
     where: { quizId: String(quizId) },
     orderBy: { startedAt: "asc" },
     include: ATTEMPT_INCLUDE,
@@ -621,7 +622,7 @@ async function getAllAttemptsForQuiz(quizId) {
  * @returns {Promise<object[]>}
  */
 async function getSubmittedResultsForQuiz(quizId) {
-  const rows = await getPrisma().quizAttempt.findMany({
+  const rows = await prisma.quizAttempt.findMany({
     where: { quizId: String(quizId), status: "submitted" },
     orderBy: { startedAt: "asc" },
     include: ATTEMPT_INCLUDE,
@@ -637,14 +638,12 @@ async function getSubmittedResultsForQuiz(quizId) {
  */
 async function getStudentNameById(studentId) {
   const key = String(studentId);
-  const user = await getPrisma().user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: key },
     select: { name: true },
   });
   if (user && user.name) return user.name;
-  return (
-    studentNamesById.get(key) || `Ø·Ø§Ù„Ø¨ ${key.slice(0, 6)}`
-  );
+  return studentNamesById.get(key) || `Ø·Ø§Ù„Ø¨ ${key.slice(0, 6)}`;
 }
 
 /**
@@ -656,7 +655,7 @@ async function getStudentNameById(studentId) {
 async function getStudentNamesByIds(studentIds) {
   if (!studentIds.length) return new Map();
   const ids = [...new Set(studentIds.map(String))];
-  const users = await getPrisma().user.findMany({
+  const users = await prisma.user.findMany({
     where: { id: { in: ids } },
     select: { id: true, name: true },
   });
@@ -703,7 +702,7 @@ function setCourseRosterForTesting(courseId, studentIds) {
  * @returns {Promise<object[]>}
  */
 async function getTeacherQuizzes(teacherId) {
-  const quizzes = await getPrisma().quiz.findMany({
+  const quizzes = await prisma.quiz.findMany({
     where: { createdByTeacherId: String(teacherId) },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -712,7 +711,7 @@ async function getTeacherQuizzes(teacherId) {
 }
 
 async function getTeacherQuiz(quizId, teacherId) {
-  const quiz = await getPrisma().quiz.findFirst({
+  const quiz = await prisma.quiz.findFirst({
     where: { id: String(quizId), createdByTeacherId: String(teacherId) },
   });
   return quiz ? mapQuiz(quiz) : null;
@@ -726,7 +725,7 @@ async function getTeacherQuiz(quizId, teacherId) {
 async function deleteQuiz(quizId) {
   try {
     // Delete in cascading order
-    await getPrisma().studentAnswer.deleteMany({
+    await prisma.studentAnswer.deleteMany({
       where: {
         attempt: {
           quizId: String(quizId),
@@ -734,15 +733,15 @@ async function deleteQuiz(quizId) {
       },
     });
 
-    await getPrisma().quizAttempt.deleteMany({
+    await prisma.quizAttempt.deleteMany({
       where: { quizId: String(quizId) },
     });
 
-    await getPrisma().quizExtraAttempt.deleteMany({
+    await prisma.quizExtraAttempt.deleteMany({
       where: { quizId: String(quizId) },
     });
 
-    await getPrisma().quizChoice.deleteMany({
+    await prisma.quizChoice.deleteMany({
       where: {
         question: {
           quizId: String(quizId),
@@ -750,15 +749,15 @@ async function deleteQuiz(quizId) {
       },
     });
 
-    await getPrisma().quizQuestion.deleteMany({
+    await prisma.quizQuestion.deleteMany({
       where: { quizId: String(quizId) },
     });
 
-    await getPrisma().quizLesson.deleteMany({
+    await prisma.quizLesson.deleteMany({
       where: { quizId: String(quizId) },
     });
 
-    await getPrisma().quiz.delete({
+    await prisma.quiz.delete({
       where: { id: String(quizId) },
     });
 
@@ -777,16 +776,16 @@ async function deleteQuiz(quizId) {
  */
 async function deleteQuestionFromQuiz(quizId, questionId) {
   try {
-    const question = await getPrisma().quizQuestion.findFirst({
+    const question = await prisma.quizQuestion.findFirst({
       where: { id: String(questionId), quizId: String(quizId) },
     });
     if (!question) return false;
 
-    await getPrisma().quizChoice.deleteMany({
+    await prisma.quizChoice.deleteMany({
       where: { questionId: String(questionId) },
     });
 
-    await getPrisma().quizQuestion.delete({ where: { id: question.id } });
+    await prisma.quizQuestion.delete({ where: { id: question.id } });
     return true;
   } catch (err) {
     console.error(`[deleteQuestionFromQuiz] error:`, err.message);
@@ -802,7 +801,7 @@ async function deleteQuestionFromQuiz(quizId, questionId) {
  */
 async function updateQuestion(questionId, updates) {
   try {
-    const question = await getPrisma().quizQuestion.findUnique({
+    const question = await prisma.quizQuestion.findUnique({
       where: { id: String(questionId) },
       include: { choices: true },
     });
@@ -810,7 +809,7 @@ async function updateQuestion(questionId, updates) {
     if (!question) return null;
 
     // Update question text and model answer
-    const updated = await getPrisma().quizQuestion.update({
+    const updated = await prisma.quizQuestion.update({
       where: { id: String(questionId) },
       data: {
         text: updates.text ?? question.text,
@@ -825,14 +824,14 @@ async function updateQuestion(questionId, updates) {
         const choice = question.choices[i];
         const text = String(updates.choices[i] ?? "").trim();
         if (choice && text) {
-          await getPrisma().quizChoice.update({
+          await prisma.quizChoice.update({
             where: { id: choice.id },
             data: { text },
           });
         }
       }
 
-      return await getPrisma().quizQuestion.findUnique({
+      return await prisma.quizQuestion.findUnique({
         where: { id: String(questionId) },
         include: { choices: true },
       });
@@ -856,7 +855,7 @@ async function updateQuestion(questionId, updates) {
  */
 async function updateQuizMeta(quizId, data) {
   try {
-    const updatedRow = await getPrisma().quiz.update({
+    const updatedRow = await prisma.quiz.update({
       where: { id: String(quizId) },
       data,
     });
@@ -908,7 +907,7 @@ module.exports = Object.fromEntries(
   Object.entries(service).map(([name, fn]) => [
     name,
     (...args) => withColdStartRetry(() => fn(...args)),
-  ])
+  ]),
 );
 module.exports.setStudentNameForTesting = setStudentNameForTesting;
 module.exports.setCourseRosterForTesting = setCourseRosterForTesting;
