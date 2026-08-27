@@ -32,51 +32,12 @@
  * ===========================================================================
  */
 
-const { PrismaClient } = require("@prisma/client");
-
 /* ------------------------------------------------------------------ *
- * PRISMA CLIENT (lazy)
- * Some entry points require this service before ANY dotenv.run() has
- * populated process.env (script require-order quirks). Building the
- * client lazily on first QUERY guarantees the environment is settled,
- * and we fall back to reading .env ourselves if nobody else did.
- * Neon serverless can also refuse connections right after a cold
- * start -> generous connect timeout + one transparent retry below.
+ * PRISMA CLIENT — shared singleton from config/db.js
+ * Uses the globalThis-cached instance to avoid connection pool
+ * exhaustion on Vercel serverless + Neon.
  * ------------------------------------------------------------------ */
-let _client = null;
-
-function buildClient() {
-  let url = process.env.DATABASE_URL;
-  console.error(
-    "[svc][debug] buildClient sees:",
-    url ? new URL(url).host : JSON.stringify(process.env.DATABASE_URL),
-    "| dotenv-loaded:",
-    Boolean(process.env.JWT_SECRET)
-  );
-  if (!url) {
-    try {
-      require("dotenv").config();
-    } catch (_) {}
-    url = process.env.DATABASE_URL;
-  }
-  try {
-    const parsed = new URL(url);
-    if (!parsed.searchParams.has("connect_timeout")) {
-      // 8s x 3 retries stays inside Vercel's function budget; a 15s first
-      // connect could burn the whole request before the retry even starts.
-      parsed.searchParams.set("connect_timeout", "8");
-    }
-    url = parsed.toString();
-  } catch (_) {
-    /* leave as-is; Prisma will surface a clear validation error */
-  }
-  return new PrismaClient({ datasources: { db: { url } } });
-}
-
-function getPrisma() {
-  if (!_client) _client = buildClient();
-  return _client;
-}
+const { prisma: getPrisma } = require('../config/db');
 
 /**
  * Runs a Prisma call again when Neon's cold start / transient networking
@@ -277,7 +238,8 @@ async function getQuizLessonsBatch(quizIds) {
 async function listAllQuizzes({ courseId } = {}) {
   const rows = await getPrisma().quiz.findMany({
     where: courseId ? { courseId: String(courseId) } : undefined,
-    orderBy: { startTime: "asc" },
+    orderBy: { startTime: "desc" },
+    take: 100,
   });
   return rows.map(mapQuiz);
 }
@@ -458,7 +420,8 @@ async function getAttemptsForStudent(quizId, studentId) {
 async function listAttemptsForStudent(studentId) {
   const rows = await getPrisma().quizAttempt.findMany({
     where: { studentId: String(studentId) },
-    orderBy: { startedAt: "asc" },
+    orderBy: { startedAt: "desc" },
+    take: 100, // safety cap — a student is unlikely to exceed this
     include: ATTEMPT_INCLUDE,
   });
   return rows.map(mapAttempt);
@@ -591,6 +554,27 @@ async function getAllowedAttemptCount(quizId, studentId) {
 }
 
 /**
+ * Batch allowed-attempt counts for multiple students on one quiz.
+ * Returns a Map<studentId, count> — single query instead of N.
+ * @param {string} quizId
+ * @param {string[]} studentIds
+ * @returns {Promise<Map<string, number>>}
+ */
+async function getAllowedAttemptCounts(quizId, studentIds) {
+  if (!studentIds.length) return new Map();
+  const rows = await getPrisma().quizExtraAttempt.findMany({
+    where: {
+      quizId: String(quizId),
+      studentId: { in: studentIds.map(String) },
+    },
+  });
+  const extraMap = new Map(rows.map((r) => [r.studentId, r.extraCount]));
+  return new Map(
+    studentIds.map((id) => [String(id), 1 + (extraMap.get(String(id)) || 0)])
+  );
+}
+
+/**
  * Teacher grants ONE additional attempt to a student for a quiz (persistent;
  * calling twice grants two). Returns the new total allowance.
  * @param {string} quizId
@@ -664,6 +648,29 @@ async function getStudentNameById(studentId) {
 }
 
 /**
+ * Batch display names for multiple student ids — single query instead
+ * of N individual lookups (fixes N+1 in leaderboards).
+ * @param {string[]} studentIds
+ * @returns {Promise<Map<string, string>>} id → display name
+ */
+async function getStudentNamesByIds(studentIds) {
+  if (!studentIds.length) return new Map();
+  const ids = [...new Set(studentIds.map(String))];
+  const users = await getPrisma().user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+  const nameMap = new Map(users.map((u) => [u.id, u.name]));
+  // Fill gaps with test overlay or fallback
+  for (const id of ids) {
+    if (!nameMap.has(id)) {
+      nameMap.set(id, studentNamesById.get(id) || `Ø·Ø§Ù„Ø¨ ${id.slice(0, 6)}`);
+    }
+  }
+  return nameMap;
+}
+
+/**
  * TEST-ONLY helper: seeds a display-name overlay without touching auth.
  */
 function setStudentNameForTesting(studentId, name) {
@@ -699,6 +706,7 @@ async function getTeacherQuizzes(teacherId) {
   const quizzes = await getPrisma().quiz.findMany({
     where: { createdByTeacherId: String(teacherId) },
     orderBy: { createdAt: "desc" },
+    take: 100,
   });
   return quizzes.map(mapQuiz);
 }
@@ -879,10 +887,12 @@ const service = {
   finalizeAttempt,
   countSubmittedAttempts,
   getAllowedAttemptCount,
+  getAllowedAttemptCounts,
   grantAdditionalAttempt,
   getAllAttemptsForQuiz,
   getSubmittedResultsForQuiz,
   getStudentNameById,
+  getStudentNamesByIds,
   getStudentIdsForCourse,
   getTeacherQuizzes,
   getTeacherQuiz,

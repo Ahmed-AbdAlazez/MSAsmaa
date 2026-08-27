@@ -209,6 +209,34 @@ function renderExams(exams, tab) {
     return timeB - timeA;
   });
 
+  // Render priority "Solve Now" section
+  const solveNowContainer = document.getElementById("exams-solve-now");
+  if (solveNowContainer) {
+    const activeExamsToSolve = exams.filter((exam) => {
+      if (exam.status !== "active") return false;
+      const att = attemptFor(exam.id);
+      const submitted = att && att.latestSubmitted ? att.latestSubmitted : null;
+      const remaining = att ? att.remainingAttempts : 1;
+      const canResume = Boolean(att && att.status === "in_progress");
+      const exhausted = Boolean(submitted) && remaining <= 0;
+      return !exhausted;
+    });
+
+    if (activeExamsToSolve.length > 0) {
+      solveNowContainer.style.display = "block";
+      solveNowContainer.innerHTML = `
+        <h2 class="exam-group-title" style="color: var(--color-primary-dark); font-size: 1.25rem; margin-bottom: 0.75rem;">⚡ اختبارات جاهزة للحل الآن</h2>
+        <div class="exam-grid">${activeExamsToSolve.map(examCardHtml).join("")}</div>
+      `;
+    } else {
+      solveNowContainer.style.display = "block";
+      solveNowContainer.innerHTML = `
+        <h2 class="exam-group-title" style="color: var(--color-primary-dark); font-size: 1.25rem; margin-bottom: 0.75rem;">⚡ اختبارات جاهزة للحل الآن</h2>
+        <p class="text-muted" style="background: var(--color-primary-ghost); padding: 1rem; border-radius: var(--radius-md); font-size: 0.9rem; margin: 0;">لا توجد اختبارات متاحة للحل حالياً.</p>
+      `;
+    }
+  }
+
   const byLesson = document.getElementById("exams-by-lesson");
   const all = document.getElementById("exams-all");
   const mixed = document.getElementById("exams-mixed");
@@ -670,9 +698,19 @@ async function openResult(quizId, resultId, summaryData = null) {
     }
   }
 
-  /* ---- per-quiz leaderboard (backend enforces end_time gating) ----- */
+  /* ---- per-quiz leaderboard + review (parallel fetches) ----- */
   lbBody.innerHTML = '<div class="loading">جارٍ التحميل…</div>';
-  const lb = await api("GET", `/api/quizzes/${quizId}/leaderboard`);
+  reviewBody.innerHTML = resultId
+    ? '<div class="loading">جارٍ التحميل…</div>'
+    : '<p class="muted">لا توجد محاولة مسجلة لهذا الاختبار بعد.</p>';
+
+  const [lb, review] = await Promise.all([
+    api("GET", `/api/quizzes/${quizId}/leaderboard`),
+    resultId
+      ? api("GET", `/api/quiz-results/${resultId}/review`)
+      : Promise.resolve({ ok: false, status: 404 }),
+  ]);
+
   if (lb.ok && lb.data.released) {
     lbBody.innerHTML = leaderboardTable(lb.data.rankings);
   } else if (lb.ok) {
@@ -681,16 +719,7 @@ async function openResult(quizId, resultId, summaryData = null) {
     lbBody.innerHTML = '<p class="muted">تعذر تحميل لوحة الترتيب.</p>';
   }
 
-  /* ---- review (server rejects before end_time - handle gracefully) -- */
-  reviewBody.innerHTML = '<div class="loading">جارٍ التحميل…</div>';
-  if (!resultId) {
-    reviewBody.innerHTML = '<p class="muted">لا توجد محاولة مسجلة لهذا الاختبار بعد.</p>';
-    return;
-  }
-  const review = await api(
-    "GET",
-    `/api/quiz-results/${resultId}/review`
-  );
+  if (!resultId) return;
 
   if (review.status === 403) {
     reviewBody.innerHTML = `<div class="locked-note">🔒 ${escapeHtml(
@@ -704,8 +733,6 @@ async function openResult(quizId, resultId, summaryData = null) {
   }
 
   const r = review.data.review;
-  // Review (released after end_time) re-renders the banner from the
-  // authoritative record — same numbers, now alongside the breakdown.
   renderScoreBanner(r);
   reviewBody.innerHTML = r.questions.map(reviewQuestionHtml).join("");
 }

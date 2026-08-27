@@ -11,6 +11,31 @@ const {
   getQuizImageSignedUrl,
 } = require("../../services/supabaseStorage.service.js");
 
+/* ------------------------------------------------------------------ *
+ * Signed URL cache — avoids regenerating identical URLs when multiple
+ * students load the same quiz simultaneously. URLs expire after ~1 hour;
+ * we cache for 50 minutes.
+ * ------------------------------------------------------------------ */
+const signedUrlCache = new Map();
+const SIGNED_URL_CACHE_TTL = 50 * 60 * 1000; // 50 minutes
+
+async function getCachedSignedUrl(imagePath, expiresIn) {
+  const now = Date.now();
+  const cached = signedUrlCache.get(imagePath);
+  if (cached && now - cached.createdAt < SIGNED_URL_CACHE_TTL) {
+    return cached.url;
+  }
+  const url = await getQuizImageSignedUrl(imagePath, expiresIn);
+  signedUrlCache.set(imagePath, { url, createdAt: now });
+  // Evict stale entries periodically (every 100 writes)
+  if (signedUrlCache.size > 100) {
+    for (const [key, val] of signedUrlCache) {
+      if (now - val.createdAt >= SIGNED_URL_CACHE_TTL) signedUrlCache.delete(key);
+    }
+  }
+  return url;
+}
+
 /**
  * Express middleware: rejects non-teachers from teacher-only endpoints.
  * req.user.role is set by requireAuth from the VERIFIED JWT — it can never
@@ -169,7 +194,7 @@ async function attachImageUrls(questions) {
     questions.map(async (question) => {
       if (!question.imagePath) return;
       try {
-        question.signedImageUrl = await getQuizImageSignedUrl(
+        question.signedImageUrl = await getCachedSignedUrl(
           question.imagePath,
           60 * 60
         );

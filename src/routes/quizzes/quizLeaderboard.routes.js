@@ -25,7 +25,7 @@ const {
   getQuizById,
   getSubmittedResultsForQuiz,
   getQuizzesForCourse,
-  getStudentNameById,
+  getStudentNamesByIds,
   getStudentIdsForCourse,
 } = require("../../services/quiz.stub.service.js");
 
@@ -79,18 +79,17 @@ async function buildQuizRanking(quizId, roster = []) {
     }
   }
 
-  const entries = [];
-  const allStudentIds = new Set([...bestByStudent.keys(), ...roster]);
+  const allStudentIds = [...new Set([...bestByStudent.keys(), ...roster])];
 
-  for (const studentId of allStudentIds) {
-    entries.push({
-      studentId,
-      studentName: await getStudentNameById(studentId),
-      // Never-attempted students land here as 0 — included, not excluded.
-      bestScore: bestByStudent.get(studentId) ?? 0,
-      attempted: bestByStudent.has(studentId),
-    });
-  }
+  // Single batch query for all names instead of N individual lookups
+  const nameMap = await getStudentNamesByIds(allStudentIds);
+
+  const entries = allStudentIds.map((studentId) => ({
+    studentId,
+    studentName: nameMap.get(studentId) || studentId,
+    bestScore: bestByStudent.get(studentId) ?? 0,
+    attempted: bestByStudent.has(studentId),
+  }));
 
   return assignRanks(entries);
 }
@@ -162,11 +161,13 @@ router.get("/courses/:courseId/leaderboard", requireAuth, async (req, res) => {
 
   // Roster students with no released-quizzes points at all still appear.
   const roster = await getStudentIdsForCourse(req.params.courseId);
-  for (const studentId of roster) {
-    if (!totalsByStudent.has(studentId)) {
+  const missingRosterIds = roster.filter((id) => !totalsByStudent.has(id));
+  if (missingRosterIds.length) {
+    const rosterNames = await getStudentNamesByIds(missingRosterIds);
+    for (const studentId of missingRosterIds) {
       totalsByStudent.set(studentId, {
         studentId,
-        studentName: await getStudentNameById(studentId),
+        studentName: rosterNames.get(studentId) || studentId,
         totalScore: 0,
         quizzesCounted: 0,
       });

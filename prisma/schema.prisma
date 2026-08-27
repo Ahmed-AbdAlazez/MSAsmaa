@@ -36,6 +36,7 @@ model User {
 
   notifications Notification[]
 
+  @@index([role, status])
   @@map("users")
 }
 
@@ -87,6 +88,7 @@ model Quiz {
 
   @@index([courseId])
   @@index([lessonId])
+  @@index([createdByTeacherId])
   @@map("quizzes")
 }
 
@@ -159,6 +161,7 @@ model QuizAttempt {
 
   @@index([quizId, studentId])
   @@index([quizId, status])
+  @@index([studentId])
   @@map("quiz_attempts")
 }
 

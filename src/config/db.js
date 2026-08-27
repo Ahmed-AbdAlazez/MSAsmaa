@@ -1,11 +1,15 @@
 const { PrismaClient } = require('@prisma/client');
 
 /**
- * Instantiate Prisma Client singleton
+ * Prisma Client singleton for Vercel serverless.
+ * globalThis caching prevents creating multiple clients during warm
+ * starts, avoiding connection pool exhaustion on Neon.
  */
-const prisma = new PrismaClient({
+const globalForPrisma = globalThis;
+const prisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
 });
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 /**
  * Connect to PostgreSQL database via Prisma

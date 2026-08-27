@@ -48,6 +48,7 @@ const getPendingRequests = catchAsync(async (req, res, next) => {
     orderBy: {
       createdAt: 'desc',
     },
+    take: 100,
   });
 
   res.status(200).json({

@@ -18,8 +18,10 @@ const {
   getAttemptsForStudent,
   getAllAttemptsForQuiz,
   getStudentNameById,
+  getStudentNamesByIds,
   grantAdditionalAttempt,
   getAllowedAttemptCount,
+  getAllowedAttemptCounts,
 } = require("../../services/quiz.stub.service.js");
 
 const router = express.Router();
@@ -65,15 +67,21 @@ router.get("/quizzes/:quizId/results", requireAuth, requireTeacher, async (req, 
   const allAttempts = await getAllAttemptsForQuiz(quiz.id);
 
   // Group per student.
-  const studentIds = new Set(allAttempts.map((r) => r.studentId));
+  const studentIds = [...new Set(allAttempts.map((r) => r.studentId))];
+
+  // Batch: names + allowances in 2 queries instead of 2N
+  const [nameMap, allowanceMap] = await Promise.all([
+    getStudentNamesByIds(studentIds),
+    getAllowedAttemptCounts(quiz.id, studentIds),
+  ]);
 
   const grouped = new Map();
   for (const studentId of studentIds) {
-    const attempts = await getAttemptsForStudent(quiz.id, studentId);
+    const attempts = allAttempts.filter((a) => a.studentId === studentId);
     grouped.set(studentId, {
       studentId,
-      studentName: await getStudentNameById(studentId),
-      allowedAttempts: await getAllowedAttemptCount(quiz.id, studentId),
+      studentName: nameMap.get(studentId) || studentId,
+      allowedAttempts: allowanceMap.get(studentId) || 1,
       bestScore: Math.max(
         ...attempts
           .filter((a) => a.status === "submitted")

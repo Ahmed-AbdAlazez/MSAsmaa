@@ -1,0 +1,362 @@
+(function(){let e=document.createElement(`link`).relList;if(e&&e.supports&&e.supports(`modulepreload`))return;for(let e of document.querySelectorAll(`link[rel="modulepreload"]`))n(e);new MutationObserver(e=>{for(let t of e)if(t.type===`childList`)for(let e of t.addedNodes)e.tagName===`LINK`&&e.rel===`modulepreload`&&n(e)}).observe(document,{childList:!0,subtree:!0});function t(e){let t={};return e.integrity&&(t.integrity=e.integrity),e.referrerPolicy&&(t.referrerPolicy=e.referrerPolicy),t.credentials=e.crossOrigin===`use-credentials`?`include`:e.crossOrigin===`anonymous`?`omit`:`same-origin`,t}function n(e){if(e.ep)return;e.ep=!0;let n=t(e);fetch(e.href,n)}})();function e(){let e=document.querySelector(`.navbar`);if(!e)return;e.className=`navbar`;let t=window.location.pathname,n=localStorage.getItem(`token`),r=localStorage.getItem(`userRole`),i=!!n,a=r===`teacher`,o=r===`student`,s=e=>e.some(e=>e===`index.html`?t===`/`||t.endsWith(`index.html`)||t===``:t.includes(e))?`active`:``;if(i){let t=``,n=``;a?(t=`<li><a href="dashboard-teacher.html" class="nav-link ${s([`dashboard-teacher.html`])}">لوحة المعلمة</a></li>`,n=`<li><a href="dashboard-teacher.html" class="mobile-link ${s([`dashboard-teacher.html`])}">لوحة المعلمة</a></li>`):o&&(t=`<li><a href="dashboard-student.html" class="nav-link ${s([`dashboard-student.html`])}">لوحة الطالب</a></li>`,n=`<li><a href="dashboard-student.html" class="mobile-link ${s([`dashboard-student.html`])}">لوحة الطالب</a></li>`);let r=a?`<li><a href="registration-requests.html" class="nav-link ${s([`registration-requests.html`])}">Registration Requests</a></li>`:``,i=a?`<li><a href="registration-requests.html" class="mobile-link ${s([`registration-requests.html`])}">Registration Requests</a></li>`:``,c=a?`<li><a href="students.html" class="nav-link ${s([`students.html`])}">الطلاب</a></li>`:``,l=a?`<li><a href="students.html" class="mobile-link ${s([`students.html`])}">الطلاب</a></li>`:``;e.innerHTML=`
+      <div class="container">
+        <a href="index.html" class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="index.html" class="nav-link ${s([`index.html`])}">الرئيسية</a></li>
+          <li><a href="course-biology.html" class="nav-link ${s([`course-biology.html`,`lessons.html`,`lesson-view.html`])}">الأحياء (3ث)</a></li>
+          <li><a href="exams.html" class="nav-link ${s([`exams.html`])}">الاختبارات</a></li>
+          <li><a href="chatbots.html" class="nav-link ${s([`chatbots.html`])}">المحادثات</a></li>
+          ${t}
+          ${r}
+          ${c}
+        </ul>
+        <div class="nav-actions">
+          <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+            <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+          </button>
+          <div class="nav-auth-container"></div>
+          <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
+        </div>
+      </div>
+    `;let u=document.querySelector(`.drawer-overlay`);u||(u=document.createElement(`div`),u.className=`drawer-overlay`,document.body.appendChild(u));let d=document.querySelector(`.mobile-drawer`);d||(d=document.createElement(`div`),d.className=`mobile-drawer`,document.body.appendChild(d)),d.innerHTML=`
+      <div class="mobile-drawer-header">
+        <div class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </div>
+        <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+          <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+        </button>
+        <button class="mobile-drawer-close">✕</button>
+      </div>
+      <ul class="mobile-links">
+        <li><a href="index.html" class="mobile-link ${s([`index.html`])}">الرئيسية</a></li>
+        <li><a href="course-biology.html" class="mobile-link ${s([`course-biology.html`,`lessons.html`,`lesson-view.html`])}">الأحياء (3ث)</a></li>
+        <li><a href="exams.html" class="mobile-link ${s([`exams.html`])}">الاختبارات</a></li>
+        <li><a href="chatbots.html" class="mobile-link ${s([`chatbots.html`])}">المحادثات</a></li>
+        ${n}
+        ${i}
+        ${l}
+      </ul>
+      <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
+    `}else{e.innerHTML=`
+      <div class="container">
+        <a href="index.html" class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </a>
+        <div class="nav-actions">
+          <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+            <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+          </button>
+          <a href="login.html" class="btn-login-minimal">تسجيل الدخول</a>
+          <a href="login.html?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+        </div>
+      </div>
+    `;let t=document.querySelector(`.drawer-overlay`);t||(t=document.createElement(`div`),t.className=`drawer-overlay`,document.body.appendChild(t));let n=document.querySelector(`.mobile-drawer`);n||(n=document.createElement(`div`),n.className=`mobile-drawer`,document.body.appendChild(n)),n.innerHTML=`
+      <div class="mobile-drawer-header">
+        <div class="brand">
+          <span class="brand-icon">🧬</span>
+          <span>المرسال</span>
+        </div>
+        <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+          <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+        </button>
+        <button class="mobile-drawer-close">✕</button>
+      </div>
+      <div class="mobile-auth-minimal" style="padding: 1rem 0;">
+        <a href="login.html" class="btn btn-primary btn-full">تسجيل الدخول</a>
+        <a href="login.html?mode=signup" class="btn btn-light btn-full">حساب جديد</a>
+      </div>
+    `}}function t({API_BASE:e,authHeaders:t,fetchJson:n,showToast:r}){let i=document.querySelector(`#approved-students-list`),a=document.querySelector(`#approved-students-count`),o=document.querySelector(`#approved-students-search`),s=document.querySelector(`#approved-students-pagination`),c=[],l=1,u={page:1,totalPages:0,total:0},d,f=``,p=e=>{let t=e?new Date(e):null;return t&&!Number.isNaN(t.getTime())?new Intl.DateTimeFormat(`ar-EG`,{year:`numeric`,month:`short`,day:`numeric`}).format(t):`—`},m=()=>{if(i.replaceChildren(),s.replaceChildren(),!c.length){let e=document.createElement(`p`);e.className=`text-muted`,e.textContent=`لا يوجد طلاب مقبولون حاليًا.`,i.appendChild(e);return}let e=document.createElement(`table`);e.className=`table`,e.innerHTML=`<thead><tr><th>الطالب</th><th>كود الطالب</th><th>Gmail</th><th>تاريخ الانضمام</th><th>الحالة</th><th>الإجراءات</th></tr></thead>`;let t=document.createElement(`tbody`);c.forEach(e=>{let n=document.createElement(`tr`);[e.name||`—`,e.studentCode||`—`,e.email||`—`,p(e.createdAt)].forEach(e=>{let t=document.createElement(`td`);t.textContent=e,n.appendChild(t)});let r=document.createElement(`td`),i=document.createElement(`span`);i.className=`badge badge-success`,i.textContent=e.status||`APPROVED`,r.appendChild(i),n.appendChild(r);let a=document.createElement(`td`),o=document.createElement(`button`);o.type=`button`,o.className=`btn btn-danger`,o.style.cssText=`font-size:.8rem; padding:.35rem .75rem;`,o.textContent=f===e.id?`جارٍ الحذف...`:`حذف الطالب`,o.disabled=!!f,o.addEventListener(`click`,()=>_(e)),a.appendChild(o),n.appendChild(a),t.appendChild(n)}),e.appendChild(t);let n=document.createElement(`div`);if(n.className=`table-responsive`,n.appendChild(e),i.appendChild(n),u.totalPages>1){let e=document.createElement(`button`);e.type=`button`,e.className=`btn btn-light`,e.textContent=`السابق`,e.disabled=l<=1,e.addEventListener(`click`,()=>g(l-1));let t=document.createElement(`span`);t.className=`text-muted`,t.textContent=`صفحة ${u.page} من ${u.totalPages}`;let n=document.createElement(`button`);n.type=`button`,n.className=`btn btn-light`,n.textContent=`التالي`,n.disabled=l>=u.totalPages,n.addEventListener(`click`,()=>g(l+1)),s.append(e,t,n)}},h=async()=>{let r=await n(`${e}/students/count`,{headers:t()});a.textContent=String(r?.data?.count??0)},g=async(a=1)=>{i.innerHTML=`<p class="text-muted">جارٍ تحميل الطلاب...</p>`;try{let r=new URLSearchParams({page:String(a),limit:`50`}),i=String(o.value||``).trim();i&&r.set(`search`,i);let s=await n(`${e}/students?${r.toString()}`,{headers:t()});if(c=Array.isArray(s?.data?.students)?s.data.students:[],u=s?.data?.pagination||u,l=u.page||a,!c.length&&l>1&&u.total>0)return g(l-1);m()}catch(e){c=[],i.innerHTML=`<p class="text-muted">تعذر تحميل الطلاب المقبولين.</p>`,s.replaceChildren(),r(e.message,`danger`)}},_=async i=>{if(!(f||!window.confirm(`هل أنت متأكد من حذف هذا الطالب؟`))){f=i.id,m();try{await n(`${e}/students/${encodeURIComponent(i.id)}`,{method:`DELETE`,headers:t()}),r(`تم حذف الطالب بنجاح.`,`success`),f=``,await Promise.all([h(),g(l)])}catch(e){f=``,m(),r(e.message,`danger`)}}};o.addEventListener(`input`,()=>{clearTimeout(d),d=setTimeout(()=>g(1),250)}),Promise.all([h(),g()]).catch(()=>{})}window.addEventListener(`storage`,e=>{e.key===`theme`&&(e.newValue===`dark`||e.newValue===`light`)&&document.documentElement.setAttribute(`data-theme`,e.newValue)}),document.addEventListener(`DOMContentLoaded`,()=>{let n=window.location.pathname.includes(`students.html`);if(window.location.pathname.includes(`registration-requests.html`)||window.location.pathname.includes(`dashboard-teacher.html`)||n){let e=String(localStorage.getItem(`userRole`)||``).toLowerCase(),t=localStorage.getItem(`token`);if(e!==`teacher`||!t){window.location.replace(n?`login.html`:`index.html`);return}}let r=()=>{e();let t=document.documentElement;document.querySelectorAll(`.theme-toggle`).forEach(e=>{e.addEventListener(`click`,()=>{let e=t.getAttribute(`data-theme`)===`dark`?`light`:`dark`;t.setAttribute(`data-theme`,e);try{localStorage.setItem(`theme`,e)}catch{}})});let n=document.querySelector(`.nav-toggle`),r=document.querySelector(`.mobile-drawer-close`),i=document.querySelector(`.mobile-drawer`),a=document.querySelector(`.drawer-overlay`);n&&i&&a&&n.addEventListener(`click`,()=>{i.classList.add(`open`),a.classList.add(`show`)});let o=()=>{i&&a&&(i.classList.remove(`open`),a.classList.remove(`show`))};r&&r.addEventListener(`click`,o),a&&a.addEventListener(`click`,o)};r(),document.addEventListener(`click`,e=>{e.target.closest(`.js-login-trigger`)&&(e.preventDefault(),window.location.href=`login.html`)}),window.showToast=(e,t=`success`)=>{let n=document.querySelector(`.toast`);n&&n.remove();let r=document.createElement(`div`);r.className=`toast toast-${t} show`;let i=`✓`;t===`danger`&&(i=`✕`),t===`warning`&&(i=`⚠`),r.innerHTML=`
+      <span style="font-weight: bold; font-size: 1.2rem;">${i}</span>
+      <span>${e}</span>
+    `,document.body.appendChild(r),setTimeout(()=>{r.classList.remove(`show`),setTimeout(()=>r.remove(),400)},3e3)};let i=()=>{if(document.getElementById(`custom-modal-styles`))return;let e=document.createElement(`style`);e.id=`custom-modal-styles`,e.textContent=`
+      .custom-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(9, 51, 39, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .custom-modal-overlay.show {
+        opacity: 1;
+      }
+      .custom-modal-panel {
+        background: var(--surface-solid, #ffffff);
+        color: var(--color-text, #1f2937);
+        border-radius: var(--radius-lg, 16px);
+        width: min(440px, 100%);
+        padding: 1.75rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        direction: rtl;
+        font-family: inherit;
+      }
+      .custom-modal-overlay.show .custom-modal-panel {
+        transform: scale(1);
+      }
+      .custom-modal-body {
+        margin-bottom: 1.5rem;
+      }
+      .custom-modal-message {
+        font-size: 1.05rem;
+        line-height: 1.6;
+        margin: 0;
+        font-weight: 500;
+        color: var(--color-text, #1f2937);
+      }
+      .custom-modal-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        margin-top: 1rem;
+        border: 1px solid var(--color-border, #d1d5db);
+        border-radius: var(--radius-md, 8px);
+        background: var(--input-bg, #ffffff);
+        color: var(--color-text, #1f2937);
+        font-size: 1rem;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .custom-modal-input:focus {
+        border-color: var(--color-primary, #0f766e);
+        box-shadow: 0 0 0 3px var(--color-primary-ghost, rgba(15, 118, 110, 0.15));
+      }
+      .custom-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+      }
+      .custom-modal-btn {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: var(--radius-md, 8px);
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.15s, transform 0.1s;
+      }
+      .custom-modal-btn:active {
+        transform: scale(0.97);
+      }
+      .custom-modal-btn-confirm {
+        background-color: var(--color-primary, #0f766e);
+        color: #ffffff;
+      }
+      .custom-modal-btn-confirm:hover {
+        background-color: var(--color-primary-dark, #0d5c56);
+      }
+      .custom-modal-btn-confirm.btn-danger {
+        background-color: var(--color-danger, #ef4444);
+        color: #ffffff;
+      }
+      .custom-modal-btn-confirm.btn-danger:hover {
+        background-color: #dc2626;
+      }
+      .custom-modal-btn-cancel {
+        background-color: var(--color-primary-ghost, #f3f4f6);
+        color: var(--color-primary-ink, #4b5563);
+      }
+      .custom-modal-btn-cancel:hover {
+        background-color: #e5e7eb;
+      }
+    `,document.head.appendChild(e)};window.showConfirmModal=(e,t={})=>(i(),new Promise(n=>{let r=document.createElement(`div`);r.className=`custom-modal-overlay`;let i=t.isDestructive||/حذف|الغاء|خروج/i.test(e)?`custom-modal-btn custom-modal-btn-confirm btn-danger`:`custom-modal-btn custom-modal-btn-confirm`,a=t.confirmText||`تأكيد`;r.innerHTML=`
+        <div class="custom-modal-panel">
+          <div class="custom-modal-body">
+            <p class="custom-modal-message">${e}</p>
+          </div>
+          <div class="custom-modal-actions">
+            <button class="custom-modal-btn custom-modal-btn-cancel">${t.cancelText||`إلغاء`}</button>
+            <button class="${i}">${a}</button>
+          </div>
+        </div>
+      `,document.body.appendChild(r),requestAnimationFrame(()=>r.classList.add(`show`));let o=r.querySelector(`.custom-modal-btn-confirm`),s=r.querySelector(`.custom-modal-btn-cancel`),c=e=>{r.classList.remove(`show`),setTimeout(()=>{r.remove(),n(e)},200)};o.addEventListener(`click`,()=>c(!0)),s.addEventListener(`click`,()=>c(!1)),r.addEventListener(`click`,e=>{e.target===r&&c(!1)})})),window.showPromptModal=(e,t=``,n={})=>(i(),new Promise(r=>{let i=document.createElement(`div`);i.className=`custom-modal-overlay`;let a=n.confirmText||`تأكيد`,o=n.cancelText||`إلغاء`;i.innerHTML=`
+        <div class="custom-modal-panel">
+          <div class="custom-modal-body">
+            <p class="custom-modal-message">${e}</p>
+            <input type="text" class="custom-modal-input" value="${t}" placeholder="${n.placeholder||``}" />
+          </div>
+          <div class="custom-modal-actions">
+            <button class="custom-modal-btn custom-modal-btn-cancel">${o}</button>
+            <button class="custom-modal-btn custom-modal-btn-confirm">${a}</button>
+          </div>
+        </div>
+      `,document.body.appendChild(i);let s=i.querySelector(`.custom-modal-input`);setTimeout(()=>s.focus(),50),requestAnimationFrame(()=>i.classList.add(`show`));let c=i.querySelector(`.custom-modal-btn-confirm`),l=i.querySelector(`.custom-modal-btn-cancel`),u=e=>{i.classList.remove(`show`),setTimeout(()=>{i.remove(),r(e)},200)};c.addEventListener(`click`,()=>u(s.value.trim())),l.addEventListener(`click`,()=>u(null)),s.addEventListener(`keydown`,e=>{e.key===`Enter`?(e.preventDefault(),u(s.value.trim())):e.key===`Escape`&&(e.preventDefault(),u(null))}),i.addEventListener(`click`,e=>{e.target===i&&u(null)})}));let a=`/api/v1`,o=()=>{try{return localStorage.getItem(`token`)||``}catch{return``}},s=()=>{let e=o();return e?{Authorization:`Bearer ${e}`}:{}},c=(()=>{let e=null,t=null,n=null,r=!1,i=!1,a=()=>{e||(e=document.createElement(`div`),e.className=`upload-floating-status`,e.innerHTML=`<strong class="ufl-title"></strong><div class="upload-progress-bar"><div></div></div><small class="ufl-label"></small>`,document.body.appendChild(e),t=e.querySelector(`.upload-progress-bar > div`),n=e.querySelector(`.ufl-label`))};return{markSwOwned(e){i=!!e},show(o){i||(a(),e.style.display=`block`,r=!0,t.style.width=`0%`,e.querySelector(`.ufl-title`).textContent=o,n.textContent=`0%`)},update(r,a){!e||i||(t.style.width=r+`%`,n.textContent=a||r+`%`)},done(a){i=!1,e&&(t.style.width=`100%`,n.textContent=a,setTimeout(()=>{e&&(e.style.display=`none`),r=!1},4e3))},fail(t){i=!1,e&&(n.textContent=t,setTimeout(()=>{e&&(e.style.display=`none`),r=!1},6e3))},get isActive(){return r}}})(),l=`msasmaa-uploads`,u=`serviceWorker`in navigator&&typeof BroadcastChannel<`u`;`serviceWorker`in navigator&&navigator.serviceWorker.register(`/sw.js`).catch(()=>{});function d(){return new Promise((e,t)=>{let n=indexedDB.open(`msasmaa-uploads`,1);n.onupgradeneeded=()=>{n.result.createObjectStore(`jobs`,{keyPath:`id`})},n.onsuccess=()=>e(n.result),n.onerror=()=>t(n.error)})}async function f(e){let t=await d();return new Promise((n,r)=>{let i=t.transaction(`jobs`,`readwrite`);i.objectStore(`jobs`).put(e),i.oncomplete=n,i.onerror=()=>r(i.error)})}function p(e){return new Promise(t=>{let n=new BroadcastChannel(l),r=n=>{let r=n.data||{};r.jobId===e&&(r.type===`done`?(i(),t({ok:!0,kind:r.kind})):r.type===`failed`&&(i(),t({ok:!1,error:r.error})))},i=()=>{n.removeEventListener(`message`,r),n.close()};n.addEventListener(`message`,r)})}let m=!1;function h(){if(m||!u)return;m=!0;let e=new BroadcastChannel(l);e.onmessage=e=>{let t=e.data||{};t.type===`started`?(c.markSwOwned(!0),c.show(t.label||`جاري رفع ملف`)):t.type===`progress`?c.update(t.pct,t.stage===`finalizing`?`جاري تحسين الملف على السيرفر...`:`جاري الرفع... ${t.pct}%`):t.type===`done`?c.done(`تم الرفع بنجاح ✔`):t.type===`failed`&&c.fail(`فشل الرفع: ${t.error||``}`)},navigator.serviceWorker.ready.then(e=>{e.active&&e.active.postMessage({type:`GET_ACTIVE_JOBS`})});let t=new BroadcastChannel(l);t.onmessage=e=>{let t=e.data||{};t.type===`ACTIVE_JOBS`&&t.jobs&&t.jobs.length&&c.show(t.jobs[0].label||`جاري رفع ملف`)}}h();async function g(e){await f(e);try{((await navigator.serviceWorker.ready).active||navigator.serviceWorker.controller).postMessage({type:`START_UPLOAD`,jobId:e.id})}catch(t){try{(await d()).transaction(`jobs`,`readwrite`).objectStore(`jobs`).delete(e.id)}catch{}return{ok:!1,error:t.message}}return p(e.id)}window.addEventListener(`beforeunload`,e=>{!u&&c.isActive&&(e.preventDefault(),e.returnValue=``)}),[`upload-title`,`upload-attachment`,`upload-description`].forEach(e=>{let t=document.querySelector(`#${e}`);if(t)try{let n=sessionStorage.getItem(`uploadForm:${e}`);n!==null&&!t.value&&(t.value=n),t.addEventListener(`input`,()=>{sessionStorage.setItem(`uploadForm:${e}`,t.value)})}catch{}});let _=async(e,t={})=>{let n;try{n=await fetch(e,t)}catch{throw Error(`لا يمكن الوصول إلى السيرفر (${e}). تأكد من تشغيل السيرفر (node server.js) ثم أعد المحاولة.`)}let r=await n.text(),i;try{i=r?JSON.parse(r):{}}catch{let t=r.replace(/<[^>]*>/g,` `).trim().slice(0,80);throw Error(`السيرفر في ${e} أعاد رداً غير JSON (كود ${n.status})${t?`: ${t}`:``}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`)}if(!n.ok)throw Error(i.message||i.error||`خطأ من السيرفر (${n.status}).`);return i};if(document.querySelector(`#registration-requests-page`)){let e=document.querySelector(`#registration-requests-list`),t=document.querySelector(`#pending-requests-count`),n=[],r=``,i=()=>{if(t.textContent=String(n.length),e.replaceChildren(),!n.length){let t=document.createElement(`p`);t.className=`text-muted registration-requests-empty`,t.textContent=`No pending registration requests.`,e.appendChild(t);return}let i=document.createElement(`table`);i.className=`table registration-requests-table`,i.innerHTML=`<thead><tr><th>Student Name</th><th>Student Code</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>`;let a=document.createElement(`tbody`);n.forEach(e=>{let t=document.createElement(`tr`),n=e.createdAt?new Date(e.createdAt):null,i=n&&!Number.isNaN(n.getTime())?new Intl.DateTimeFormat(`en-GB`,{day:`numeric`,month:`short`,year:`numeric`}).format(n):`—`;[e.name||`—`,e.studentCode||`—`,i].forEach(e=>{let n=document.createElement(`td`);n.textContent=e,t.appendChild(n)});let o=document.createElement(`td`),s=document.createElement(`span`);s.className=`badge badge-warning`,s.textContent=e.status||`PENDING`,o.appendChild(s),t.appendChild(o);let l=document.createElement(`td`);l.className=`registration-request-actions`;let u=document.createElement(`button`);u.className=`btn btn-primary`,u.type=`button`,u.textContent=r===e.id?`Approving...`:`Approve`,u.disabled=!!r,u.addEventListener(`click`,()=>c(e.id,`approve`));let d=document.createElement(`button`);d.className=`btn btn-danger`,d.type=`button`,d.textContent=r===e.id?`Rejecting...`:`Reject`,d.disabled=!!r,d.addEventListener(`click`,()=>c(e.id,`reject`)),l.append(u,d),t.appendChild(l),a.appendChild(t)}),i.appendChild(a);let o=document.createElement(`div`);o.className=`table-responsive`,o.appendChild(i),e.appendChild(o)},o=async()=>{e.innerHTML=`<p class="text-muted registration-requests-loading">Loading registration requests...</p>`;try{let e=await _(`${a}/registration-requests`,{headers:s()});n=Array.isArray(e?.data?.requests)?e.data.requests:[],i()}catch(r){n=[],t.textContent=`0`,e.innerHTML=`<p class="text-muted registration-requests-empty">Unable to load registration requests.</p>`,showToast(r.message,`danger`)}},c=async(e,t)=>{if(!r){r=e,i();try{let n=await _(`${a}/registration-requests/${encodeURIComponent(e)}/${t}`,{method:`PATCH`,headers:s()});showToast(n.message||`Registration request ${t}d successfully.`,`success`),r=``,await o()}catch(e){r=``,i(),showToast(e.message,`danger`)}}};o()}document.querySelector(`#teacher-students-section`)&&t({API_BASE:a,authHeaders:s,fetchJson:_,showToast});let v=document.querySelectorAll(`.tab-btn`),y=document.querySelectorAll(`.tab-panel`);v.length>0&&v.forEach(e=>{e.addEventListener(`click`,()=>{let t=e.getAttribute(`data-tab`);v.forEach(e=>e.classList.remove(`active`)),y.forEach(e=>e.classList.remove(`active`)),e.classList.add(`active`);let n=document.getElementById(t);n&&n.classList.add(`active`)})});let b=document.querySelectorAll(`.filter-btn`),x=document.querySelectorAll(`.lesson-card-item`);b.length>0&&x.length>0&&b.forEach(e=>{e.addEventListener(`click`,()=>{let t=e.getAttribute(`data-filter`);b.forEach(e=>e.classList.remove(`active`)),e.classList.add(`active`),x.forEach(e=>{let n=e.getAttribute(`data-category`);t===`all`||n===t?(e.style.display=`block`,e.style.opacity=`0`,setTimeout(()=>{e.style.transition=`opacity 0.3s ease`,e.style.opacity=`1`},50)):e.style.display=`none`})})});let S=document.querySelector(`#contact-form`);S&&S.addEventListener(`submit`,e=>{e.preventDefault();let t=document.querySelector(`#contact-name`).value.trim(),n=document.querySelector(`#contact-email`).value.trim(),r=document.querySelector(`#contact-message`).value.trim();if(!t||!n||!r){showToast(`يرجى إدخال جميع الحقول لإرسال الرسالة الاستفسارية.`,`danger`);return}showToast(`تم إرسال رسالتك بنجاح! سيقوم الأستاذ أو طاقم الدعم بالتواصل معك قريباً.`,`success`),S.reset()});let C=document.querySelector(`#btn-teacher-export`);C&&C.addEventListener(`click`,()=>{showToast(`جاري تصدير درجات الطلاب بصيغة Excel...`,`success`)});let w=`frontEndQuizzes`,T=(e,t=[])=>{try{return JSON.parse(localStorage.getItem(e)||JSON.stringify(t))}catch{return t}},E=(e,t)=>{localStorage.setItem(e,JSON.stringify(t))},D=()=>T(w,[{id:`quiz-dna-intro`,title:`اختبار سريع: DNA والبروتين`,chapter:`الوراثة الجزيئية`,dueDate:`اليوم 9:00 م`,questions:`10`,questionItems:[{type:`mcq`,text:`ما الجزء المسؤول عن حمل الشفرة الوراثية؟`,options:[`DNA`,`الجدار الخلوي`,`الريبوسوم`,`السيتوبلازم`],image:``},{type:`written`,text:`اشرح باختصار خطوات تضاعف DNA.`,options:[],image:``}],note:`اختبار قصير للتأكد من فهم تضاعف DNA والترجمة.`,createdAt:`جاهز الآن`}]),O=[],k=0,A=async()=>{if(!localStorage.getItem(`userId`))return[];if(O.length&&Date.now()-k<3e4)return O;try{return O=(await _(`${a}/notifications`,{headers:s()})).notifications||[],k=Date.now(),O}catch(e){return console.warn(`[notifications] Failed to fetch notifications:`,e),O}},j=async()=>{let e=0;try{let t=await _(`${a}/notifications/unread-count`,{headers:s()});e=Number(t.count)||0}catch{e=(await A()).filter(e=>!(e.isRead??e.read)).length}document.querySelectorAll(`.notification-count`).forEach(t=>{t.textContent=e,t.hidden=e===0})},M=async()=>{let e=await A(),t=document.querySelector(`#notification-list`);if(t){if(!e.length){t.innerHTML=`<div class="notification-empty">لا توجد إشعارات جديدة الآن.</div>`;return}t.innerHTML=e.slice(0,6).map(e=>`
+      <div class="notification-item ${e.isRead??e.read?``:`unread`}" data-id="${e.id}" data-link="${N(e.link||``)}">
+        <div class="notification-item-icon">${e.type===`quiz`?`؟`:`!`}</div>
+        <div>
+          <h4>${N(e.title)}</h4>
+          <p>${N(e.message)}</p>
+        </div>
+      </div>
+    `).join(``),t.querySelectorAll(`.notification-item`).forEach(e=>{e.addEventListener(`click`,async()=>{let t=e.dataset.id,n=e.dataset.link;try{await _(`${a}/notifications/${t}/read`,{method:`PATCH`,headers:s()}),await j(),n&&(window.location.href=n)}catch(e){console.error(`[notifications] Failed to mark read:`,e),n&&(window.location.href=n)}})})}},N=(e=``)=>String(e).replaceAll(`&`,`&amp;`).replaceAll(`<`,`&lt;`).replaceAll(`>`,`&gt;`).replaceAll(`"`,`&quot;`).replaceAll(`'`,`&#039;`),P=e=>new Promise((t,n)=>{if(!e){t(``);return}let r=new FileReader;r.addEventListener(`load`,()=>t(r.result)),r.addEventListener(`error`,n),r.readAsDataURL(e)}),F=e=>Array.isArray(e.questionItems)&&e.questionItems.length?e.questionItems.length:Number.parseInt(e.questions,10)||0,I=(e,t)=>{let n=e.type===`written`?`Written`:`MCQ`,r=e.type===`mcq`&&e.options?.length?`<ol class="quiz-question-options">${e.options.map(e=>`<li>${N(e)}</li>`).join(``)}</ol>`:`<p class="quiz-written-answer-line">مساحة إجابة كتابية للطالب</p>`,i=e.image?`<img src="${e.image}" alt="Question attachment" class="quiz-question-image">`:``;return`
+      <article class="quiz-question-preview">
+        <div class="quiz-question-top">
+          <span class="quiz-question-number">${t+1}</span>
+          <span class="badge ${e.type===`written`?`badge-warning`:`badge-success`}">${n}</span>
+        </div>
+        <p>${N(e.text)}</p>
+        ${i}
+        ${r}
+      </article>
+    `},L=()=>{let e=document.querySelector(`#student-quiz-list`);e&&(e.innerHTML=D().map(e=>`
+      <div class="quiz-item">
+        <div class="quiz-item-icon">؟</div>
+        <div class="quiz-item-content">
+          <h4>${N(e.title)}</h4>
+          <p>${N(e.chapter)} • ${F(e)} أسئلة • التسليم: ${N(e.dueDate)}</p>
+          <div class="quiz-question-preview-list" hidden>
+            ${(e.questionItems||[]).map(I).join(``)}
+          </div>
+        </div>
+        <button class="btn btn-primary btn-quiz-start" type="button" data-quiz-title="${N(e.title)}">ابدأ</button>
+      </div>
+    `).join(``),e.querySelectorAll(`.btn-quiz-start`).forEach(e=>{e.addEventListener(`click`,()=>{let t=e.closest(`.quiz-item`)?.querySelector(`.quiz-question-preview-list`);t&&(t.hidden=!t.hidden),showToast(`بدأت اختبار "${e.dataset.quizTitle}" داخل الواجهة فقط.`,`success`)})}))},R=()=>{let e=document.querySelector(`#teacher-quiz-list`);e&&(e.innerHTML=D().slice(0,5).map(e=>`
+      <div class="quiz-mini-row">
+        <span class="quiz-mini-icon">؟</span>
+        <div>
+          <strong>${e.title}</strong>
+          <small>${e.chapter} • ${e.dueDate}</small>
+        </div>
+      </div>
+    `).join(``))},ee=()=>{let e=document.querySelector(`.dashboard-layout .container`);if(!e){M(),j();return}if(window.location.pathname.includes(`dashboard-teacher.html`)&&!document.querySelector(`#teacher-quiz-panel`)){let t=Array.from(document.querySelectorAll(`.dashboard-section-title`)).find(e=>e.textContent.includes(`قائمة`)||e.textContent.includes(`أداء`)),n=document.createElement(`section`);n.id=`teacher-quiz-panel`,n.className=`quiz-workspace teacher-quiz-workspace`,n.innerHTML=`
+        <div class="quiz-panel-header">
+          <div>
+            <span class="section-tag">Quizzes</span>
+            <h2>إرسال اختبار جديد للطلاب</h2>
+            <p>تستطيع أ. أسماء إنشاء اختبار سريع، وسيظهر فوراً في لوحة الطالب مع إشعار جديد.</p>
+          </div>
+          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
+        </div>
+        <form id="teacher-quiz-form" class="quiz-form">
+          <div class="form-group">
+            <label for="quiz-title" class="form-label">عنوان الاختبار</label>
+            <input type="text" id="quiz-title" class="form-input" placeholder="مثال: اختبار الدعامة والحركة" required>
+          </div>
+          <div class="form-group">
+            <label for="quiz-chapter" class="form-label">الفصل</label>
+            <select id="quiz-chapter" class="form-input" required>
+              <option value="الدعامة والحركة">الدعامة والحركة</option>
+              <option value="التنسيق الهرموني">التنسيق الهرموني</option>
+              <option value="التكاثر">التكاثر</option>
+              <option value="DNA و RNA">DNA و RNA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="quiz-questions" class="form-label">عدد الأسئلة</label>
+            <input type="number" id="quiz-questions" class="form-input" min="1" max="50" value="10" required>
+          </div>
+          <div class="form-group">
+            <label for="quiz-due-date" class="form-label">موعد التسليم</label>
+            <input type="text" id="quiz-due-date" class="form-input" placeholder="اليوم 9:00 م" required>
+          </div>
+          <div class="form-group quiz-form-wide">
+            <label for="quiz-note" class="form-label">ملاحظة للطلاب</label>
+            <textarea id="quiz-note" class="form-input" placeholder="اكتب تعليمات قصيرة للطلاب..." required></textarea>
+          </div>
+          <div class="quiz-question-builder quiz-form-wide">
+            <div class="quiz-question-builder-head">
+              <div>
+                <h3>أسئلة الامتحان</h3>
+                <p>اختاري نوع السؤال، واكتبي السؤال، ويمكنك إضافة صورة توضيحية.</p>
+              </div>
+              <span class="badge badge-success" id="quiz-draft-count">0 أسئلة</span>
+            </div>
+            <div class="quiz-question-grid">
+              <div class="form-group">
+                <label for="quiz-question-type" class="form-label">نوع السؤال</label>
+                <select id="quiz-question-type" class="form-input">
+                  <option value="mcq">اختيار من متعدد MCQ</option>
+                  <option value="written">سؤال مقالي / Written</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="quiz-question-image" class="form-label">صورة مع السؤال</label>
+                <input type="file" id="quiz-question-image" class="form-input" accept="image/*">
+              </div>
+              <div class="form-group quiz-form-wide">
+                <label for="quiz-question-text" class="form-label">نص السؤال</label>
+                <textarea id="quiz-question-text" class="form-input" placeholder="اكتبي السؤال هنا..."></textarea>
+              </div>
+              <div id="quiz-mcq-options" class="quiz-mcq-options quiz-form-wide">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الأول">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الثاني">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الثالث">
+                <input type="text" class="form-input quiz-option-input" placeholder="الاختيار الرابع">
+              </div>
+              <button type="button" id="btn-add-quiz-question" class="btn btn-secondary quiz-form-wide">إضافة السؤال للامتحان</button>
+            </div>
+            <div id="quiz-draft-questions" class="quiz-question-preview-list"></div>
+          </div>
+          <button type="submit" class="btn btn-primary quiz-form-wide">إرسال الاختبار للطلاب</button>
+        </form>
+        <div class="quiz-created-list" id="teacher-quiz-list"></div>
+      `,t?t.before(n):e.appendChild(n);let r=[],i=n.querySelector(`#quiz-question-type`),a=n.querySelector(`#quiz-question-text`),o=n.querySelector(`#quiz-question-image`),s=n.querySelector(`#quiz-mcq-options`),c=n.querySelector(`#quiz-draft-questions`),l=n.querySelector(`#quiz-draft-count`),u=()=>{a.value=``,o.value=``,n.querySelectorAll(`.quiz-option-input`).forEach(e=>{e.value=``})},d=()=>{l.textContent=`${r.length} أسئلة`,c.innerHTML=r.length?r.map(I).join(``):`<p class="quiz-draft-empty">لم تتم إضافة أسئلة بعد.</p>`};i.addEventListener(`change`,()=>{s.hidden=i.value===`written`}),n.querySelector(`#btn-add-quiz-question`).addEventListener(`click`,async()=>{let e=a.value.trim(),t=i.value,s=Array.from(n.querySelectorAll(`.quiz-option-input`)).map(e=>e.value.trim()).filter(Boolean);if(!e){showToast(`اكتبي نص السؤال أولاً.`,`warning`),a.focus();return}if(t===`mcq`&&s.length<2){showToast(`سؤال MCQ يحتاج اختيارين على الأقل.`,`warning`);return}let c=await P(o.files[0]);r.push({type:t,text:e,options:t===`mcq`?s:[],image:c}),d(),u(),showToast(`تمت إضافة السؤال للامتحان.`,`success`)}),d(),n.querySelector(`#teacher-quiz-form`).addEventListener(`submit`,e=>{e.preventDefault();let t={id:`quiz-${Date.now()}`,title:document.querySelector(`#quiz-title`).value.trim(),chapter:document.querySelector(`#quiz-chapter`).value,dueDate:document.querySelector(`#quiz-due-date`).value.trim(),questions:r.length,questionItems:[...r],note:document.querySelector(`#quiz-note`).value.trim(),createdAt:`تم الإرسال الآن`};if(!t.title||!t.dueDate||!t.note){showToast(`يرجى إكمال بيانات الاختبار قبل الإرسال.`,`warning`);return}if(!r.length){showToast(`أضيفي سؤالاً واحداً على الأقل قبل إرسال الامتحان.`,`warning`);return}let i=D();i.unshift(t),E(w,i),R(),n.querySelector(`#teacher-quiz-form`).reset(),r.length=0,d(),document.querySelector(`#quiz-questions`).value=10,showToast(`تم إرسال الاختبار للطلاب وظهوره في الإشعارات.`,`success`)})}if(window.location.pathname.includes(`dashboard-student.html`)&&!document.querySelector(`#student-quiz-panel`)){let t=Array.from(document.querySelectorAll(`.dashboard-section-title`)).find(e=>e.textContent.includes(`المهام`)||e.textContent.includes(`الواجبات`)),n=document.createElement(`section`);n.id=`student-quiz-panel`,n.className=`quiz-workspace student-quiz-workspace`,n.innerHTML=`
+        <div class="quiz-panel-header">
+          <div>
+            <span class="section-tag">Quizzes</span>
+            <h2>اختبارات مرسلة من المعلمة</h2>
+            <p>أي اختبار جديد ترسله أ. أسماء يظهر هنا مباشرة مع إشعار في الأعلى.</p>
+          </div>
+          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
+        </div>
+        <div id="student-quiz-list" class="student-quiz-list"></div>
+      `,t?.parentElement?t.parentElement.prepend(n):e.appendChild(n)}R(),L(),M(),j()},z=()=>localStorage.getItem(`userRole`)===`student`?`
+    <div class="notification-center">
+      <button class="notification-btn" id="notification-btn" type="button" title="الإشعارات" aria-label="الإشعارات">
+        <span class="notification-symbol">!</span>
+        <span class="notification-count" hidden>0</span>
+      </button>
+      <div class="notification-menu" id="notification-menu">
+        <div class="notification-menu-header">
+          <strong>الإشعارات</strong>
+          <button type="button" id="mark-notifications-read">تمت القراءة</button>
+        </div>
+        <div id="notification-list"></div>
+      </div>
+    </div>
+  `:``,B=()=>{r();let e=localStorage.getItem(`userRole`),t=localStorage.getItem(`username`)||``;document.querySelectorAll(`.student-name-placeholder`).forEach(e=>{e.textContent=t||`طالب زائر`});let n=document.querySelector(`.nav-auth-container`),i=document.querySelector(`.mobile-auth-container`);if(e){let r=`تسجيل الخروج من الحساب (${t})`;n&&(n.innerHTML=`
+          ${z()}
+          <button class="login-icon-btn logged-in" id="auth-action-btn" title="${r}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        `),i&&(i.innerHTML=`
+          ${e===`student`?`<button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>`:``}
+          <button class="btn btn-danger btn-full" id="mobile-logout-btn">تسجيل الخروج (${t})</button>
+        `)}else n&&(n.innerHTML=`
+          ${z()}
+          <button class="login-icon-btn" id="auth-action-btn" title="تسجيل الدخول">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </button>
+        `),i&&(i.innerHTML=`
+          <button class="btn btn-primary btn-full" id="mobile-login-btn">تسجيل الدخول</button>
+        `);let o=document.querySelector(`#auth-action-btn`);o&&o.addEventListener(`click`,te);let c=document.querySelector(`#notification-btn`),l=document.querySelector(`#notification-menu`);c&&l&&c.addEventListener(`click`,async e=>{e.stopPropagation(),await M(),l.classList.toggle(`show`)});let u=document.querySelector(`#mark-notifications-read`);u&&u.addEventListener(`click`,async()=>{try{await _(`${a}/notifications/read-all`,{method:`PATCH`,headers:s()}),await M(),await j()}catch(e){console.error(`[notifications] Failed to mark all read:`,e)}});let d=document.querySelector(`#mobile-notifications-btn`);d&&d.addEventListener(`click`,async()=>{let e=(await A())[0];showToast(e?.message||`لا توجد إشعارات جديدة الآن.`,e?.type===`quiz`?`success`:`warning`)});let f=document.querySelector(`#mobile-logout-btn`);f&&f.addEventListener(`click`,V);let p=document.querySelector(`#mobile-login-btn`);p&&p.addEventListener(`click`,()=>{window.location.href=`login.html`}),M(),j()};document.addEventListener(`click`,e=>{let t=document.querySelector(`.notification-center`),n=document.querySelector(`#notification-menu`);t&&n&&!t.contains(e.target)&&n.classList.remove(`show`)});let te=()=>{localStorage.getItem(`userRole`)?V():window.location.href=`login.html`},V=()=>{confirm(`هل تريد بالتأكيد تسجيل الخروج من الحساب؟`)&&(localStorage.removeItem(`userRole`),localStorage.removeItem(`username`),localStorage.removeItem(`userId`),localStorage.removeItem(`token`),showToast(`تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋`,`success`),B(),setTimeout(()=>{window.location.href=`index.html`},800))};if(B(),ee(),document.querySelectorAll(`.accordion-header`).forEach(e=>{e.addEventListener(`click`,()=>{let t=e.parentElement,n=t.querySelector(`.accordion-body`);t.classList.contains(`active`)?(t.classList.remove(`active`),n.style.maxHeight=null):(t.classList.add(`active`),n.style.maxHeight=n.scrollHeight+`px`)})}),document.querySelectorAll(`.accordion-item.active .accordion-body`).forEach(e=>{e.style.maxHeight=e.scrollHeight+`px`}),window.location.pathname.includes(`lesson-view.html`)){let e=new URLSearchParams(window.location.search),t=e.get(`title`);if(t){let e=decodeURIComponent(t);document.title=`عرض الدرس | ${e} | منصة المرسال`;let n=document.querySelector(`#lesson-breadcrumb-title`);n&&(n.textContent=e);let r=document.querySelector(`#lesson-name-heading`);r&&(r.textContent=e);let i=document.querySelector(`#lesson-video-title`);i&&(i.textContent=`شرح درس: ${e}`)}let n=e.get(`lesson`)||e.get(`id`)||`lesson-1`,r=document.querySelector(`.video-play-btn`),i=document.querySelector(`.video-player-mock`),a=document.querySelector(`#lesson-video-duration`),o=document.querySelector(`#lesson-materials-list`),c=document.querySelector(`#lesson-pdf-viewer`),l=document.querySelector(`#lesson-pdf-viewer-title`),u=document.querySelector(`#lesson-pdf-frame`),d=document.querySelector(`#lesson-pdf-viewer-close`),f=[],p=0,m=e=>{let t=Math.floor(e/60),n=Math.floor(e%60);return`${t}:${String(n).padStart(2,`0`)}`},h=e=>{i&&(i.innerHTML=`<iframe src="${e.playbackUrl}" style="width:100%; height:100%; border:0;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`)},g=()=>{if(!i||f.length<=1)return;let e=document.querySelector(`#lesson-video-chooser`);e||(e=document.createElement(`div`),e.id=`lesson-video-chooser`,e.style.cssText=`display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;`,i.insertAdjacentElement(`afterend`,e)),e.innerHTML=``,f.forEach((t,n)=>{let r=document.createElement(`button`);r.type=`button`,r.className=`btn btn-secondary`,r.style.cssText=`font-size:0.85rem; padding:0.4rem 0.9rem;`+(n===p?` font-weight:700;`:``),r.textContent=t.name||`الجزء ${n+1}`,t.ready||(r.textContent+=` (قيد المعالجة)`),r.addEventListener(`click`,()=>{p=n,g(),i.querySelector(`iframe`)&&(t.ready?(showToast(`جاري تشغيل: ${r.textContent}`,`success`),h(t)):showToast(`هذا الجزء ما زال قيد المعالجة على Bunny.`,`warning`))}),e.appendChild(r)})},v=async(e,t)=>{try{t&&(t.disabled=!0);let n=await _(`/api/materials/${encodeURIComponent(e.id)}/download?mode=inline`,{headers:s()});if(!c||!u){window.open(n.downloadUrl,`_blank`,`noopener`);return}l.textContent=e.title||`ملف PDF`,u.src=n.downloadUrl,c.hidden=!1,c.scrollIntoView({behavior:`smooth`,block:`start`})}catch(e){showToast(e.message,`danger`)}finally{t&&(t.disabled=!1)}};d&&c&&d.addEventListener(`click`,()=>{c&&(c.hidden=!0,u&&(u.src=`about:blank`))});let y=e=>{if(o){if(o.innerHTML=``,!e.length){o.innerHTML=`<p class="text-muted" style="font-size:0.9rem; margin:0;">لا توجد ملفات PDF لهذا الدرس بعد.</p>`;return}e.forEach(e=>{let t=document.createElement(`div`);t.className=`lesson-material-item`;let n=document.createElement(`div`);n.className=`lesson-material-title`,n.textContent=e.title||`ملف PDF`;let r=document.createElement(`div`);r.className=`lesson-material-actions`;let i=document.createElement(`button`);i.className=`btn btn-secondary lesson-material-download`,i.type=`button`,i.textContent=`عرض`,i.addEventListener(`click`,()=>v(e,i));let a=document.createElement(`button`);a.className=`btn btn-secondary lesson-material-download`,a.type=`button`,a.textContent=`تحميل`,a.addEventListener(`click`,async()=>{try{a.disabled=!0,a.textContent=`جاري...`;let t=await _(`/api/materials/${encodeURIComponent(e.id)}/download`,{headers:s()});window.open(t.downloadUrl,`_blank`,`noopener`)}catch(e){showToast(e.message,`danger`)}finally{a.disabled=!1,a.textContent=`تحميل`}}),r.append(i,a),t.append(n,r),o.appendChild(t)})}},b=(e,t)=>{try{let n=sessionStorage.getItem(`lessonCache:${e}:${t}`);if(!n)return null;let r=JSON.parse(n);return!r||typeof r.fetchedAt!=`number`?null:{data:r.data,fresh:Date.now()-r.fetchedAt<42e4}}catch{return null}},x=(e,t,n)=>{try{sessionStorage.setItem(`lessonCache:${e}:${t}`,JSON.stringify({data:n,fetchedAt:Date.now()}))}catch{}},S=b(`materials`,n);S&&S.fresh?(y(S.data||[]),_(`/api/lessons/${n}/materials`,{headers:s()}).then(e=>{let t=e.materials||[];x(`materials`,n,t),JSON.stringify(t)!==JSON.stringify(S.data)&&y(t)}).catch(()=>{})):_(`/api/lessons/${n}/materials`,{headers:s()}).then(e=>{let t=e.materials||[];x(`materials`,n,t),y(t)}).catch(e=>{let t=document.querySelector(`#lesson-materials-list`);t&&(t.innerHTML=`<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>`),console.warn(`[materials] list failed:`,e)});let C=e=>{if(f=e.videos||[],!f.length){a&&(a.textContent=`لا يوجد فيديو مرفوع لهذا الدرس بعد`);return}let t=f.find(e=>e.ready);a&&(t?t.lengthSeconds&&(a.textContent=`⏱ ${m(t.lengthSeconds)}`):a.textContent=`⏳ جاري معالجة الفيديو...`);let n=f.findIndex(e=>e.ready);p=n>=0?n:0,g()},w=b(`videos`,n);w&&w.fresh?(C(w.data),_(`/api/lessons/${n}/videos`,{headers:s()}).then(e=>{let t=e.videos||[];x(`videos`,n,t),JSON.stringify(t)!==JSON.stringify(w.data)&&C(e)}).catch(()=>{})):_(`/api/lessons/${n}/videos`,{headers:s()}).then(e=>{x(`videos`,n,e.videos||[]),C(e)}).catch(()=>{}),r&&i&&r.addEventListener(`click`,async()=>{if(!f.length){showToast(`لا يوجد فيديو مرفوع لهذا الدرس بعد.`,`warning`);return}let e=f[p];if(!e.ready){showToast(`الفيديو ما زال قيد المعالجة على Bunny، حاولي بعد قليل.`,`warning`);return}r.disabled=!0,showToast(`جاري تشغيل الفيديو...`,`success`),h(e)});let T=document.querySelector(`#teacher-notes-container`),E=localStorage.getItem(`userRole`)===`teacher`,D=e=>{if(T){if(T.innerHTML=``,E){let e=document.createElement(`div`);e.className=`teacher-note-add-box`,e.innerHTML=`
+          <textarea id="new-note-input" class="form-input" rows="3" placeholder="أضيفي ملاحظة جديدة للطلاب..." style="width: 100%; margin-bottom: 0.75rem;"></textarea>
+          <button id="btn-add-note" class="btn btn-primary" style="min-width: 120px;">إضافة ملاحظة</button>
+        `,T.appendChild(e),e.querySelector(`#btn-add-note`).addEventListener(`click`,async()=>{let t=e.querySelector(`#new-note-input`),r=t.value.trim();if(!r){showToast(`اكتب الملاحظة أولاً.`,`warning`);return}try{await _(`/api/lessons/${n}/notes`,{method:`POST`,headers:{...s(),"Content-Type":`application/json`},body:JSON.stringify({content:r})}),t.value=``,showToast(`تم إضافة الملاحظة بنجاح.`,`success`),O()}catch(e){showToast(e.message,`danger`)}})}if(!e.length&&!E){T.innerHTML=`<p class="text-muted" style="font-size: 0.9rem;">لا توجد ملاحظات من المعلمة لهذا الدرس بعد.</p>`;return}e.forEach(e=>{let t=document.createElement(`div`);if(t.className=`teacher-note-card`,t.innerHTML=`
+          <div class="teacher-note-content">${e.content}</div>
+          <div class="teacher-note-meta">${new Date(e.createdAt).toLocaleDateString(`ar-EG`)}</div>
+        `,E){let n=document.createElement(`div`);n.className=`teacher-note-actions`,n.innerHTML=`
+            <button class="btn btn-secondary btn-sm note-edit-btn">تعديل</button>
+            <button class="btn btn-secondary btn-sm note-delete-btn" style="color: var(--color-danger);">حذف</button>
+          `,n.querySelector(`.note-edit-btn`).addEventListener(`click`,()=>{let r=t.querySelector(`.teacher-note-content`);r.innerHTML=`<textarea class="form-input note-edit-textarea" rows="2" style="width:100%; margin-bottom:0.5rem;">${r.textContent}</textarea>
+              <button class="btn btn-primary btn-sm note-save-btn">حفظ</button>
+              <button class="btn btn-secondary btn-sm note-cancel-btn">إلغاء</button>`,n.remove(),r.querySelector(`.note-save-btn`).addEventListener(`click`,async()=>{let t=r.querySelector(`.note-edit-textarea`).value.trim();if(t)try{await _(`/api/notes/${e.id}`,{method:`PATCH`,headers:{...s(),"Content-Type":`application/json`},body:JSON.stringify({content:t})}),showToast(`تم تحديث الملاحظة.`,`success`),O()}catch(e){showToast(e.message,`danger`)}}),r.querySelector(`.note-cancel-btn`).addEventListener(`click`,()=>O())}),n.querySelector(`.note-delete-btn`).addEventListener(`click`,async()=>{if(confirm(`هل أنت متأكد من حذف هذه الملاحظة؟`))try{await _(`/api/notes/${e.id}`,{method:`DELETE`,headers:s()}),showToast(`تم حذف الملاحظة.`,`success`),O()}catch(e){showToast(e.message,`danger`)}}),t.appendChild(n)}T.appendChild(t)})}},O=async()=>{try{let e=await _(`/api/lessons/${n}/notes`,{headers:s()});D(e.notes||[])}catch{T&&(T.innerHTML=`<p class="text-muted" style="font-size: 0.9rem;">تعذر تحميل الملاحظات.</p>`)}};O();let k=document.querySelector(`#lesson-exams-container`),A=!1,j=e=>e===`upcoming`?`قادم`:e===`active`?`نشط`:`منتهي`,M=(e,t)=>{if(k){if(k.innerHTML=``,!e.length){k.innerHTML=`<p class="text-muted" style="font-size: 0.9rem;">لا توجد امتحانات متاحة لهذا الدرس حاليًا.</p>`;return}e.forEach(e=>{let n=t[e.id]||{},r=document.createElement(`div`);r.className=`lesson-exam-card`;let i=document.createElement(`div`);i.style.cssText=`display:flex; align-items:center; justify-content:space-between; gap:0.6rem;`;let a=document.createElement(`span`);a.className=`lesson-exam-title`,a.textContent=e.title;let o=document.createElement(`span`);o.className=`lesson-exam-status status-${e.status}`,o.textContent=j(e.status),i.append(a,o);let s=document.createElement(`div`);s.className=`lesson-exam-meta`,s.innerHTML=`<span>${e.questionCount} سؤال</span><span>${e.durationMinutes} دقيقة</span>`,e.isMixed&&(s.innerHTML+=`<span>اختبار مجمع</span>`);let c=document.createElement(`div`);if(c.className=`lesson-exam-foot`,n.status===`submitted`&&n.latestSubmitted){let e=document.createElement(`span`);e.className=`lesson-exam-score`,e.textContent=`${n.latestSubmitted.score}/${n.latestSubmitted.totalMcq}`,c.appendChild(e)}if(e.status===`active`){if(n.status===`not_started`||n.status===`in_progress`||n.status===`submitted`&&n.remainingAttempts>0){let t=document.createElement(`button`);t.type=`button`,t.className=`btn btn-primary btn-take`,t.dataset.id=e.id,t.style.cssText=`font-size:0.85rem; padding:0.4rem 1rem;`,t.textContent=n.status===`in_progress`?`استئناف الاختبار`:`بدء الاختبار`,c.appendChild(t)}else if(n.status===`submitted`&&n.remainingAttempts===0){let t=document.createElement(`button`);t.type=`button`,t.className=`btn btn-secondary btn-result`,t.dataset.id=e.id,t.style.cssText=`font-size:0.85rem; padding:0.4rem 1rem;`,t.textContent=`عرض النتيجة`,c.appendChild(t)}}else if(e.status===`ended`&&n.status===`submitted`&&n.latestSubmitted){let t=document.createElement(`button`);t.type=`button`,t.className=`btn btn-secondary btn-result`,t.dataset.id=e.id,t.style.cssText=`font-size:0.85rem; padding:0.4rem 1rem;`,t.textContent=`عرض النتيجة`,c.appendChild(t)}r.append(i,s,c),k.appendChild(r)})}};window.refreshLessonExams=async()=>{try{let e=await _(`/api/quizzes/for-lesson/${n}`,{headers:s()});M(e.exams||[],e.attempts||{})}catch(e){console.error(`[lesson exams] refresh failed:`,e)}};let N=async()=>{A||(A=!0,await window.refreshLessonExams())};document.querySelectorAll(`.tab-btn`).forEach(e=>{e.addEventListener(`click`,()=>{e.getAttribute(`data-tab`)===`tab-exams`&&N()})})}let H=document.querySelector(`#upload-chapter`),U=document.querySelector(`#upload-lesson`),W=document.querySelector(`#upload-pdf-chapter`),G=document.querySelector(`#upload-pdf-lesson`),K=(e,t)=>{if(!e||!t||!window.CURRICULUM)return;let n=e=>{let n=window.CURRICULUM.biology[e];t.innerHTML=``,n.lessons.forEach(e=>{let r=document.createElement(`option`);r.value=e.id,r.textContent=`${n.name.split(`:`)[0]} — ${e.name} (${e.id})`,t.appendChild(r)})};window.CURRICULUM.biology.forEach((t,n)=>{let r=document.createElement(`option`);r.value=String(n),r.textContent=t.name,e.appendChild(r)}),e.addEventListener(`change`,()=>n(Number(e.value))),n(0)};H&&U&&K(H,U),W&&G&&K(W,G);let q=document.querySelector(`#btn-upload-video`),J=document.querySelector(`#btn-upload-material`),ne=async e=>{let t=document.querySelector(`#upload-pdf-title`),n=document.querySelector(`#upload-pdf-file`),r=document.querySelector(`#upload-pdf-lesson`),i=r?r.value:``,a=n?.files[0];if(!i)return showToast(`اختاري الفصل والدرس أولاً.`,`warning`),null;if(!a)return showToast(`من فضلك اختاري ملف PDF أولاً`,`warning`),null;if(a.type!==`application/pdf`&&!/\.pdf$/i.test(a.name))return showToast(`ملفات PDF فقط مسموح بها.`,`warning`),null;if((localStorage.getItem(`userRole`)||`student`)!==`teacher`)return showToast(`رفع ملفات PDF متاح لحساب المعلمة فقط.`,`danger`),null;let o=(t?.value||a.name).trim(),c=await _(`/api/lessons/${encodeURIComponent(i)}/materials/upload-url`,{method:`POST`,headers:{"Content-Type":`application/json`,...s()},body:JSON.stringify({fileName:a.name})}),l;if(u){let e=await g({id:typeof crypto<`u`&&crypto.randomUUID?crypto.randomUUID():`job-${Date.now()}-${Math.random().toString(36).slice(2)}`,kind:`pdf`,url:c.signedUrl,method:`PUT`,headers:{"Content-Type":`application/pdf`},blob:a,finalize:{url:`/api/materials/finalize`,method:`POST`,headers:{"Content-Type":`application/json`,...s()},body:JSON.stringify({lessonId:i,filePath:c.filePath,title:o})},meta:{lessonId:i,label:`PDF: ${o}`},status:`queued`});if(!e.ok)throw Error(e.error||`فشل رفع ملف PDF.`);l={}}else await new Promise((t,n)=>{let r=new XMLHttpRequest;r.open(`PUT`,c.signedUrl),r.setRequestHeader(`Content-Type`,`application/pdf`),typeof e==`function`&&r.upload.addEventListener(`progress`,t=>{t.lengthComputable&&e(Math.round(t.loaded/t.total*100),null)}),r.addEventListener(`load`,()=>{r.status>=200&&r.status<300?t():n(Error(`فشل رفع الملف (${r.status}).`))}),r.addEventListener(`error`,()=>n(Error(`انقطع الاتصال أثناء رفع ملف PDF.`))),r.send(a)}),typeof e==`function`&&e(100,`جاري تحسين الملف على السيرفر...`),l=await _(`/api/materials/finalize`,{method:`POST`,headers:{"Content-Type":`application/json`,...s()},body:JSON.stringify({lessonId:i,filePath:c.filePath,title:o})});try{sessionStorage.removeItem(`lessonCache:materials:${i}`)}catch{}return n.value=``,showToast(`تم رفع ملف PDF للدرس بنجاح.`,`success`),l};J&&J.addEventListener(`click`,async()=>{if(!document.querySelector(`#upload-pdf-file`)?.files[0]){showToast(`من فضلك اختاري ملف PDF أولاً`,`warning`);return}let e=document.querySelector(`#upload-pdf-title`);if(!e||!e.value.trim()){showToast(`اكتبي اسم ملف PDF.`,`warning`),e&&e.focus();return}let t=document.querySelector(`#upload-pdf-progress-area`),n=document.querySelector(`#upload-pdf-progress-bar`),r=document.querySelector(`#upload-pdf-status-text`);try{J.disabled=!0,c.show(`جاري رفع ملف PDF`),t&&n&&r&&(t.style.display=`block`,n.style.width=`0%`,r.textContent=`جاري تجهيز الملف...`),await ne((e,t)=>{n&&r&&(n.style.width=e+`%`,r.textContent=t||`جاري رفع ملف الـ PDF... ${e}%`),c.update(e,t||`جاري رفع ملف الـ PDF... ${e}%`)})&&(n&&r&&(n.style.width=`100%`,r.textContent=`تم رفع ملف PDF للدرس بنجاح ✔`),c.done(`تم رفع ملف PDF للدرس بنجاح ✔`),e&&(e.value=``))}catch(e){showToast(e.message,`danger`),r&&(r.textContent=`فشل رفع ملف PDF.`),c.fail(`فشل رفع ملف PDF.`)}finally{J.disabled=!1}}),q&&q.addEventListener(`click`,async()=>{let e=document.querySelector(`#upload-title`),t=document.querySelector(`#upload-attachment`),n=document.querySelector(`#upload-description`),r=document.querySelector(`#upload-file`),i=document.querySelector(`#upload-progress-area`),a=document.querySelector(`#upload-progress-bar`),o=document.querySelector(`#upload-status-text`),l=U?U.value:``,d=(e?.value||``).trim(),f=(t?.value||``).trim(),p=(n?.value||``).trim(),m=r?.files[0];if(!l){showToast(`اختاري الفصل والدرس أولاً.`,`warning`);return}if(!d){showToast(`اكتبي اسم الفيديو.`,`warning`),e.focus();return}if(!m){showToast(`من فضلك اختاري ملف الفيديو أولاً`,`warning`);return}if((localStorage.getItem(`userRole`)||`student`)!==`teacher`){showToast(`رفع الفيديوهات متاح لحساب المعلمة فقط.`,`danger`);return}try{q.disabled=!0,i.style.display=`block`,a.style.width=`0%`,o.textContent=`جاري تجهيز الفيديو على سيرفر البث...`,c.show(`جاري رفع الفيديو`),c.update(0,`جاري تجهيز الفيديو على سيرفر البث...`);let e=await _(`/api/lessons/${l}/video`,{method:`POST`,headers:{"Content-Type":`application/json`,...s()},body:JSON.stringify({title:d,attachmentUrl:f,description:p})});if(u){let t=await g({id:typeof crypto<`u`&&crypto.randomUUID?crypto.randomUUID():`job-${Date.now()}-${Math.random().toString(36).slice(2)}`,kind:`video`,url:e.uploadUrl,method:`PUT`,headers:{AccessKey:e.accessKey},blob:m,meta:{lessonId:l,label:`فيديو: ${d}`},status:`queued`});if(!t.ok){let e=String(t.error||``);throw/failed to fetch|networkerror|load failed/i.test(e)?Error(`انقطع الاتصال أثناء رفع الفيديو. تأكدي من الشبكة وحاولي مرة أخرى.`):Error(t.error||`فشل رفع الملف.`)}}else await new Promise((t,n)=>{let r=new XMLHttpRequest;r.open(`PUT`,e.uploadUrl),r.setRequestHeader(`AccessKey`,e.accessKey),r.upload.addEventListener(`progress`,e=>{if(e.lengthComputable){let t=Math.round(e.loaded/e.total*100);a.style.width=t+`%`,o.textContent=`جاري رفع الملف... ${t}%`,c.update(t,`جاري رفع الملف... ${t}%`)}}),r.addEventListener(`load`,()=>r.status>=200&&r.status<300?t():n(Error(`فشل رفع الملف (${r.status}).`))),r.addEventListener(`error`,()=>n(Error(`انقطع الاتصال أثناء الرفع.`))),r.send(m)});o.textContent=`تم الرفع! جاري معالجة الفيديو على Bunny...`;let t=0,n=setInterval(async()=>{try{let e=await _(`/api/lessons/${l}/video-status`,{headers:s()});t=0,a.style.width=Math.max(e.encodeProgress||0,5)+`%`,c.update(Math.max(e.encodeProgress||0,5),`جاري معالجة الفيديو على Bunny...`),e.ready?(clearInterval(n),a.style.width=`100%`,o.textContent=`الفيديو جاهز ✅ — تم الرفع بنجاح`,showToast(`تم رفع الفيديو بنجاح! الطلاب يستطيعون مشاهدته الآن.`,`success`),c.done(`الفيديو جاهز ✅`),q.disabled=!1):[5,6].includes(e.status)&&(clearInterval(n),o.textContent=`فشلت معالجة الفيديو على Bunny.`,showToast(`فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.`,`danger`),c.fail(`فشلت معالجة الفيديو.`),q.disabled=!1)}catch{t+=1,t>=6?(clearInterval(n),o.textContent=`انقطعت المراقبة أثناء معالجة الفيديو، لكن الملف مرفوع. حدّثي صفحة الدرس بعد قليل للتحقق.`,showToast(`فقدنا الاتصال بمراقبة المعالجة. الملف مرفوع على Bunny وسيظهر في الدرس عند جهوزه.`,`warning`),c.fail(`انقطعت مراقبة المعالجة.`),q.disabled=!1):o.textContent=`تعذر التحقق مؤقتاً — سنعيد المحاولة (${t}/6)...`}},5e3)}catch(e){showToast(e.message,`danger`),i.style.display=`none`,c.fail(e.message),q.disabled=!1}});let re=document.querySelectorAll(`.chatbot-form`),ie={ai:`هذا رد تجريبي من مساعد المنهج. لاحقاً يمكن ربط هذا المكان بنموذج AI مع RAG على محتوى الدروس والملخصات.`,teacher:`تم حفظ رسالتك داخل الواجهة فقط. لاحقاً يمكن ربط هذه المحادثة برسائل المعلمة أو لوحة تحكم خاصة بها.`},Y=(e,t,n,r)=>{let i=document.createElement(`div`);i.className=`chat-message ${r}`;let a=document.createElement(`span`);a.className=`chat-message-name`,a.textContent=t;let o=document.createElement(`p`);o.textContent=n,i.append(a,o),e.appendChild(i),e.scrollTop=e.scrollHeight};re.forEach(e=>{e.addEventListener(`submit`,t=>{t.preventDefault();let n=e.dataset.chatbotForm,r=e.querySelector(`input[name="message"]`),i=r.value.trim(),a=document.querySelector(`[data-chatbot-messages="${n}"]`);!i||!a||(Y(a,`أنت`,i,`user-message`),r.value=``,setTimeout(()=>{Y(a,n===`teacher`?`المعلمة`:`مساعد المنهج`,ie[n],n===`teacher`?`bot-message teacher-message`:`bot-message`)},450))})});let X=document.querySelector(`#manage-chapter`),Z=document.querySelector(`#manage-lesson`);if(X&&Z&&window.CURRICULUM){let e=e=>{let t=window.CURRICULUM.biology[e];Z.innerHTML=``,t.lessons.forEach(e=>{let t=document.createElement(`option`);t.value=e.id,t.textContent=`${e.name} (${e.id})`,Z.appendChild(t)});let n=document.querySelector(`#edit-move-lesson`);n&&(n.innerHTML=`<option value="">— إبقاء الدرس الحالي —</option>`,window.CURRICULUM.biology.forEach(e=>{e.lessons.forEach(t=>{let r=document.createElement(`option`);r.value=t.id,r.textContent=`${e.name.split(`:`)[0]} — ${t.name}`,n.appendChild(r)})}))};window.CURRICULUM.biology.forEach((e,t)=>{let n=document.createElement(`option`);n.value=String(t),n.textContent=e.name,X.appendChild(n)}),X.addEventListener(`change`,()=>e(Number(X.value))),e(0);let t=document.querySelector(`#video-edit-form`),n=document.querySelector(`#manage-videos-list`),r=[],i=()=>{if(n.innerHTML=``,!r.length){n.innerHTML=`<p class="text-muted" style="margin:0;">لا توجد فيديوهات مرفوعة لهذا الدرس بعد.</p>`;return}r.forEach((e,r)=>{let i=document.createElement(`div`);i.style.cssText=`display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;`;let o=document.createElement(`div`);o.style.cssText=`flex:1; min-width:200px;`,o.innerHTML=`<div style="font-weight:700;">${r+1}. ${e.name||`(بدون اسم)`}</div><div class="text-muted" style="font-size:0.8rem;">${e.ready?`⏱ ${Math.max(1,Math.round(e.lengthSeconds/60))} دقيقة`:`⏳ قيد المعالجة`}${e.description?` • ${e.description.slice(0,60)}`:``}</div>`;let c=document.createElement(`div`);c.style.cssText=`display:flex; gap:0.5rem;`,c.innerHTML=`<button class="btn btn-light js-edit-video" style="font-size:0.8rem;">✏️ تعديل</button><button class="btn btn-light js-delete-video" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>`,i.append(o,c),i.querySelector(`.js-edit-video`).addEventListener(`click`,()=>{document.querySelector(`#edit-video-id`).value=e.videoId,document.querySelector(`#edit-name`).value=e.name||``,document.querySelector(`#edit-attachment`).value=e.attachmentUrl||``,document.querySelector(`#edit-description`).value=e.description||``,document.querySelector(`#edit-move-lesson`).value=``,t.style.display=`block`,t.scrollIntoView({behavior:`smooth`,block:`center`})}),i.querySelector(`.js-delete-video`).addEventListener(`click`,async()=>{if(confirm(`حذف الفيديو "${e.name||r+1}" نهائياً من Bunny؟ لا يمكن التراجع.`))try{await _(`/api/videos/${e.videoId}`,{method:`DELETE`,headers:s()}),showToast(`تم حذف الفيديو بنجاح.`,`success`),a()}catch(e){showToast(e.message,`danger`)}}),n.appendChild(i)})},a=async()=>{let e=Z.value;try{n.innerHTML=`<p class="text-muted" style="margin:0;">جاري التحميل...</p>`,r=(await _(`/api/lessons/${e}/videos`,{headers:s()})).videos||[],i()}catch(e){r=[],n.innerHTML=``,showToast(e.message,`danger`)}};document.querySelector(`#btn-load-videos`).addEventListener(`click`,a),document.querySelector(`#btn-cancel-edit`).addEventListener(`click`,()=>{t.style.display=`none`}),document.querySelector(`#btn-save-edit`).addEventListener(`click`,async()=>{let e=document.querySelector(`#edit-video-id`).value,n={name:document.querySelector(`#edit-name`).value,attachmentUrl:document.querySelector(`#edit-attachment`).value,description:document.querySelector(`#edit-description`).value},r=document.querySelector(`#edit-move-lesson`).value;r&&(n.lessonId=r);try{await _(`/api/videos/${e}`,{method:`PATCH`,headers:{"Content-Type":`application/json`,...s()},body:JSON.stringify(n)}),showToast(`تم حفظ التعديلات بنجاح.`,`success`),t.style.display=`none`,a()}catch(e){showToast(e.message,`danger`)}})}let Q=document.querySelector(`#materials-manage-chapter`),$=document.querySelector(`#materials-manage-lesson`);if(Q&&$&&window.CURRICULUM){let e=e=>{let t=window.CURRICULUM.biology[e];$.innerHTML=``,t.lessons.forEach(e=>{let t=document.createElement(`option`);t.value=e.id,t.textContent=`${e.name} (${e.id})`,$.appendChild(t)})};window.CURRICULUM.biology.forEach((e,t)=>{let n=document.createElement(`option`);n.value=String(t),n.textContent=e.name,Q.appendChild(n)}),Q.addEventListener(`change`,()=>e(Number(Q.value))),e(0);let t=document.querySelector(`#material-edit-form`),n=document.querySelector(`#manage-materials-list`),r=[],i=e=>e?e<1048576?`${Math.max(1,Math.round(e/1024))} KB`:`${(e/1048576).toFixed(1)} MB`:``,a=e=>{if(!e)return``;try{return new Date(e).toLocaleDateString(`ar-EG`)}catch{return``}},o=()=>{if(n.innerHTML=``,!r.length){n.innerHTML=`<p class="text-muted" style="margin:0;">لا توجد ملفات PDF مرفوعة لهذا الدرس بعد.</p>`;return}r.forEach((e,r)=>{let o=document.createElement(`div`);o.style.cssText=`display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;`;let l=document.createElement(`div`);l.style.cssText=`flex:1; min-width:200px;`;let u=[a(e.createdAt),i(e.sizeBytes)].filter(Boolean).join(` • `);l.innerHTML=`<div style="font-weight:700;">${r+1}. ${e.title||`(بدون اسم)`}</div><div class="text-muted" style="font-size:0.8rem;">📄 PDF${u?` • ${u}`:``}</div>`;let d=document.createElement(`div`);d.style.cssText=`display:flex; gap:0.5rem;`,d.innerHTML=`<button class="btn btn-light js-edit-material" style="font-size:0.8rem;">✏️ تعديل</button><button class="btn btn-light js-delete-material" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>`,o.append(l,d),o.querySelector(`.js-edit-material`).addEventListener(`click`,()=>{document.querySelector(`#edit-material-id`).value=e.id,document.querySelector(`#edit-material-title`).value=e.title||``,t.style.display=`block`,t.scrollIntoView({behavior:`smooth`,block:`center`})}),o.querySelector(`.js-delete-material`).addEventListener(`click`,async()=>{if(confirm(`حذف هذه المادة "${e.title||r+1}" نهائياً؟ لا يمكن التراجع.`))try{await _(`/api/materials/${encodeURIComponent(e.id)}`,{method:`DELETE`,headers:s()}),showToast(`تم حذف المادة بنجاح.`,`success`),c()}catch(e){showToast(e.message,`danger`)}}),n.appendChild(o)})},c=async()=>{let e=$.value;if(e)try{n.innerHTML=`<p class="text-muted" style="margin:0;">جاري التحميل...</p>`,r=(await _(`/api/lessons/${e}/materials/manage`,{headers:s()})).materials||[],o()}catch(e){r=[],n.innerHTML=``,showToast(e.message,`danger`)}};document.querySelector(`#btn-load-materials`).addEventListener(`click`,c),document.querySelector(`#btn-cancel-material-edit`).addEventListener(`click`,()=>{t.style.display=`none`}),document.querySelector(`#btn-save-material-edit`).addEventListener(`click`,async()=>{let e=document.querySelector(`#edit-material-id`).value,n=document.querySelector(`#edit-material-title`).value;if(!n.trim()){showToast(`اكتبي اسم المادة أولاً.`,`warning`);return}try{await _(`/api/materials/${encodeURIComponent(e)}`,{method:`PATCH`,headers:{"Content-Type":`application/json`,...s()},body:JSON.stringify({title:n})}),showToast(`تم حفظ التعديلات بنجاح.`,`success`),t.style.display=`none`,c()}catch(e){showToast(e.message,`danger`)}})}});

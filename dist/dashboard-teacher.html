@@ -24,11 +24,11 @@
     content="لوحة التحكم الخاصة بمعلم المادة لمتابعة درجات طلاب الثانوية العامة ونسب حضورهم وتسليماتهم.">
   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-BiZckyoG.ico?v=2">
   <link rel="icon" type="image/png" href="/assets/favicon-NYif2_Ic.png?v=2">
-  <script type="module" crossorigin src="/assets/dashboard-teacher-CkSNUjfM.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/main-Bn6Ugix6.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-DYPYX17p.css">
+  <script type="module" crossorigin src="/assets/dashboard-teacher-7tzSgU2k.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/main-Dn2BiOlY.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-DMPWXTyj.css">
   <link rel="stylesheet" crossorigin href="/assets/dashboard-teacher-CveviJq_.css">
-  <link rel="stylesheet" crossorigin href="/assets/exams-CCkCpy1Y.css">
+  <link rel="stylesheet" crossorigin href="/assets/exams-Ju_KiyXx.css">
 </head>
 
 <body>
@@ -67,7 +67,7 @@
           </div>
           <div>
             <div class="stat-value">88%</div>
-            <div class="stat-label">نسبة تسليم الواجبات</div>
+            <div class="stat-label">نسبة حضور الطلاب</div>
           </div>
         </div>
         <!-- Card 3 -->
@@ -82,8 +82,8 @@
         <div class="stat-card">
           <div class="stat-icon" style="background-color: rgba(239, 68, 68, 0.08); color: var(--color-danger);">⏳</div>
           <div>
-            <div class="stat-value">12</div>
-            <div class="stat-label">واجبات معلقة للتصحيح</div>
+            <div class="stat-value">3</div>
+            <div class="stat-label">اختبارات نشطة</div>
           </div>
         </div>
       </div>
@@ -109,7 +109,7 @@
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
           <div style="flex:2; min-width:220px;">
-            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط ملف إضافي PDF / وسائط (اختياري)</label>
+            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط وسائط إضافي (اختياري)</label>
             <input id="upload-attachment" type="url" placeholder="https://drive.google.com/..."
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;" dir="ltr">
           </div>
@@ -118,28 +118,61 @@
             <input id="upload-file" type="file" accept="video/*"
               style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
-          <div style="flex:2; min-width:220px;">
-            <label for="upload-pdf-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف PDF للدرس (اختياري)</label>
-            <input id="upload-pdf-file" type="file" accept="application/pdf,.pdf"
-              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
-          </div>
         </div>
 
         <div style="margin-top:1rem;">
-          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس (اختياري)</label>
+          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الفيديو (اختياري)</label>
           <textarea id="upload-description" rows="3" placeholder="ملخص محتوى الشرح، المصادر، تعليمات للطلاب..."
             style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
         </div>
 
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
-          <button id="btn-upload-video" class="btn btn-primary" style="min-width:160px;">â¬† رفع الفيديو</button>
-          <button id="btn-upload-material" class="btn btn-secondary" style="min-width:170px;">رفع PDF فقط</button>
+          <button id="btn-upload-video" class="btn btn-primary" style="min-width:160px;">رفع الفيديو</button>
         </div>
 
         <div id="upload-progress-area" style="display:none; margin-top:1.25rem;">
           <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-status-text">جاري الرفع...</div>
           <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
             <div id="upload-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PDF Materials Upload Section -->
+      <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">رفع ملفات PDF للدرس 📄</h2>
+      <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-pdf-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="upload-pdf-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="upload-pdf-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="upload-pdf-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-top:1rem;">
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-pdf-title" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">اسم ملف PDF *</label>
+            <input id="upload-pdf-title" type="text" placeholder="ملخص الدعامة في النبات"
+              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label for="upload-pdf-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف PDF للدرس *</label>
+            <input id="upload-pdf-file" type="file" accept="application/pdf,.pdf"
+              style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
+          <button id="btn-upload-material" class="btn btn-secondary" style="min-width:170px;">رفع PDF</button>
+        </div>
+
+        <div id="upload-pdf-progress-area" style="display:none; margin-top:1.25rem;">
+          <div style="font-size:0.9rem; margin-bottom:0.5rem;" id="upload-pdf-status-text">جاري الرفع...</div>
+          <div style="background-color:var(--color-bg); border-radius:999px; height:10px; overflow:hidden;">
+            <div id="upload-pdf-progress-bar" style="height:100%; width:0%; background-color:var(--color-accent); transition:width 0.3s ease;"></div>
           </div>
         </div>
       </div>
@@ -325,9 +358,24 @@
           <label style="font-weight:700;">عنوان الاختبار
             <input id="builder-quiz-title" type="text" class="form-input" placeholder="مثال: اختبار الدرس الأول" style="width:100%; margin-top:.3rem;">
           </label>
-          <label style="font-weight:700;">الدرس
+          <div>
+            <label style="font-weight:700;">نوع الاختبار</label>
+            <div style="display:flex; gap:.75rem; margin-top:.4rem;">
+              <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer; font-weight:600;">
+                <input type="radio" name="quiz-type" value="single" checked> درس واحد
+              </label>
+              <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer; font-weight:600;">
+                <input type="radio" name="quiz-type" value="mixed"> اختبار مجمع
+              </label>
+            </div>
+          </div>
+          <label id="single-lesson-label" style="font-weight:700;">الدرس
             <select id="quiz-lesson" class="form-input" style="width:100%; margin-top:.3rem;"></select>
           </label>
+          <div id="mixed-lessons-label" style="display:none;">
+            <label style="font-weight:700;">الدروس المشمولة (اختر درسين على الأقل)</label>
+            <div id="quiz-lessons-checkboxes" style="margin-top:.4rem; max-height:180px; overflow-y:auto; border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:.5rem;"></div>
+          </div>
           <label style="font-weight:700;">وقت البداية 📅
             <input id="quiz-start" type="text" placeholder="اختاري من التقويم…" style="width:100%; margin-top:.3rem;" autocomplete="off">
           </label>
@@ -391,10 +439,34 @@
       <!-- Quiz Management Section -->
       <section id="quiz-management-panel" class="card" style="margin-top:2.5rem; padding:1.5rem; border-radius:14px; box-shadow:var(--shadow-sm,0 2px 8px rgba(0,0,0,.06));">
         <h2 style="margin-bottom:1rem;">📋 إدارة الاختبارات</h2>
+
+        <!-- Filter mode selector -->
+        <div id="quiz-filter-mode" style="display:flex; gap:.75rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm quiz-filter-btn active" data-mode="by-lesson">حسب الدرس</button>
+          <button class="btn btn-secondary btn-sm quiz-filter-btn" data-mode="mixed">اختبارات مجمعة</button>
+        </div>
+
+        <!-- By-lesson selectors (matching PDF/video management pattern) -->
+        <div id="quiz-by-lesson-controls" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-bottom:1.25rem;">
+          <div style="flex:1; min-width:220px;">
+            <label for="quiz-mgmt-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
+            <select id="quiz-mgmt-chapter" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="quiz-mgmt-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الدرس</label>
+            <select id="quiz-mgmt-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"></select>
+          </div>
+          <button id="btn-load-mgmt-quizzes" class="btn btn-secondary" style="min-width:130px;">📋 عرض الاختبارات</button>
+        </div>
+
+        <!-- Mixed quizzes info -->
+        <div id="quiz-mixed-info" style="display:none; margin-bottom:1.25rem; padding:0.5rem 0.75rem; background:rgba(16,185,129,0.06); border-radius:var(--radius-sm); font-size:0.9rem; color:var(--color-primary);">
+          عرض جميع الاختبارات المجمعة بغض النظر عن الدرس.
+        </div>
         
         <!-- Quiz List View -->
         <div id="quiz-management-list" style="display:block;">
-          <p class="muted">جاري تحميل الاختبارات...</p>
+          <p class="muted">اختر طريقة العرض أعلاه.</p>
         </div>
         
         <!-- Quiz Details View -->
@@ -419,7 +491,6 @@
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
             <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
-            <li><a href="assignments.html" class="footer-link">بنك الأسئلة والواجبات</a></li>
           </ul>
         </div>
         <div>

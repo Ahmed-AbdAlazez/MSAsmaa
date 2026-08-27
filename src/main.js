@@ -118,6 +118,219 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3000);
   };
 
+  const ensureModalStyles = () => {
+    if (document.getElementById("custom-modal-styles")) return;
+    const style = document.createElement("style");
+    style.id = "custom-modal-styles";
+    style.textContent = `
+      .custom-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(9, 51, 39, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .custom-modal-overlay.show {
+        opacity: 1;
+      }
+      .custom-modal-panel {
+        background: var(--surface-solid, #ffffff);
+        color: var(--color-text, #1f2937);
+        border-radius: var(--radius-lg, 16px);
+        width: min(440px, 100%);
+        padding: 1.75rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        direction: rtl;
+        font-family: inherit;
+      }
+      .custom-modal-overlay.show .custom-modal-panel {
+        transform: scale(1);
+      }
+      .custom-modal-body {
+        margin-bottom: 1.5rem;
+      }
+      .custom-modal-message {
+        font-size: 1.05rem;
+        line-height: 1.6;
+        margin: 0;
+        font-weight: 500;
+        color: var(--color-text, #1f2937);
+      }
+      .custom-modal-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        margin-top: 1rem;
+        border: 1px solid var(--color-border, #d1d5db);
+        border-radius: var(--radius-md, 8px);
+        background: var(--input-bg, #ffffff);
+        color: var(--color-text, #1f2937);
+        font-size: 1rem;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .custom-modal-input:focus {
+        border-color: var(--color-primary, #0f766e);
+        box-shadow: 0 0 0 3px var(--color-primary-ghost, rgba(15, 118, 110, 0.15));
+      }
+      .custom-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+      }
+      .custom-modal-btn {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: var(--radius-md, 8px);
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.15s, transform 0.1s;
+      }
+      .custom-modal-btn:active {
+        transform: scale(0.97);
+      }
+      .custom-modal-btn-confirm {
+        background-color: var(--color-primary, #0f766e);
+        color: #ffffff;
+      }
+      .custom-modal-btn-confirm:hover {
+        background-color: var(--color-primary-dark, #0d5c56);
+      }
+      .custom-modal-btn-confirm.btn-danger {
+        background-color: var(--color-danger, #ef4444);
+        color: #ffffff;
+      }
+      .custom-modal-btn-confirm.btn-danger:hover {
+        background-color: #dc2626;
+      }
+      .custom-modal-btn-cancel {
+        background-color: var(--color-primary-ghost, #f3f4f6);
+        color: var(--color-primary-ink, #4b5563);
+      }
+      .custom-modal-btn-cancel:hover {
+        background-color: #e5e7eb;
+      }
+    `;
+    document.head.appendChild(style);
+  };
+
+  window.showConfirmModal = (message, options = {}) => {
+    ensureModalStyles();
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "custom-modal-overlay";
+
+      const isDestructive = options.isDestructive || /حذف|الغاء|خروج/i.test(message);
+      const confirmClass = isDestructive
+        ? "custom-modal-btn custom-modal-btn-confirm btn-danger"
+        : "custom-modal-btn custom-modal-btn-confirm";
+      const confirmText = options.confirmText || "تأكيد";
+      const cancelText = options.cancelText || "إلغاء";
+
+      overlay.innerHTML = `
+        <div class="custom-modal-panel">
+          <div class="custom-modal-body">
+            <p class="custom-modal-message">${message}</p>
+          </div>
+          <div class="custom-modal-actions">
+            <button class="custom-modal-btn custom-modal-btn-cancel">${cancelText}</button>
+            <button class="${confirmClass}">${confirmText}</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      // Trigger transition
+      requestAnimationFrame(() => overlay.classList.add("show"));
+
+      const confirmBtn = overlay.querySelector(".custom-modal-btn-confirm");
+      const cancelBtn = overlay.querySelector(".custom-modal-btn-cancel");
+
+      const cleanup = (result) => {
+        overlay.classList.remove("show");
+        setTimeout(() => {
+          overlay.remove();
+          resolve(result);
+        }, 200);
+      };
+
+      confirmBtn.addEventListener("click", () => cleanup(true));
+      cancelBtn.addEventListener("click", () => cleanup(false));
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) cleanup(false);
+      });
+    });
+  };
+
+  window.showPromptModal = (message, defaultValue = "", options = {}) => {
+    ensureModalStyles();
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "custom-modal-overlay";
+
+      const confirmText = options.confirmText || "تأكيد";
+      const cancelText = options.cancelText || "إلغاء";
+      const placeholder = options.placeholder || "";
+
+      overlay.innerHTML = `
+        <div class="custom-modal-panel">
+          <div class="custom-modal-body">
+            <p class="custom-modal-message">${message}</p>
+            <input type="text" class="custom-modal-input" value="${defaultValue}" placeholder="${placeholder}" />
+          </div>
+          <div class="custom-modal-actions">
+            <button class="custom-modal-btn custom-modal-btn-cancel">${cancelText}</button>
+            <button class="custom-modal-btn custom-modal-btn-confirm">${confirmText}</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      const input = overlay.querySelector(".custom-modal-input");
+      setTimeout(() => input.focus(), 50);
+
+      // Trigger transition
+      requestAnimationFrame(() => overlay.classList.add("show"));
+
+      const confirmBtn = overlay.querySelector(".custom-modal-btn-confirm");
+      const cancelBtn = overlay.querySelector(".custom-modal-btn-cancel");
+
+      const cleanup = (result) => {
+        overlay.classList.remove("show");
+        setTimeout(() => {
+          overlay.remove();
+          resolve(result);
+        }, 200);
+      };
+
+      confirmBtn.addEventListener("click", () => cleanup(input.value.trim()));
+      cancelBtn.addEventListener("click", () => cleanup(null));
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          cleanup(input.value.trim());
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cleanup(null);
+        }
+      });
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) cleanup(null);
+      });
+    });
+  };
+
   // --- Backend API helpers -------------------------------------------------
   // --- Backend API configuration -------------------------------------------
   // AUTH API: real backend (source of truth). Set in .env / Vercel:
@@ -697,15 +910,22 @@ document.addEventListener("DOMContentLoaded", () => {
     ]);
 
   let cachedNotifications = [];
+  let notificationsFetchedAt = 0;
+  const NOTIFICATIONS_CACHE_TTL = 30_000; // 30 seconds
 
   const fetchNotifications = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return [];
+    // Return cached data if still fresh (avoids 4x redundant calls on page load)
+    if (cachedNotifications.length && Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL) {
+      return cachedNotifications;
+    }
     try {
       const data = await fetchJson(`${API_BASE}/notifications`, {
         headers: authHeaders(),
       });
       cachedNotifications = data.notifications || [];
+      notificationsFetchedAt = Date.now();
       return cachedNotifications;
     } catch (error) {
       console.warn("[notifications] Failed to fetch notifications:", error);
@@ -1345,20 +1565,6 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAuthUI();
   initializeQuizExperience();
 
-  // Add teacher student addition mock button trigger
-  const btnAddStudent = document.querySelector("#btn-teacher-add");
-  if (btnAddStudent) {
-    btnAddStudent.addEventListener("click", () => {
-      const studentName = prompt("أدخل اسم الطالب الجديد لتسجيله:");
-      if (studentName) {
-        showToast(
-          `تم تسجيل الطالب "${studentName}" بنجاح في المنصة!`,
-          "success",
-        );
-      }
-    });
-  }
-
   // --- Accordion Expand/Collapse Logic ---
   const accordionHeaders = document.querySelectorAll(".accordion-header");
   accordionHeaders.forEach((header) => {
@@ -1673,9 +1879,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const readyVideo = lessonVideos.find((v) => v.ready);
       if (durationEl) {
         if (!readyVideo) {
-          durationEl.textContent = "أ. أسماء مرسال | ⏳ جاري معالجة الفيديو...";
+          durationEl.textContent = "⏳ جاري معالجة الفيديو...";
         } else if (readyVideo.lengthSeconds) {
-          durationEl.textContent = `أ. أسماء مرسال | ⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
+          durationEl.textContent = `⏱ ${formatDuration(readyVideo.lengthSeconds)}`;
         }
       }
 
@@ -2463,7 +2669,7 @@ document.addEventListener("DOMContentLoaded", () => {
       input.value = "";
 
       setTimeout(() => {
-        const sender = chatbotType === "teacher" ? "أ. أسماء" : "مساعد المنهج";
+        const sender = chatbotType === "teacher" ? "المعلمة" : "مساعد المنهج";
         addChatMessage(
           messagesBox,
           sender,
