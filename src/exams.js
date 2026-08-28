@@ -546,8 +546,10 @@ function openRun(payload, quizTitle, quizId) {
   // .exam-fullscreen class. When it fails (or the API is absent) we
   // add it immediately so the enhanced layout still applies.
   const runOverlay = document.getElementById("quiz-run-overlay");
-  if (runOverlay && runOverlay.requestFullscreen) {
-    runOverlay.requestFullscreen().catch((err) => {
+  const requestFullscreen =
+    runOverlay?.requestFullscreen || runOverlay?.webkitRequestFullscreen;
+  if (runOverlay && requestFullscreen) {
+    Promise.resolve(requestFullscreen.call(runOverlay)).catch((err) => {
       console.log("Fullscreen request failed:", err);
       showToast("تعذّر فتح وضع ملء الشاشة. يمكنك المتابعة عادياً.", "info");
       runOverlay.classList.add("exam-fullscreen");
@@ -593,16 +595,49 @@ function openRun(payload, quizTitle, quizId) {
   };
 }
 
+function getFullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+async function exitExamFullscreen() {
+  if (!getFullscreenElement()) return false;
+
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  if (typeof exit !== "function") return false;
+
+  await new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener("fullscreenchange", finish);
+      document.removeEventListener("webkitfullscreenchange", finish);
+      clearTimeout(timeout);
+      resolve();
+    };
+    const timeout = setTimeout(finish, 1000);
+    document.addEventListener("fullscreenchange", finish);
+    document.addEventListener("webkitfullscreenchange", finish);
+
+    try {
+      const result = exit.call(document);
+      if (result && typeof result.catch === "function") {
+        result.catch(finish);
+      }
+    } catch (_) {
+      finish();
+    }
+  });
+
+  return !getFullscreenElement();
+}
+
 function closeRun({ exitFullscreen = true } = {}) {
   stopTimer();
   // Exit fullscreen when closing the quiz (after submission)
-  if (
-    exitFullscreen &&
-    document.fullscreenElement &&
-    typeof document.exitFullscreen === "function"
-  ) {
-    document.exitFullscreen().catch(() => {
-      // Ignore errors if already exited
+  if (exitFullscreen) {
+    exitExamFullscreen().catch(() => {
+      // Ignore browser-specific fullscreen cleanup failures.
     });
   }
   // Clean up fullscreen layout class
@@ -664,14 +699,12 @@ async function submitQuiz(auto = false) {
     // Leave browser fullscreen only after the backend confirms submission.
     runState.intentionalFullscreenExit = true;
     try {
-      if (document.fullscreenElement && document.exitFullscreen) {
-        await document.exitFullscreen();
-      }
+      await exitExamFullscreen();
     } catch (_) {
       // A browser may reject the request; submission and result flow continue.
     }
     closeRun({ exitFullscreen: false });
-    runState.intentionalFullscreenExit = false;
+    if (!getFullscreenElement()) runState.intentionalFullscreenExit = false;
     if (document.getElementById("exams-by-lesson")) {
       loadHub(); // refresh statuses
     }
@@ -960,15 +993,13 @@ async function loadCourseLeaderboard() {
  * ===================================================================== */
 
 function setupFullscreenHandler() {
-  document.addEventListener("fullscreenchange", () => {
+  const handleFullscreenChange = () => {
     const runOverlay = document.getElementById("quiz-run-overlay");
+    const fullscreenElement = getFullscreenElement();
 
     // Toggle .exam-fullscreen layout class to switch between the
     // small overlay (normal) and the dedicated fullscreen layout.
-    if (
-      document.fullscreenElement &&
-      document.fullscreenElement === runOverlay
-    ) {
+    if (fullscreenElement && fullscreenElement === runOverlay) {
       runOverlay.classList.add("exam-fullscreen");
       runState.inFullscreen = true;
     } else if (runOverlay) {
@@ -977,7 +1008,7 @@ function setupFullscreenHandler() {
     }
 
     if (
-      !document.fullscreenElement &&
+      !fullscreenElement &&
       runState.quizId &&
       !runState.intentionalFullscreenExit
     ) {
@@ -994,15 +1025,19 @@ function setupFullscreenHandler() {
         `[QUIZ INTEGRITY] Student exited fullscreen ${runState.fullscreenExitCount} time(s) during quiz ${runState.quizId}`,
       );
       // Attempt to re-enter fullscreen
-      if (runOverlay && runOverlay.requestFullscreen) {
+      const requestFullscreen =
+        runOverlay?.requestFullscreen || runOverlay?.webkitRequestFullscreen;
+      if (runOverlay && requestFullscreen) {
         setTimeout(() => {
-          runOverlay.requestFullscreen().catch(() => {
+          Promise.resolve(requestFullscreen.call(runOverlay)).catch(() => {
             // User may have disabled fullscreen re-request; allow to continue
           });
         }, 500);
       }
     }
-  });
+  };
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 }
 
 /* =====================================================================
