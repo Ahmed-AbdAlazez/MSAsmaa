@@ -787,6 +787,21 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.8;
 }
 
+/* Video title subtitle shown beneath the lesson page's main heading */
+.lesson-video-subtitle {
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  font-weight: 400;
+  margin: -0.5rem 0 1.5rem;
+}
+.lesson-video-subtitle .lesson-video-subtitle-line {
+  display: block;
+}
+.lesson-video-subtitle[hidden] {
+  display: none;
+}
+
 /* Footer */
 .footer {
   background-color: var(--footer-bg);
