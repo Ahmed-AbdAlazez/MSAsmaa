@@ -70,7 +70,9 @@ async function idbGetAll() {
 function broadcast(message) {
   try {
     new BroadcastChannel(CHANNEL_NAME).postMessage(message);
-  } catch (_) { /* channel unavailable — page UI just misses a tick */ }
+  } catch (_) {
+    /* channel unavailable — page UI just misses a tick */
+  }
 }
 
 /* ------------------------- Job execution --------------------------------- */
@@ -129,15 +131,16 @@ async function runJob(job) {
             const pct = Math.min(99, Math.round((sent * 100) / total));
             if (pct !== lastPct) {
               lastPct = pct;
+              job.progress = pct;
+              job.status = "uploading";
+              idbPut(job).catch(() => {});
               broadcast({ type: "progress", jobId: job.id, pct });
             }
             controller.enqueue(chunk);
           },
         });
 
-        response = await attemptPut(
-          job.blob.stream().pipeThrough(counter)
-        );
+        response = await attemptPut(job.blob.stream().pipeThrough(counter));
       } else {
         throw new Error("streaming unsupported");
       }
@@ -151,8 +154,13 @@ async function runJob(job) {
         streamError instanceof TypeError ||
         /failed to fetch|networkerror|load failed|internetconnect/i.test(msg);
       if (!isNetworkError) throw streamError;
-      console.warn("[sw-upload] streaming PUT failed, retrying plain:", streamError);
+      console.warn(
+        "[sw-upload] streaming PUT failed, retrying plain:",
+        streamError,
+      );
       response = await attemptPut(job.blob);
+      job.progress = 100;
+      await idbPut(job);
       broadcast({ type: "progress", jobId: job.id, pct: 100 });
     }
 
@@ -161,7 +169,12 @@ async function runJob(job) {
     if (job.finalize) {
       job.status = "finalizing";
       await idbPut(job);
-      broadcast({ type: "progress", jobId: job.id, pct: 100, stage: "finalizing" });
+      broadcast({
+        type: "progress",
+        jobId: job.id,
+        pct: 100,
+        stage: "finalizing",
+      });
 
       const finalizeResponse = await fetch(job.finalize.url, {
         method: job.finalize.method || "POST",
@@ -172,12 +185,18 @@ async function runJob(job) {
       if (!finalizeResponse.ok) {
         const detail = await finalizeResponse.text().catch(() => "");
         throw new Error(
-          `تعذر تسجيل الملف (${finalizeResponse.status}) ${detail.slice(0, 140)}`
+          `تعذر تسجيل الملف (${finalizeResponse.status}) ${detail.slice(0, 140)}`,
         );
       }
     }
 
-    await idbDelete(job.id);
+    // Keep terminal metadata briefly so a newly loaded page can reconstruct
+    // the completed workflow. The file bytes are no longer needed.
+    job.status = "done";
+    job.progress = 100;
+    job.blob = null;
+    job.completedAt = Date.now();
+    await idbPut(job);
     broadcast({
       type: "done",
       jobId: job.id,
@@ -189,7 +208,9 @@ async function runJob(job) {
     job.error = String((error && error.message) || error);
     try {
       await idbPut(job);
-    } catch (_) { /* keep the failure notice even if persistence breaks */ }
+    } catch (_) {
+      /* keep the failure notice even if persistence breaks */
+    }
     broadcast({ type: "failed", jobId: job.id, error: job.error });
   } finally {
     runningJobs.delete(job.id);
@@ -214,7 +235,7 @@ self.addEventListener("message", (event) => {
       (async () => {
         const job = await idbGet(data.jobId);
         if (job) await runJob(job);
-      })()
+      })(),
     );
     return;
   }
@@ -223,21 +244,32 @@ self.addEventListener("message", (event) => {
     event.waitUntil(
       (async () => {
         const jobs = await idbGetAll();
-        const active = jobs.filter(
+        const workflows = jobs.filter(
           (j) =>
             j.status === "queued" ||
             j.status === "uploading" ||
-            j.status === "finalizing"
+            j.status === "finalizing" ||
+            j.status === "done" ||
+            j.status === "failed",
         );
         event.source.postMessage({
-          type: "ACTIVE_JOBS",
-          jobs: active.map((j) => ({
+          type: "UPLOAD_WORKFLOWS",
+          jobs: workflows.map((j) => ({
             id: j.id,
             status: j.status,
+            progress: j.progress || 0,
+            error: j.error || "",
+            completedAt: j.completedAt || null,
+            kind: j.kind,
+            meta: j.meta || {},
             label: j.meta && j.meta.label,
           })),
         });
-      })()
+      })(),
     );
+  }
+
+  if (data.type === "ACK_UPLOAD_WORKFLOW" && data.jobId) {
+    event.waitUntil(idbDelete(data.jobId));
   }
 });

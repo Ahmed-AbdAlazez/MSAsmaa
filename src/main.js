@@ -2894,6 +2894,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const renderVideoChaptersPanel = (videoObj, panelEl) => {
       panelEl.innerHTML = "";
+      // Stop any previous time-ticker still bound to this panel (each open
+      // rebuilds the player and starts a fresh one).
+      if (panelEl.__stopTimeTicker) {
+        panelEl.__stopTimeTicker();
+        panelEl.__stopTimeTicker = null;
+      }
 
       // Local temporary running list (seeded from already-saved chapters).
       // Nothing is written to the DB until "حفظ التقسيم" is clicked.
@@ -2915,10 +2921,25 @@ document.addEventListener("DOMContentLoaded", () => {
       wrap.appendChild(playerBox);
 
       // --- Helper: read the player's CURRENT time via the Bunny player API ---
-      const askCurrentTime = () =>
+      // A background ticker keeps `lastKnownTime` up to date (every 400ms) so
+      // clicking "add marker" captures the exact current/paused position
+      // instantly — the teacher never types a timestamp.
+      let lastKnownTime = null;
+      const requestCurrentTime = (quiet) =>
         new Promise((resolve) => {
           const iframe = playerBox.querySelector("iframe");
           if (!iframe || !iframe.contentWindow) return resolve(null);
+          let done = false;
+          const finish = (value) => {
+            if (done) return;
+            done = true;
+            window.removeEventListener("message", onResp);
+            const numeric = Number.isFinite(value)
+              ? Math.max(0, Math.floor(value))
+              : null;
+            if (numeric !== null) lastKnownTime = numeric;
+            resolve(numeric);
+          };
           const onResp = (event) => {
             try {
               const data =
@@ -2929,14 +2950,11 @@ document.addEventListener("DOMContentLoaded", () => {
               const evt = String(data.event || data.method || "");
               if (evt !== "getCurrentTime" && evt.indexOf("CurrentTime") === -1)
                 return;
-              window.removeEventListener("message", onResp);
               const value =
                 typeof data.value === "number"
                   ? data.value
                   : parseFloat(data.value);
-              resolve(
-                Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0,
-              );
+              finish(value);
             } catch (e) {}
           };
           window.addEventListener("message", onResp);
@@ -2949,14 +2967,17 @@ document.addEventListener("DOMContentLoaded", () => {
               "*",
             );
           } catch (e) {
-            window.removeEventListener("message", onResp);
-            return resolve(null);
+            return finish(null);
           }
-          setTimeout(() => {
-            window.removeEventListener("message", onResp);
-            resolve(null);
-          }, 2500);
+          // Quiet ticks must never leak listeners — always clean up.
+          setTimeout(() => finish(null), quiet ? 800 : 2500);
         });
+      const timeTicker = setInterval(() => {
+        if (document.visibilityState === "visible") {
+          requestCurrentTime(true).catch(() => {});
+        }
+      }, 400);
+      panelEl.__stopTimeTicker = () => clearInterval(timeTicker);
 
       // --- 2) "Add marker here" bar (captures current paused timestamp) ---
       const markerBar = document.createElement("div");
@@ -2973,7 +2994,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "display:none; align-items:center; gap:0.5rem; flex-wrap:wrap; background:var(--color-surface); border:1px solid var(--color-border); padding:0.6rem 0.8rem; border-radius:var(--radius-md);";
       titleRow.innerHTML =
         `<span style="font-size:0.85rem; font-weight:700; white-space:nowrap;">⏱ <span id="captured-time-label">—</span></span>` +
-        `<input id="marker-time-input" type="text" placeholder="التوقيت (مثال: 3:20)" autocomplete="off" dir="ltr" style="flex:1; min-width:90px; max-width:120px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; text-align:center;">` +
         `<input id="marker-title-input" type="text" placeholder="عنوان العلامة (مثال: سؤال 1)" autocomplete="off" style="flex:2; min-width:150px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
         `<button type="button" id="marker-confirm-btn" class="btn btn-success" style="font-size:0.8rem; border-radius:var(--radius-sm);">إضافة</button>` +
         `<button type="button" id="marker-cancel-btn" class="btn btn-light" style="font-size:0.8rem; border-radius:var(--radius-sm);">إلغاء</button>`;
@@ -3056,9 +3076,10 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       // --- 4) Marker capture + inline title commit ---
+      // Timestamp is captured AUTOMATICALLY from the background ticker's last
+      // known playback position, so the teacher only types a title.
       let capturedTime = null;
       const addMarkerBtn = wrap.querySelector("#add-marker-btn");
-      const timeInput = wrap.querySelector("#marker-time-input");
       const titleInput = wrap.querySelector("#marker-title-input");
       const confirmBtn = wrap.querySelector("#marker-confirm-btn");
       const cancelBtn = wrap.querySelector("#marker-cancel-btn");
@@ -3067,42 +3088,28 @@ document.addEventListener("DOMContentLoaded", () => {
       addMarkerBtn.addEventListener("click", async () => {
         addMarkerBtn.disabled = true;
         addMarkerBtn.textContent = "⏳ جاري التقاط التوقيت...";
-        const secs = await askCurrentTime();
+        let secs = lastKnownTime;
+        if (secs === null || !Number.isFinite(secs)) {
+          secs = await requestCurrentTime();
+        } else {
+          requestCurrentTime(true).catch(() => {});
+        }
         addMarkerBtn.disabled = false;
         addMarkerBtn.textContent = "🚩 ＋ إضافة علامة هنا";
         capturedTime = secs;
-        titleRow.style.display = "flex";
-        titleInput.value = "";
-        timeInput.value = secs !== null ? formatDuration(secs) : "";
-        if (secs !== null) {
-          capturedLabel.textContent = formatDuration(secs);
-          titleInput.placeholder = `عنوان العلامة (مثال: سؤال 1) — عند ${formatDuration(secs)}`;
-        } else {
-          capturedLabel.textContent = "يدوي";
-          timeInput.focus();
+        if (secs === null) {
           showToast(
-            "لم يُلتقط التوقيت تلقائياً من المشغّل — أدخلي التوقيت يدوياً ثم اضغطي «إضافة».",
+            "تعذّر قراءة توقيت الفيديو. شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم اضغطي الزر مرة أخرى.",
             "warning",
           );
+          return;
         }
+        capturedLabel.textContent = formatDuration(secs);
+        titleRow.style.display = "flex";
+        titleInput.value = "";
+        titleInput.placeholder = `عنوان العلامة (مثال: سؤال 1) — عند ${formatDuration(secs)}`;
+        titleInput.focus();
       });
-
-      const parseTimeInput = (raw) => {
-        const s = String(raw || "").trim();
-        if (!s) return null;
-        if (/^\d+$/.test(s)) return parseInt(s, 10);
-        const parts = s.split(":").map((x) => parseFloat(x));
-        if (
-          parts.some((n) => Number.isNaN(n)) ||
-          parts.length < 2 ||
-          parts.length > 3
-        )
-          return null;
-        if (parts.length === 3) {
-          return parts[0] * 3600 + parts[1] * 60 + Math.floor(parts[2]);
-        }
-        return parts[0] * 60 + parts[1];
-      };
 
       const commitMarker = () => {
         const title = titleInput.value.trim();
@@ -3111,41 +3118,26 @@ document.addEventListener("DOMContentLoaded", () => {
           titleInput.focus();
           return;
         }
-        const rawTime = timeInput.value.trim();
-        let seconds = capturedTime;
-        if (rawTime) {
-          const parsed = parseTimeInput(rawTime);
-          if (parsed === null) {
-            showToast(
-              "أدخلي التوقيت بصيغة دقائق:ثوانٍ (مثال: 3:20).",
-              "warning",
-            );
-            timeInput.focus();
-            return;
-          }
-          seconds = parsed;
-        }
-        if (seconds === null) {
+        if (capturedTime === null || !Number.isFinite(capturedTime)) {
           showToast(
-            "أدخلي التوقيت يدوياً بصيغة دقائق:ثوانٍ (مثال: 3:20) ثم اضغطي إضافة.",
+            "لم يُلتقط توقيت الفيديو بعد. أوقفي الفيديو عند اللحظة المطلوبة ثم اضغطي «إضافة علامة هنا» مرة أخرى.",
             "warning",
           );
-          timeInput.focus();
+          titleRow.style.display = "none";
           return;
         }
-        if (videoObj.lengthSeconds && seconds > videoObj.lengthSeconds) {
+        if (videoObj.lengthSeconds && capturedTime > videoObj.lengthSeconds) {
           showToast(
             `التوقيت (${formatDuration(
-              seconds,
+              capturedTime,
             )}) يتجاوز طول الفيديو (${formatDuration(
               videoObj.lengthSeconds,
             )}).`,
             "danger",
           );
-          timeInput.focus();
           return;
         }
-        markers.push({ title, startTimeSeconds: seconds });
+        markers.push({ title, startTimeSeconds: capturedTime });
         markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
         titleRow.style.display = "none";
         renderList();
@@ -3240,28 +3232,55 @@ document.addEventListener("DOMContentLoaded", () => {
               body: JSON.stringify({ chapters: markers }),
             },
           );
-          showToast("تم حفظ التقسيم بنجاح.", "success");
-          videoObj.chapters = result.chapters || [];
-          const updated = await fetchJson(
-            `/api/lessons/${manageLesson.value}/videos`,
-            { headers: authHeaders() },
-          );
-          const freshVideo = (updated.videos || []).find(
-            (x) => x.videoId === videoObj.videoId,
-          );
-          if (freshVideo) {
-            videoObj.chapters = freshVideo.chapters;
+
+          // The PUT response is authoritative: it returns the freshly-sorted,
+          // fully-synced chapter list. Use it as the source of truth even if
+          // the follow-up refresh below misbehaves.
+          const setChapters = (chapters) => {
+            videoObj.chapters = (chapters || []).map((c) => ({
+              title: c.title,
+              startTimeSeconds: c.startTimeSeconds,
+            }));
             markers.length = 0;
-            (freshVideo.chapters || []).forEach((c) =>
+            videoObj.chapters.forEach((c) =>
               markers.push({
                 title: c.title,
                 startTimeSeconds: c.startTimeSeconds,
               }),
             );
             markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+            renderList();
+          };
+          setChapters(result.chapters);
+
+          // Follow-up refresh is best-effort ONLY. It must never surface an
+          // error after a genuine save — the running list already shows the
+          // authoritative chapters. Any failure here is logged, not toasted.
+          try {
+            const updated = await fetchJson(
+              `/api/lessons/${manageLesson.value}/videos`,
+              { headers: authHeaders() },
+            );
+            const freshVideo = (updated.videos || []).find(
+              (x) => x.videoId === videoObj.videoId,
+            );
+            if (freshVideo) {
+              setChapters(freshVideo.chapters);
+            }
+          } catch (refreshError) {
+            console.error(
+              "[chapters] تم الحفظ بنجاح لكن فشل تحديث القائمة:",
+              refreshError,
+            );
           }
-          renderList();
+
+          // Success is confirmed only after the save completed WITHOUT leaving
+          // any pending work behind. A refresh problem can change the message
+          // or log details, but can never produce a false success or an error
+          // toast after it.
+          showToast("تم حفظ التقسيم بنجاح.", "success");
         } catch (err) {
+          console.error("[chapters] فشل حفظ التقسيم:", err);
           showToast(err.message, "danger");
         } finally {
           saveBtn.disabled = false;
@@ -3322,6 +3341,10 @@ document.addEventListener("DOMContentLoaded", () => {
               .querySelectorAll(".chapters-manage-panel")
               .forEach((panel) => {
                 panel.style.display = "none";
+                if (panel.__stopTimeTicker) {
+                  panel.__stopTimeTicker();
+                  panel.__stopTimeTicker = null;
+                }
               });
 
             if (isHidden) {
