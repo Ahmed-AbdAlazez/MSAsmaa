@@ -237,7 +237,9 @@ function saveBuilderDraft() {
   const key = getDraftStorageKey();
   if (!key) return;
 
-  const quizType = document.querySelector('input[name="quiz-type"]:checked')?.value;
+  const quizType = document.querySelector(
+    'input[name="quiz-type"]:checked',
+  )?.value;
   const draft = {
     title: byId("builder-quiz-title").value,
     duration: byId("quiz-duration").value,
@@ -245,22 +247,23 @@ function saveBuilderDraft() {
     endTime: pickerIso(endPicker),
     quizType,
     lessonId: byId("quiz-lesson").value,
-    mixedLessonIds: [...document.querySelectorAll(".mixed-lesson-check:checked")].map(
-      (checkbox) => checkbox.value,
-    ),
+    mixedLessonIds: [
+      ...document.querySelectorAll(".mixed-lesson-check:checked"),
+    ].map((checkbox) => checkbox.value),
     questionType: byId("question-type").value,
     questionText: byId("question-text").value,
     choices: ["choice-1", "choice-2", "choice-3", "choice-4"].map(
       (id) => byId(id).value,
     ),
     modelAnswer: byId("model-answer").value,
-    stagedQuestions: stagedQuestions.map(({ imageFile, imagePreviewUrl, ...question }) => question),
+    stagedQuestions: stagedQuestions.map(
+      ({ imageFile, imagePreviewUrl, ...question }) => question,
+    ),
   };
 
   try {
     localStorage.setItem(key, JSON.stringify(draft));
-  } catch (_) {
-  }
+  } catch (_) {}
 }
 
 function restoreBuilderDraft() {
