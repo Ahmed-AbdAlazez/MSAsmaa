@@ -24,9 +24,9 @@
     content="لوحة التحكم الخاصة بمعلم المادة لمتابعة درجات طلاب الثانوية العامة ونسب حضورهم وتسليماتهم.">
   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-BiZckyoG.ico?v=2">
   <link rel="icon" type="image/png" href="/assets/favicon-NYif2_Ic.png?v=2">
-  <script type="module" crossorigin src="/assets/dashboard-teacher-MI-TGQGY.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/main-X_yLpGZ2.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-9_MOs1f0.css">
+  <script type="module" crossorigin src="/assets/dashboard-teacher-BQuB45OC.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/main-CVTpXz2b.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-DJeWoK0q.css">
   <link rel="stylesheet" crossorigin href="/assets/dashboard-teacher-CveviJq_.css">
   <link rel="stylesheet" crossorigin href="/assets/exams-Ju_KiyXx.css">
 </head>
@@ -35,7 +35,7 @@
 
   <!-- Navigation Bar -->
   <nav class="navbar"></nav>
-  <main class="dashboard-layout">
+  <main class="dashboard-layout" id="teacher-dashboard-page">
     <div class="container">
 
       <!-- Dashboard Header -->
@@ -57,7 +57,7 @@
           <div class="stat-icon" style="background-color: rgba(16, 185, 129, 0.08); color: var(--color-accent-dark);">
             👨‍🎓</div>
           <div>
-            <div class="stat-value">240</div>
+            <div class="stat-value" id="teacher-total-students">—</div>
             <div class="stat-label">إجمالي الطلاب</div>
           </div>
         </div>
@@ -82,7 +82,7 @@
         <div class="stat-card">
           <div class="stat-icon" style="background-color: rgba(239, 68, 68, 0.08); color: var(--color-danger);">⏳</div>
           <div>
-            <div class="stat-value">3</div>
+            <div class="stat-value" id="teacher-active-quizzes">—</div>
             <div class="stat-label">اختبارات نشطة</div>
           </div>
         </div>
