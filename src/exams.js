@@ -25,7 +25,11 @@ const API = String(import.meta.env.VITE_API_URL || "").replace(
 );
 const COURSE_ID = "biology";
 
-import { skeletonCards, skeletonError, skeletonRows } from "./components/skeleton.js";
+import {
+  skeletonCards,
+  skeletonError,
+  skeletonRows,
+} from "./components/skeleton.js";
 
 /* ---------------- shared tiny helpers ---------------- */
 
@@ -417,6 +421,7 @@ const runState = {
   answers: {}, // questionId -> value (client mirror for the final flush)
   inFullscreen: false, // tracking fullscreen mode
   fullscreenExitCount: 0, // track accidental exits (don't auto-submit)
+  intentionalFullscreenExit: false,
 };
 
 function stopTimer() {
@@ -588,10 +593,14 @@ function openRun(payload, quizTitle, quizId) {
   };
 }
 
-function closeRun() {
+function closeRun({ exitFullscreen = true } = {}) {
   stopTimer();
   // Exit fullscreen when closing the quiz (after submission)
-  if (document.fullscreenElement) {
+  if (
+    exitFullscreen &&
+    document.fullscreenElement &&
+    typeof document.exitFullscreen === "function"
+  ) {
     document.exitFullscreen().catch(() => {
       // Ignore errors if already exited
     });
@@ -646,7 +655,23 @@ async function submitQuiz(auto = false) {
       `/api/quizzes/${runState.quizId}/submit`,
       { answers: runState.answers },
     );
-    closeRun();
+
+    if (!ok) {
+      showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
+      return;
+    }
+
+    // Leave browser fullscreen only after the backend confirms submission.
+    runState.intentionalFullscreenExit = true;
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (_) {
+      // A browser may reject the request; submission and result flow continue.
+    }
+    closeRun({ exitFullscreen: false });
+    runState.intentionalFullscreenExit = false;
     if (document.getElementById("exams-by-lesson")) {
       loadHub(); // refresh statuses
     }
@@ -654,10 +679,6 @@ async function submitQuiz(auto = false) {
       window.refreshLessonExams(); // refresh statuses on lesson page
     }
 
-    if (!ok) {
-      showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
-      return;
-    }
     showToast(
       auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅",
       "success",
@@ -780,8 +801,7 @@ async function openResult(quizId, resultId, summaryData = null) {
   ]);
 
   if (lb.ok && lb.data.released) {
-    lbBody.innerHTML =
-      `<div class="skeleton-reveal">${leaderboardTable(lb.data.rankings)}</div>`;
+    lbBody.innerHTML = `<div class="skeleton-reveal">${leaderboardTable(lb.data.rankings)}</div>`;
   } else if (lb.ok) {
     lbBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 لوحة الترتيب تظهر بعد انتهاء وقت الاختبار للجميع (${formatDateTime(lb.data.availableAfter)}).</div>`;
   } else {
@@ -791,7 +811,9 @@ async function openResult(quizId, resultId, summaryData = null) {
     );
     lbBody
       .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () => openResult(quizId, resultId, summaryData));
+      ?.addEventListener("click", () =>
+        openResult(quizId, resultId, summaryData),
+      );
   }
 
   if (!resultId) return;
@@ -809,14 +831,15 @@ async function openResult(quizId, resultId, summaryData = null) {
     );
     reviewBody
       .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () => openResult(quizId, resultId, summaryData));
+      ?.addEventListener("click", () =>
+        openResult(quizId, resultId, summaryData),
+      );
     return;
   }
 
   const r = review.data.review;
   renderScoreBanner(r);
-  reviewBody.innerHTML =
-    `<div class="skeleton-reveal">${r.questions.map(reviewQuestionHtml).join("")}</div>`;
+  reviewBody.innerHTML = `<div class="skeleton-reveal">${r.questions.map(reviewQuestionHtml).join("")}</div>`;
 }
 
 function leaderboardTable(rankings) {
@@ -923,7 +946,8 @@ async function loadCourseLeaderboard() {
       ⏳ ${data.pendingQuizzes.length} اختبار لسه شغال — درجاته تُضاف بعد انتهاء وقته:
       ${data.pendingQuizzes.map((quiz) => escapeHtml(quiz.title)).join("، ")}</div>`;
   }
-  body.innerHTML = `<div class="skeleton-reveal">` +
+  body.innerHTML =
+    `<div class="skeleton-reveal">` +
     pendingNote +
     (data.rankings.length === 0
       ? '<p class="muted">لا توجد درجات بعد.</p>'
@@ -952,7 +976,11 @@ function setupFullscreenHandler() {
       runState.inFullscreen = false;
     }
 
-    if (!document.fullscreenElement && runState.quizId) {
+    if (
+      !document.fullscreenElement &&
+      runState.quizId &&
+      !runState.intentionalFullscreenExit
+    ) {
       // User exited fullscreen while a quiz is active
       runState.fullscreenExitCount++;
       showToast(
@@ -1160,9 +1188,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = document.getElementById("btn-submit-quiz");
   if (submitBtn) {
     submitBtn.addEventListener("click", async () => {
+      const runPanel = document.querySelector(
+        "#quiz-run-overlay .overlay-panel",
+      );
       const confirmed = await window.showConfirmModal?.(
         "هل تريدين تسليم الاختبار الآن؟",
-        { confirmText: "تسليم", cancelText: "إلغاء" },
+        {
+          confirmText: "تسليم",
+          cancelText: "إلغاء",
+          container: runPanel,
+        },
       );
       if (confirmed) submitQuiz(false);
     });
