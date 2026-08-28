@@ -815,7 +815,16 @@ html[dir="rtl"] .scroll-progress-fill {
    Top Students marquee section (homepage)
    Auto-scroll runs purely on CSS transforms (compositor only).
    The track is two identical halves animated 0 → -50% for a
-   seamless infinite loop with no visible reset point.
+   seamless infinite loop with no visible reset point — each card
+   exits one side while its identical twin enters the other, like
+   a closed ring.
+
+   NOTE (RTL): the page is dir="rtl", which right-aligns the wide
+   flex track and would make translateX(-50%) slide it off-screen,
+   leaving a blank gap. Forcing the marquee to direction:ltr keeps
+   the loop geometry left→right (cards re-enter from the right),
+   while each card keeps direction:rtl so the Arabic text/bidi is
+   untouched.
    ============================================================ */
 .top-students-section {
   padding: 4.5rem 0;
@@ -828,10 +837,12 @@ html[dir="rtl"] .scroll-progress-fill {
 .top-students-marquee {
   overflow: hidden;
   padding: 0.5rem 0 1rem;
+  direction: ltr;
 }
 
 .top-students-track {
   display: flex;
+  justify-content: flex-start;
   width: max-content;
   animation: top-students-scroll 42s linear infinite;
   will-change: transform;
@@ -850,6 +861,7 @@ html[dir="rtl"] .scroll-progress-fill {
   flex: 0 0 auto;
   width: 250px;
   margin-left: 1.25rem;
+  direction: rtl;
   background: var(--surface-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
