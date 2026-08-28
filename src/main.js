@@ -2615,225 +2615,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const renderVideoChaptersPanel = (videoObj, panelEl) => {
       panelEl.innerHTML = "";
 
-      const grid = document.createElement("div");
-      grid.style.cssText =
-        "display:grid; grid-template-columns:1.2fr 1fr; gap:1rem; margin-top:0.5rem;";
+      // Local temporary running list (seeded from already-saved chapters).
+      // Nothing is written to the DB until "حفظ التقسيم" is clicked.
+      const markers = (videoObj.chapters || [])
+        .map((ch) => ({
+          title: ch.title,
+          startTimeSeconds: ch.startTimeSeconds,
+        }))
+        .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
 
-      if (window.innerWidth <= 768) {
-        grid.style.gridTemplateColumns = "1fr";
-      }
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex; flex-direction:column; gap:0.85rem;";
 
-      // Column 1: Preview Player & Add Form
-      const col1 = document.createElement("div");
-      col1.style.cssText = "display:flex; flex-direction:column; gap:0.75rem;";
+      // --- 1) Video player for this specific video ---
+      const playerBox = document.createElement("div");
+      playerBox.style.cssText =
+        "position:relative; aspect-ratio:16/9; background:#000; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--color-border);";
+      playerBox.innerHTML = `<iframe id="chapters-preview-player" src="${videoObj.playbackUrl}" style="width:100%; height:100%; border:0; position:absolute; inset:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+      wrap.appendChild(playerBox);
 
-      const previewWrap = document.createElement("div");
-      previewWrap.style.cssText =
-        "aspect-ratio:16/9; background:#000; border-radius:var(--radius-md); overflow:hidden; border: 1px solid var(--color-border);";
-      previewWrap.innerHTML = `<iframe id="preview-player-${videoObj.videoId}" src="${videoObj.playbackUrl}" style="width:100%; height:100%; border:0;" allow="autoplay" allowfullscreen></iframe>`;
-      col1.appendChild(previewWrap);
-
-      const addForm = document.createElement("div");
-      addForm.style.cssText =
-        "background:var(--color-bg); padding:0.75rem; border-radius:var(--radius-md); display:flex; flex-direction:column; gap:0.5rem;";
-      addForm.innerHTML =
-        `<h5 style="margin-bottom:0.25rem; font-size:0.9rem; font-weight:700;">➕ إضافة فصل جديد</h5>` +
-        `<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">` +
-        `  <input id="add-ch-title-${videoObj.videoId}" type="text" placeholder="عنوان الفصل (مثال: سؤال 1)" style="flex:2; min-width:140px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
-        `  <input id="add-ch-time-${videoObj.videoId}" type="text" placeholder="الوقت (مثال: 3:20)" style="flex:1; min-width:80px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; text-align:center;" dir="ltr">` +
-        `</div>` +
-        `<div style="display:flex; gap:0.5rem; justify-content:space-between; align-items:center; margin-top:0.25rem;">` +
-        `  <button id="btn-use-current-${videoObj.videoId}" type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-radius:var(--radius-sm);">⏱ استخدم الوقت الحالي</button>` +
-        `  <button id="btn-add-ch-${videoObj.videoId}" type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.3rem 0.8rem; border-radius:var(--radius-sm);">إضافة</button>` +
-        `</div>`;
-      col1.appendChild(addForm);
-
-      // Column 2: Chapters List
-      const col2 = document.createElement("div");
-      col2.style.cssText = "display:flex; flex-direction:column; gap:0.5rem;";
-      col2.innerHTML = `<h5 style="font-size:0.9rem; font-weight:700; margin-bottom:0.25rem;">📋 فصول الفيديو الحالية:</h5>`;
-
-      const listWrap = document.createElement("div");
-      listWrap.style.cssText =
-        "display:flex; flex-direction:column; gap:0.4rem; max-height:260px; overflow-y:auto; padding-inline-end:0.25rem;";
-
-      const chapters = videoObj.chapters || [];
-      if (!chapters.length) {
-        listWrap.innerHTML = `<p class="text-muted" style="font-size:0.8rem; margin:0;">لا توجد فصول مضافة بعد لهذا الفيديو.</p>`;
-      } else {
-        chapters.forEach((ch) => {
-          const item = document.createElement("div");
-          item.style.cssText =
-            "display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem; gap:0.5rem;";
-
-          const textSpan = document.createElement("span");
-          textSpan.style.fontWeight = "600";
-          textSpan.textContent = `${ch.title} — ${formatDuration(ch.startTimeSeconds)}`;
-
-          const itemActions = document.createElement("div");
-          itemActions.style.cssText = "display:flex; gap:0.25rem;";
-          itemActions.innerHTML =
-            `<button class="btn btn-light js-edit-ch" style="font-size:0.7rem; padding:0.2rem 0.4rem;">✏️</button>` +
-            `<button class="btn btn-light js-delete-ch" style="font-size:0.7rem; padding:0.2rem 0.4rem; color:var(--color-danger);">🗑</button>`;
-
-          item.append(textSpan, itemActions);
-          listWrap.appendChild(item);
-
-          // Click handlers for edit and delete
-          itemActions
-            .querySelector(".js-delete-ch")
-            .addEventListener("click", async () => {
-              const confirmed = await showConfirmModal(
-                `هل تريد بالتأكيد حذف الفصل "${ch.title}"؟`,
-                {
-                  isDestructive: true,
-                  confirmText: "حذف",
-                  cancelText: "إلغاء",
-                }
-              );
-              if (!confirmed) return;
-              try {
-                await fetchJson(`/api/videos/chapters/${ch.id}`, {
-                  method: "DELETE",
-                  headers: authHeaders(),
-                });
-                showToast("تم حذف الفصل بنجاح.", "success");
-                const updated = await fetchJson(
-                  `/api/lessons/${manageLesson.value}/videos`,
-                  { headers: authHeaders() }
-                );
-                const freshVideo = (updated.videos || []).find(
-                  (x) => x.videoId === videoObj.videoId
-                );
-                if (freshVideo) {
-                  videoObj.chapters = freshVideo.chapters;
-                  renderVideoChaptersPanel(videoObj, panelEl);
-                }
-              } catch (err) {
-                showToast(err.message, "danger");
-              }
-            });
-
-          itemActions
-            .querySelector(".js-edit-ch")
-            .addEventListener("click", async () => {
-              const newTitle = await window.showPromptModal(
-                "أدخل الاسم الجديد للفصل:",
-                ch.title,
-                { confirmText: "حفظ", cancelText: "إلغاء" }
-              );
-              if (newTitle === null) return;
-              if (!newTitle.trim())
-                return showToast("اسم الفصل لا يمكن أن يكون فارغاً.", "warning");
-
-              const newTime = await window.showPromptModal(
-                "أدخل توقيت البداية الجديد (مثال 3:20 أو بالثواني):",
-                formatDuration(ch.startTimeSeconds),
-                { confirmText: "حفظ", cancelText: "إلغاء" }
-              );
-              if (newTime === null) return;
-
-              try {
-                await fetchJson(`/api/videos/chapters/${ch.id}`, {
-                  method: "PATCH",
-                  headers: {
-                    "Content-Type": "application/json",
-                    ...authHeaders(),
-                  },
-                  body: JSON.stringify({
-                    title: newTitle.trim(),
-                    startTimeSeconds: newTime,
-                  }),
-                });
-                showToast("تم تعديل الفصل بنجاح.", "success");
-                const updated = await fetchJson(
-                  `/api/lessons/${manageLesson.value}/videos`,
-                  { headers: authHeaders() }
-                );
-                const freshVideo = (updated.videos || []).find(
-                  (x) => x.videoId === videoObj.videoId
-                );
-                if (freshVideo) {
-                  videoObj.chapters = freshVideo.chapters;
-                  renderVideoChaptersPanel(videoObj, panelEl);
-                }
-              } catch (err) {
-                showToast(err.message, "danger");
-              }
-            });
-        });
-      }
-
-      col2.appendChild(listWrap);
-      grid.append(col1, col2);
-      panelEl.appendChild(grid);
-
-      // Add chapter submission handler
-      const addBtn = addForm.querySelector(
-        `#btn-add-ch-${videoObj.videoId}`
-      );
-      addBtn.addEventListener("click", async () => {
-        const titleInput = addForm.querySelector(
-          `#add-ch-title-${videoObj.videoId}`
-        );
-        const timeInput = addForm.querySelector(
-          `#add-ch-time-${videoObj.videoId}`
-        );
-        const title = titleInput.value.trim();
-        const time = timeInput.value.trim();
-
-        if (!title) return showToast("يرجى إدخال عنوان الفصل.", "warning");
-        if (!time) return showToast("يرجى إدخال وقت الفصل.", "warning");
-
-        try {
-          addBtn.disabled = true;
-          await fetchJson(`/api/videos/${videoObj.videoId}/chapters`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...authHeaders(),
-            },
-            body: JSON.stringify({ title, startTimeSeconds: time }),
-          });
-          showToast("تم إضافة الفصل بنجاح.", "success");
-          titleInput.value = "";
-          timeInput.value = "";
-
-          // Refresh lists
-          const updated = await fetchJson(
-            `/api/lessons/${manageLesson.value}/videos`,
-            { headers: authHeaders() }
-          );
-          const freshVideo = (updated.videos || []).find(
-            (x) => x.videoId === videoObj.videoId
-          );
-          if (freshVideo) {
-            videoObj.chapters = freshVideo.chapters;
-            renderVideoChaptersPanel(videoObj, panelEl);
-          }
-        } catch (err) {
-          showToast(err.message, "danger");
-        } finally {
-          addBtn.disabled = false;
-        }
-      });
-
-      // Use current time button handler
-      const useCurrentBtn = addForm.querySelector(
-        `#btn-use-current-${videoObj.videoId}`
-      );
-      useCurrentBtn.addEventListener("click", () => {
-        const iframe = previewWrap.querySelector("iframe");
-        if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage(
-            JSON.stringify({
-              context: "player.js",
-              method: "getCurrentTime",
-            }),
-            "*"
-          );
-
-          const onTimeResponse = (event) => {
+      // --- Helper: read the player's CURRENT time via the Bunny player API ---
+      const askCurrentTime = () =>
+        new Promise((resolve) => {
+          const iframe = playerBox.querySelector("iframe");
+          if (!iframe || !iframe.contentWindow) return resolve(null);
+          const onResp = (event) => {
             try {
               const data =
                 typeof event.data === "string"
@@ -2845,24 +2651,286 @@ document.addEventListener("DOMContentLoaded", () => {
                 (data.event === "getCurrentTime" ||
                   data.method === "getCurrentTime")
               ) {
-                const secs = Math.floor(data.value || 0);
-                const timeInput = addForm.querySelector(
-                  `#add-ch-time-${videoObj.videoId}`
-                );
-                if (timeInput) {
-                  timeInput.value = formatDuration(secs);
-                }
-                window.removeEventListener("message", onTimeResponse);
+                window.removeEventListener("message", onResp);
+                resolve(Math.floor(data.value || 0));
               }
             } catch (e) {}
           };
-          window.addEventListener("message", onTimeResponse);
-
+          window.addEventListener("message", onResp);
+          try {
+            iframe.contentWindow.postMessage(
+              JSON.stringify({
+                context: "player.js",
+                method: "getCurrentTime",
+              }),
+              "*"
+            );
+          } catch (e) {
+            window.removeEventListener("message", onResp);
+            return resolve(null);
+          }
           setTimeout(() => {
-            window.removeEventListener("message", onTimeResponse);
+            window.removeEventListener("message", onResp);
+            resolve(null);
           }, 1000);
+        });
+
+      // --- 2) "Add marker here" bar (captures current paused timestamp) ---
+      const markerBar = document.createElement("div");
+      markerBar.style.cssText =
+        "display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; background:var(--color-bg); padding:0.6rem 0.8rem; border-radius:var(--radius-md); border:1px dashed var(--color-accent-blue);";
+      markerBar.innerHTML =
+        `<button type="button" id="add-marker-btn" class="btn btn-primary" style="font-size:0.85rem; border-radius:50px;">🚩 ＋ إضافة علامة هنا</button>` +
+        `<span class="text-muted" style="font-size:0.78rem; flex:1; min-width:150px;">شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم اضغطي الزر لالتقاط التوقيت الحالي تلقائياً.</span>`;
+      wrap.appendChild(markerBar);
+
+      // Inline title-capture row (hidden until a marker is captured).
+      const titleRow = document.createElement("div");
+      titleRow.style.cssText =
+        "display:none; align-items:center; gap:0.5rem; flex-wrap:wrap; background:var(--color-surface); border:1px solid var(--color-border); padding:0.6rem 0.8rem; border-radius:var(--radius-md);";
+      titleRow.innerHTML =
+        `<span style="font-size:0.85rem; font-weight:700; white-space:nowrap;">⏱ <span id="captured-time-label">0:00</span></span>` +
+        `<input id="marker-title-input" type="text" placeholder="عنوان العلامة (مثال: سؤال 1)" autocomplete="off" style="flex:2; min-width:160px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
+        `<button type="button" id="marker-confirm-btn" class="btn btn-success" style="font-size:0.8rem; border-radius:var(--radius-sm);">إضافة</button>` +
+        `<button type="button" id="marker-cancel-btn" class="btn btn-light" style="font-size:0.8rem; border-radius:var(--radius-sm);">إلغاء</button>`;
+      wrap.appendChild(titleRow);
+
+      // --- 3) Running (temporary) list ---
+      const listTitle = document.createElement("h5");
+      listTitle.style.cssText =
+        "font-size:0.9rem; font-weight:700; margin:0;";
+      listTitle.textContent = `📋 علامات الفيديو الحالية (${markers.length})`;
+      wrap.appendChild(listTitle);
+
+      const listBox = document.createElement("div");
+      listBox.style.cssText =
+        "display:flex; flex-direction:column; gap:0.4rem; max-height:260px; overflow-y:auto; padding-inline-end:0.25rem;";
+      wrap.appendChild(listBox);
+
+      const renderList = () => {
+        listTitle.textContent = `📋 علامات الفيديو الحالية (${markers.length})`;
+        listBox.innerHTML = "";
+        if (!markers.length) {
+          listBox.innerHTML =
+            '<p class="text-muted" style="font-size:0.8rem; margin:0;">لا توجد علامات مضافة بعد. أضف علاماتك ثم اضغط «حفظ التقسيم».</p>';
+          return;
+        }
+        markers.forEach((m, idx) => {
+          const row = document.createElement("div");
+          row.style.cssText =
+            "display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem; gap:0.5rem;";
+          const textSpan = document.createElement("span");
+          textSpan.style.cssText = "font-weight:600; flex:1; min-width:0;";
+          textSpan.textContent = `${m.title} — ${formatDuration(m.startTimeSeconds)}`;
+          const itemActions = document.createElement("div");
+          itemActions.style.cssText = "display:flex; gap:0.25rem; flex-shrink:0;";
+          itemActions.innerHTML =
+            `<button class="btn btn-light js-mk-edit" style="font-size:0.7rem; padding:0.2rem 0.4rem;" title="تعديل">✏️</button>` +
+            `<button class="btn btn-light js-mk-del" style="font-size:0.7rem; padding:0.2rem 0.4rem; color:var(--color-danger);" title="حذف">🗑</button>`;
+          row.append(textSpan, itemActions);
+
+          itemActions
+            .querySelector(".js-mk-del")
+            .addEventListener("click", () => {
+              markers.splice(idx, 1);
+              renderList();
+            });
+
+          itemActions
+            .querySelector(".js-mk-edit")
+            .addEventListener("click", () => {
+              textSpan.innerHTML =
+                `<input type="text" class="mk-edit-input" value="${m.title}" autocomplete="off" style="flex:1; min-width:120px; padding:0.3rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem;">` +
+                `<button class="btn btn-success mk-edit-save" style="font-size:0.7rem; padding:0.2rem 0.5rem; margin-inline-start:0.3rem;">حفظ</button>` +
+                `<button class="btn btn-light mk-edit-cancel" style="font-size:0.7rem; padding:0.2rem 0.5rem;">إلغاء</button>`;
+              const input = textSpan.querySelector(".mk-edit-input");
+              input.focus();
+              const done = (save) => {
+                if (save && !input.value.trim()) return;
+                if (save) m.title = input.value.trim();
+                renderList();
+              };
+              textSpan
+                .querySelector(".mk-edit-save")
+                .addEventListener("click", () => done(true));
+              textSpan
+                .querySelector(".mk-edit-cancel")
+                .addEventListener("click", () => done(false));
+              input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  done(true);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  done(false);
+                }
+              });
+            });
+
+          listBox.appendChild(row);
+        });
+      };
+
+      // --- 4) Marker capture + inline title commit ---
+      let capturedTime = null;
+      const addMarkerBtn = wrap.querySelector("#add-marker-btn");
+      const titleInput = wrap.querySelector("#marker-title-input");
+      const confirmBtn = wrap.querySelector("#marker-confirm-btn");
+      const cancelBtn = wrap.querySelector("#marker-cancel-btn");
+      const capturedLabel = wrap.querySelector("#captured-time-label");
+
+      addMarkerBtn.addEventListener("click", async () => {
+        addMarkerBtn.disabled = true;
+        addMarkerBtn.textContent = "⏳ جاري التقاط التوقيت...";
+        const secs = await askCurrentTime();
+        addMarkerBtn.disabled = false;
+        addMarkerBtn.textContent = "🚩 ＋ إضافة علامة هنا";
+        if (secs === null) {
+          showToast(
+            "تعذّر قراءة توقيت الفيديو. شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم أعدي المحاولة.",
+            "warning"
+          );
+          return;
+        }
+        capturedTime = secs;
+        capturedLabel.textContent = formatDuration(secs);
+        titleRow.style.display = "flex";
+        titleInput.value = "";
+        titleInput.placeholder = `عنوان العلامة (مثال: سؤال 1) — عند ${formatDuration(secs)}`;
+        titleInput.focus();
+      });
+
+      const commitMarker = () => {
+        const title = titleInput.value.trim();
+        if (!title) {
+          showToast("اكتب عنواناً للعلامة قبل الإضافة.", "warning");
+          titleInput.focus();
+          return;
+        }
+        if (capturedTime === null) return;
+        markers.push({ title, startTimeSeconds: capturedTime });
+        markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+        titleRow.style.display = "none";
+        renderList();
+      };
+
+      confirmBtn.addEventListener("click", commitMarker);
+      titleInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commitMarker();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          titleRow.style.display = "none";
         }
       });
+      cancelBtn.addEventListener("click", () => {
+        titleRow.style.display = "none";
+      });
+
+      // --- 5) Final save (single API call for the whole set) ---
+      const saveBar = document.createElement("div");
+      saveBar.style.cssText =
+        "display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem;";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "btn btn-primary";
+      saveBtn.style.cssText =
+        "font-size:0.85rem; border-radius:50px; padding:0.45rem 1.1rem;";
+      saveBtn.textContent = "💾 حفظ التقسيم";
+      saveBar.appendChild(saveBtn);
+
+      const hint = document.createElement("span");
+      hint.className = "text-muted";
+      hint.style.cssText = "font-size:0.78rem;";
+      hint.textContent =
+        "تُحفظ كل العلامات دفعة واحدة عند الضغط على الحفظ فقط.";
+      saveBar.appendChild(hint);
+      wrap.appendChild(saveBar);
+
+      saveBtn.addEventListener("click", async () => {
+        if (!markers.length) {
+          showToast("أضف علامة واحدة على الأقل قبل الحفظ.", "warning");
+          return;
+        }
+        const times = markers.map((m) => m.startTimeSeconds);
+        const dups = [...new Set(times.filter((t, i) => times.indexOf(t) !== i))];
+        if (dups.length) {
+          showToast(
+            `لا يمكن الحفظ: أكثر من علامة في نفس التوقيت (${dups
+              .map((t) => formatDuration(t))
+              .join("، ")}). عدّلي التوقيتات ثم احفظي.`,
+            "danger"
+          );
+          return;
+        }
+        for (let i = 1; i < times.length; i++) {
+          if (times[i] < times[i - 1]) {
+            showToast(
+              "تحذير: توقيتات العلامات غير مرتبة — سأرتّبها تلقائياً عند الحفظ.",
+              "warning"
+            );
+            break;
+          }
+        }
+        if (videoObj.lengthSeconds) {
+          const over = markers.find(
+            (m) => m.startTimeSeconds > videoObj.lengthSeconds
+          );
+          if (over) {
+            showToast(
+              `توقيت العلامة "${over.title}" (${formatDuration(
+                over.startTimeSeconds
+              )}) يتجاوز طول الفيديو (${formatDuration(
+                videoObj.lengthSeconds
+              )}).`,
+              "danger"
+            );
+            return;
+          }
+        }
+
+        saveBtn.disabled = true;
+        try {
+          const result = await fetchJson(
+            `/api/videos/${videoObj.videoId}/chapters`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", ...authHeaders() },
+              body: JSON.stringify({ chapters: markers }),
+            }
+          );
+          showToast("تم حفظ التقسيم بنجاح.", "success");
+          videoObj.chapters = result.chapters || [];
+          const updated = await fetchJson(
+            `/api/lessons/${manageLesson.value}/videos`,
+            { headers: authHeaders() }
+          );
+          const freshVideo = (updated.videos || []).find(
+            (x) => x.videoId === videoObj.videoId
+          );
+          if (freshVideo) {
+            videoObj.chapters = freshVideo.chapters;
+            markers.length = 0;
+            (freshVideo.chapters || []).forEach((c) =>
+              markers.push({
+                title: c.title,
+                startTimeSeconds: c.startTimeSeconds,
+              })
+            );
+            markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+          }
+          renderList();
+        } catch (err) {
+          showToast(err.message, "danger");
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+
+      renderList();
+      panelEl.appendChild(wrap);
     };
 
     const renderManageList = () => {

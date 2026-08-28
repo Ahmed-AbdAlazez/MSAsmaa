@@ -229,6 +229,132 @@ router.post("/:videoId/chapters", requireAuth, requireTeacher, async (req, res) 
   }
 });
 
+/**
+ * PUT /api/videos/:videoId/chapters — replace the FULL chapter set in one save.
+ * Body: { chapters: [{ title, startTimeSeconds }] } (the complete desired list).
+ *
+ * Everything is held locally until this single call, so one request finalizes
+ * the whole timeline. It validates every timestamp (within the video's actual
+ * length, no duplicates), sorts by time, then performs a content-based sync:
+ * creates new markers, updates/changes orders, and deletes removed ones.
+ */
+router.put("/:videoId/chapters", requireAuth, requireTeacher, async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const incoming = Array.isArray(req.body.chapters) ? req.body.chapters : [];
+    if (!incoming.length) {
+      return res.status(400).json({
+        error: "لم تُضف أي علامة إلى القائمة بعد. أضف علامة على الأقل قبل الحفظ.",
+      });
+    }
+
+    const normalized = [];
+    for (let i = 0; i < incoming.length; i++) {
+      const raw = incoming[i] || {};
+      const title = typeof raw.title === "string" ? raw.title.trim() : "";
+      if (!title) {
+        return res.status(400).json({
+          error: `اسم العلامة رقم ${i + 1} فارغ. اكتب عنواناً لكل علامة.`,
+        });
+      }
+      const secs = parseTimeToSeconds(raw.startTimeSeconds);
+      if (secs === null || secs < 0) {
+        return res.status(400).json({
+          error: `توقيت العلامة رقم ${i + 1} غير صالح (مثال: 3:20 أو 200).`,
+        });
+      }
+      normalized.push({ title, startTimeSeconds: secs });
+    }
+
+    // Normalize play order from timestamps (out-of-order markers get sorted).
+    normalized.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+
+    // Reject duplicate timestamps.
+    const seen = new Map();
+    for (const ch of normalized) {
+      seen.set(ch.startTimeSeconds, (seen.get(ch.startTimeSeconds) || 0) + 1);
+    }
+    const dupTimes = [...seen.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([t]) => `${t} ثانية`);
+    if (dupTimes.length) {
+      return res.status(400).json({
+        error: `لديك أكثر من علامة في نفس التوقيت (${dupTimes.join("، ")}). عدّل التوقيتات ثم احفظ.`,
+      });
+    }
+
+    // Validate every timestamp against the video's actual length (fail-closed).
+    const video = await getVideo(videoId).catch(() => null);
+    if (video && video.length !== undefined && video.length > 0) {
+      for (const ch of normalized) {
+        if (ch.startTimeSeconds > video.length) {
+          return res.status(400).json({
+            error: `توقيت العلامة "${ch.title}" (${ch.startTimeSeconds} ثانية) يتجاوز طول الفيديو (${video.length} ثانية).`,
+          });
+        }
+      }
+    }
+
+    const existing = await prisma.videoChapter.findMany({
+      where: { videoId },
+    });
+    const existingKey = (e) => `${e.startTimeSeconds}\u0000${e.title}`;
+    const desiredKeys = new Set(normalized.map(existingKey));
+
+    const ops = [];
+    const usedIds = new Set();
+
+    for (let i = 0; i < normalized.length; i++) {
+      const c = normalized[i];
+      const match = existing.find(
+        (e) => e.startTimeSeconds === c.startTimeSeconds && e.title === c.title
+      );
+      if (match) {
+        usedIds.add(match.id);
+        if (match.orderIndex !== i) {
+          ops.push(
+            prisma.videoChapter.update({
+              where: { id: match.id },
+              data: { orderIndex: i },
+            })
+          );
+        }
+      } else {
+        ops.push(
+          prisma.videoChapter.create({
+            data: {
+              videoId,
+              title: c.title,
+              startTimeSeconds: c.startTimeSeconds,
+              orderIndex: i,
+            },
+          })
+        );
+      }
+    }
+
+    for (const e of existing) {
+      if (!desiredKeys.has(existingKey(e)) && !usedIds.has(e.id)) {
+        ops.push(prisma.videoChapter.delete({ where: { id: e.id } }));
+      }
+    }
+
+    if (ops.length) {
+      await prisma.$transaction(ops);
+    }
+
+    const chapters = await prisma.videoChapter.findMany({
+      where: { videoId },
+      orderBy: { orderIndex: "asc" },
+    });
+
+    return res.json({ videoId, chapters });
+  } catch (error) {
+    console.error("[chapters] Bulk save failed:", error);
+    return res.status(500).json({ error: "فشل حفظ التقسيم." });
+  }
+});
+
 /** PATCH /api/videos/chapters/:chapterId */
 router.patch("/chapters/:chapterId", requireAuth, requireTeacher, async (req, res) => {
   try {
