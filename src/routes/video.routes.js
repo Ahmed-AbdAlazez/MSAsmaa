@@ -23,6 +23,7 @@ const express = require("express");
 // Provided by the existing project (contract): guarantees req.user.id and
 // req.user.role are set for every request that reaches the handler below.
 const { requireAuth } = require("../middleware/auth.middleware.js");
+const { prisma } = require("../config/db.js");
 
 const {
   createVideo,
@@ -289,6 +290,23 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
 
   try {
     const items = await findAllVideosByLessonId(req.params.lessonId);
+    const videoIds = items.map((video) => video.guid);
+
+    const chapters = await prisma.videoChapter.findMany({
+      where: { videoId: { in: videoIds } },
+      orderBy: { orderIndex: "asc" },
+    });
+
+    const chaptersByVideo = {};
+    videoIds.forEach((id) => {
+      chaptersByVideo[id] = [];
+    });
+    chapters.forEach((ch) => {
+      if (!chaptersByVideo[ch.videoId]) {
+        chaptersByVideo[ch.videoId] = [];
+      }
+      chaptersByVideo[ch.videoId].push(ch);
+    });
 
     return res.json({
       lessonId: req.params.lessonId,
@@ -305,6 +323,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
           PLAYBACK_URL_LIFETIME_SECONDS,
         ),
         expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
+        chapters: chaptersByVideo[video.guid] || [],
       })),
     });
   } catch (error) {

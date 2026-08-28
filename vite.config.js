@@ -37,6 +37,7 @@ export default defineConfig({
         "forgot-password": "forgot-password.html",
         "reset-password": "reset-password.html",
         "course-biology": "course-biology.html",
+        courses: "courses.html",
         lessons: "lessons.html",
         "lesson-view": "lesson-view.html",
         chatbots: "chatbots.html",

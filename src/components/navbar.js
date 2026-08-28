@@ -118,7 +118,7 @@ export function initNavbar() {
         </a>
         <ul class="nav-links">
           <li><a href="index.html" class="nav-link ${getActive(["index.html"])}">الرئيسية</a></li>
-          <li><a href="course-biology.html" class="nav-link ${getActive(["course-biology.html", "lessons.html", "lesson-view.html"])}">الأحياء (3ث)</a></li>
+          <li><a href="courses.html" class="nav-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
           <li><a href="exams.html" class="nav-link ${getActive(["exams.html"])}">الاختبارات</a></li>
           <li><a href="chatbots.html" class="nav-link ${getActive(["chatbots.html"])}">المحادثات</a></li>
           ${dashboardLink}
@@ -163,7 +163,7 @@ export function initNavbar() {
       </div>
       <ul class="mobile-links">
         <li><a href="index.html" class="mobile-link ${getActive(["index.html"])}">الرئيسية</a></li>
-        <li><a href="course-biology.html" class="mobile-link ${getActive(["course-biology.html", "lessons.html", "lesson-view.html"])}">الأحياء (3ث)</a></li>
+        <li><a href="courses.html" class="mobile-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
         <li><a href="exams.html" class="mobile-link ${getActive(["exams.html"])}">الاختبارات</a></li>
         <li><a href="chatbots.html" class="mobile-link ${getActive(["chatbots.html"])}">المحادثات</a></li>
         ${mobileDashboardLink}

@@ -219,3 +219,41 @@ Then restore `return true;` (or replace the stub with the real DB check) and con
 - [ ] Signed URL stops working after expiry; fresh request gives a new one.
 - [ ] Lesson without video → 404.
 - [ ] Stub flipped to `false` → 403; restored → 200 again.
+
+---
+
+## 7. Video Chapters / Timestamps Feature
+
+### Database Model: `VideoChapter` (for Adham's awareness)
+A new Prisma database model was added to synchronize labeled video segments:
+```prisma
+model VideoChapter {
+  id               String   @id @default(uuid())
+  videoId          String   @map("video_id")
+  title            String
+  startTimeSeconds Int      @map("start_time_seconds")
+  orderIndex       Int      @map("order_index")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([videoId])
+  @@index([videoId, orderIndex])
+  @@map("video_chapters")
+}
+```
+
+### Backend REST API Endpoints:
+- `GET /api/videos/:videoId/chapters` - Returns all chapters for the video (sorted chronologically).
+- `POST /api/videos/:videoId/chapters` - Adds a new chapter. Input time format can be seconds (e.g. `200`) or `mm:ss` (e.g. `3:20`).
+- `PATCH /api/videos/chapters/:chapterId` - Modifies a chapter's title or start time.
+- `DELETE /api/videos/chapters/:chapterId` - Removes a chapter.
+
+All mutating endpoints automatically trigger a re-ordering routing in `src/routes/video-manage.routes.js` that updates the `orderIndex` column sequentially based on the sorted `startTimeSeconds` order.
+
+### How Chapter Editing Works (Teacher Flow)
+1. On the teacher dashboard under **إدارة الفيديوهات المرفوعة**, click the **📖 الفصول** (Chapters) button under any video part.
+2. Expanding the panel embeds a small preview player.
+3. You can add a new chapter by typing a title and entering the time (as minutes:seconds or seconds).
+4. Alternatively, play and scrub the preview player, then click **⏱ استخدم الوقت الحالي** to fetch the player's exact playback position dynamically and auto-fill the field.
+5. Added chapters are sorted chronologically automatically. You can edit their names/times or delete them inline inside the panel.
+
