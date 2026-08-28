@@ -1797,6 +1797,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const namedVideos = (lessonVideos || []).filter(
           (v) => v && typeof v.name === "string" && v.name.trim(),
         );
+        // TEMP DEBUG: confirm what the subtitle receives at render time.
+        console.log("[subtitle-debug] lessonId=", lessonId);
+        console.log(
+          "[subtitle-debug] videos received:",
+          (lessonVideos || []).map((v) => ({
+            videoId: v && v.videoId,
+            name: v && v.name,
+            hasPlaybackUrl: !!(v && v.playbackUrl),
+          })),
+        );
+        console.log(
+          "[subtitle-debug] subtitle element found:",
+          !!subtitleEl,
+          "| namedVideos found:",
+          namedVideos.length,
+        );
         if (namedVideos.length) {
           subtitleEl.innerHTML = namedVideos
             .map(
@@ -1840,7 +1856,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const cachedVideos = lessonCacheRead("videos", lessonId);
     if (cachedVideos && cachedVideos.fresh) {
-      applyVideosData(cachedVideos.data);
+      // The cache stores a bare array of videos (not the { videos } envelope),
+      // so wrap it to match what applyVideosData expects.
+      applyVideosData({ videos: cachedVideos.data });
       fetchJson(`/api/lessons/${lessonId}/videos`, {
         headers: authHeaders(),
       })

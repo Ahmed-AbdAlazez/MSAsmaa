@@ -27,6 +27,12 @@
 </head>
 <body>
 
+  <!-- Scroll progress bar: thin fixed strip at the very top edge, filled in
+       brand green by scrollProgress.js as the page is scrolled. -->
+  <div class="scroll-progress" id="scroll-progress" aria-hidden="true">
+    <div class="scroll-progress-fill"></div>
+  </div>
+
   <!-- Navigation Bar -->
   <nav class="navbar"></nav>
 
@@ -226,6 +232,7 @@
   <script src="/js/components/mascotEyeTracking.js"></script>
   <script src="/js/components/mascotNavHover.js"></script>
   <script src="/js/components/scrollBiology.js"></script>
+  <script src="/js/components/scrollProgress.js"></script>
 
   <script src="/js/profile-menu.js"></script>
   <script type="module" src="/src/main.js"></script>

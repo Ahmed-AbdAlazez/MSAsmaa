@@ -270,6 +270,30 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1rem 0;
 }
 
+/* Scroll progress bar — thin fixed strip at the very top edge of the viewport.
+   Fill grows/shrinks with page scroll; sits above the sticky navbar. */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 200;
+  background: var(--progress-track);
+  pointer-events: none;
+}
+.scroll-progress-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--color-primary-ink);
+  transform: scaleX(var(--scroll-progress-p, 0));
+  transform-origin: left center;
+  will-change: transform;
+}
+html[dir="rtl"] .scroll-progress-fill {
+  transform-origin: right center;
+}
+
 .navbar .container {
   display: flex;
   justify-content: space-between;
