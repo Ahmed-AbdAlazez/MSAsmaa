@@ -82,9 +82,7 @@ async function loadQuizOr404(request, response) {
 /** The student's latest in-progress attempt, or null. */
 async function findInProgressAttempt(quizId, studentId) {
   const attempts = await getAttemptsForStudent(quizId, studentId);
-  return (
-    attempts.find((attempt) => attempt.status === "in_progress") || null
-  );
+  return attempts.find((attempt) => attempt.status === "in_progress") || null;
 }
 
 /**
@@ -102,6 +100,35 @@ function submittedSummary(attempt) {
     submittedAt: attempt.submittedAt,
     submissionReason: attempt.submissionReason,
   };
+}
+
+/** Builds mistake records from authoritative MCQ choices, never client claims. */
+function buildMistakes(questions, answers, studentId, quizId, attemptId) {
+  return questions
+    .filter((question) => question.type === "mcq")
+    .filter((question) => {
+      const submitted = answers[question.id];
+      return !submitted || String(submitted.value) !== question.correctChoiceId;
+    })
+    .map((question) => {
+      const submitted = answers[question.id];
+      const correctChoice = question.choices.find(
+        (choice) => choice.id === question.correctChoiceId,
+      );
+      const submittedChoice = question.choices.find(
+        (choice) => choice.id === (submitted && submitted.value),
+      );
+      return {
+        studentId,
+        quizId,
+        questionId: question.id,
+        attemptId,
+        studentAnswer: submittedChoice ? submittedChoice.text : null,
+        correctAnswer: correctChoice
+          ? correctChoice.text
+          : question.correctChoiceId,
+      };
+    });
 }
 
 /**
@@ -123,7 +150,7 @@ async function autoSubmitExpiredAttempt(attempt, quiz) {
   // notice â€” important for teacher records and auditability.
   const cutoff = Math.min(
     Date.parse(attempt.personalDeadline),
-    Date.parse(quiz.endTime)
+    Date.parse(quiz.endTime),
   );
 
   return finalizeAttempt(attempt.id, {
@@ -131,6 +158,13 @@ async function autoSubmitExpiredAttempt(attempt, quiz) {
     totalMcq,
     reason: expiryReason(attempt, quiz),
     submittedAt: new Date(cutoff).toISOString(),
+    mistakes: buildMistakes(
+      questions,
+      attempt.answers,
+      attempt.studentId,
+      quiz.id,
+      attempt.id,
+    ),
   });
 }
 
@@ -174,8 +208,7 @@ router.get("/quizzes/available", requireAuth, async (req, res) => {
       endTime: quiz.endTime,
       durationMinutes: quiz.durationMinutes,
       createdAt: quiz.createdAt,
-      status:
-        now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
+      status: now < startMs ? "upcoming" : now <= endMs ? "active" : "ended",
     };
     // Attach covered lesson IDs for mixed quizzes
     if (quiz.isMixed) {
@@ -200,47 +233,60 @@ router.get("/quizzes/available", requireAuth, async (req, res) => {
  * student returning to the hub sees their auto-submitted score without
  * having to open the quiz first.
  * ------------------------------------------------------------------ */
-router.get("/quizzes/my-attempts", requireAuth, requireStudent, async (req, res) => {
-  const attempts = await listAttemptsForStudent(req.user.id);
+router.get(
+  "/quizzes/my-attempts",
+  requireAuth,
+  requireStudent,
+  async (req, res) => {
+    const attempts = await listAttemptsForStudent(req.user.id);
 
-  // Group by quiz and lazily finalize expired in-progress attempts.
-  const byQuiz = new Map();
-  const expiredToFinalize = [];
-  for (const attempt of attempts) {
-    if (!byQuiz.has(attempt.quizId)) byQuiz.set(attempt.quizId, []);
-    byQuiz.get(attempt.quizId).push(attempt);
-    if (attempt.status === "in_progress") expiredToFinalize.push(attempt);
-  }
-
-  for (const attempt of expiredToFinalize) {
-    const quiz = await getQuizById(attempt.quizId);
-    if (quiz && isAttemptExpired(attempt, quiz)) {
-      const finalized = await autoSubmitExpiredAttempt(attempt, quiz).catch(() => null);
-      if (finalized) Object.assign(attempt, finalized);
+    // Group by quiz and lazily finalize expired in-progress attempts.
+    const byQuiz = new Map();
+    const expiredToFinalize = [];
+    for (const attempt of attempts) {
+      if (!byQuiz.has(attempt.quizId)) byQuiz.set(attempt.quizId, []);
+      byQuiz.get(attempt.quizId).push(attempt);
+      if (attempt.status === "in_progress") expiredToFinalize.push(attempt);
     }
-  }
 
-  const result = {};
-  for (const [quizId, quizAttempts] of byQuiz.entries()) {
-    const used = quizAttempts.filter((a) => a.status === "submitted").length;
-    const allowed = await getAllowedAttemptCount(quizId, req.user.id);
-    const inProgress = quizAttempts.find((a) => a.status === "in_progress");
-    const latestSubmitted = quizAttempts
-      .filter((a) => a.status === "submitted")
-      .sort((a, b) => String(b.submittedAt || "").localeCompare(String(a.submittedAt || "")))
-      [0] || null;
+    for (const attempt of expiredToFinalize) {
+      const quiz = await getQuizById(attempt.quizId);
+      if (quiz && isAttemptExpired(attempt, quiz)) {
+        const finalized = await autoSubmitExpiredAttempt(attempt, quiz).catch(
+          () => null,
+        );
+        if (finalized) Object.assign(attempt, finalized);
+      }
+    }
 
-    result[quizId] = {
-      status: inProgress ? "in_progress" : "submitted",
-      usedAttempts: used,
-      allowedAttempts: allowed,
-      remainingAttempts: Math.max(0, allowed - used),
-      latestSubmitted: latestSubmitted ? submittedSummary(latestSubmitted) : null,
-    };
-  }
+    const result = {};
+    for (const [quizId, quizAttempts] of byQuiz.entries()) {
+      const used = quizAttempts.filter((a) => a.status === "submitted").length;
+      const allowed = await getAllowedAttemptCount(quizId, req.user.id);
+      const inProgress = quizAttempts.find((a) => a.status === "in_progress");
+      const latestSubmitted =
+        quizAttempts
+          .filter((a) => a.status === "submitted")
+          .sort((a, b) =>
+            String(b.submittedAt || "").localeCompare(
+              String(a.submittedAt || ""),
+            ),
+          )[0] || null;
 
-  return res.json({ attempts: result });
-});
+      result[quizId] = {
+        status: inProgress ? "in_progress" : "submitted",
+        usedAttempts: used,
+        allowedAttempts: allowed,
+        remainingAttempts: Math.max(0, allowed - used),
+        latestSubmitted: latestSubmitted
+          ? submittedSummary(latestSubmitted)
+          : null,
+      };
+    }
+
+    return res.json({ attempts: result });
+  },
+);
 
 /* ------------------------------------------------------------------ *
  * GET /quizzes/for-lesson/:lessonId - quizzes for the lesson page.
@@ -299,13 +345,21 @@ router.get("/quizzes/for-lesson/:lessonId", requireAuth, async (req, res) => {
       const inProgress = quizAttempts.find((a) => a.status === "in_progress");
       const submitted = quizAttempts
         .filter((a) => a.status === "submitted")
-        .sort((a, b) => String(b.submittedAt || "").localeCompare(String(a.submittedAt || "")));
+        .sort((a, b) =>
+          String(b.submittedAt || "").localeCompare(
+            String(a.submittedAt || ""),
+          ),
+        );
       const latestSubmitted = submitted[0] || null;
       const used = quizAttempts.filter((a) => a.status === "submitted").length;
       const allowed = await getAllowedAttemptCount(exam.id, req.user.id);
 
       attempts[exam.id] = {
-        status: inProgress ? "in_progress" : latestSubmitted ? "submitted" : "not_started",
+        status: inProgress
+          ? "in_progress"
+          : latestSubmitted
+            ? "submitted"
+            : "not_started",
         usedAttempts: used,
         allowedAttempts: allowed,
         remainingAttempts: Math.max(0, allowed - used),
@@ -328,266 +382,300 @@ router.get("/quizzes/for-lesson/:lessonId", requireAuth, async (req, res) => {
 /* ------------------------------------------------------------------ *
  * POST /quizzes/:quizId/start - start fresh OR resume automatically
  * ------------------------------------------------------------------ */
-router.post("/quizzes/:quizId/start", requireAuth, requireStudent, async (req, res) => {
-  const quiz = await loadQuizOr404(req, res);
-  if (!quiz) return;
+router.post(
+  "/quizzes/:quizId/start",
+  requireAuth,
+  requireStudent,
+  async (req, res) => {
+    const quiz = await loadQuizOr404(req, res);
+    if (!quiz) return;
 
-  // (a) Enrollment — for mixed quizzes, check course enrollment (not lesson-level);
-  // for single-lesson quizzes, check lesson-level enrollment as before.
-  if (quiz.isMixed) {
-    // Mixed quiz: enrolled in ANY of the covered lessons = OK
-    const { isStudentEnrolledInLessonCourse } = require("../../services/enrollment.stub.service.js");
-    let enrolled = false;
-    for (const lid of (await getQuizLessons(quiz.id))) {
-      if (await isStudentEnrolledInLessonCourse(req.user.id, lid)) {
-        enrolled = true;
-        break;
+    // (a) Enrollment — for mixed quizzes, check course enrollment (not lesson-level);
+    // for single-lesson quizzes, check lesson-level enrollment as before.
+    if (quiz.isMixed) {
+      // Mixed quiz: enrolled in ANY of the covered lessons = OK
+      const {
+        isStudentEnrolledInLessonCourse,
+      } = require("../../services/enrollment.stub.service.js");
+      let enrolled = false;
+      for (const lid of await getQuizLessons(quiz.id)) {
+        if (await isStudentEnrolledInLessonCourse(req.user.id, lid)) {
+          enrolled = true;
+          break;
+        }
+      }
+      if (!enrolled) {
+        return res.status(403).json({
+          error: "يجب أن تكوني مسجلة في كورس الأحياء للمشاركة في هذا الاختبار.",
+        });
+      }
+    } else {
+      const enrolled = await isStudentEnrolledInLessonCourse(
+        req.user.id,
+        quiz.lessonId,
+      );
+      if (!enrolled) {
+        return res.status(403).json({
+          error: "يجب أن تكوني مسجلة في الكورس الخاص بهذا الدرس.",
+        });
       }
     }
-    if (!enrolled) {
+
+    // (b) Window check.
+    if (Date.now() < Date.parse(quiz.startTime)) {
       return res.status(403).json({
-        error: "يجب أن تكوني مسجلة في كورس الأحياء للمشاركة في هذا الاختبار.",
+        error: "الاختبار لم يبدأ بعد.",
+        startTime: quiz.startTime,
       });
     }
-  } else {
-    const enrolled = await isStudentEnrolledInLessonCourse(
-      req.user.id,
-      quiz.lessonId
-    );
-    if (!enrolled) {
-      return res.status(403).json({
-        error: "يجب أن تكوني مسجلة في الكورس الخاص بهذا الدرس.",
-      });
+
+    const questions = await getQuestionsForQuiz(quiz.id);
+    if (questions.length === 0) {
+      return res.status(400).json({ error: "الاختبار لا يحتوي أسئلة بعد." });
     }
-  }
+    await attachImageUrls(questions);
 
-  // (b) Window check.
-  if (Date.now() < Date.parse(quiz.startTime)) {
-    return res.status(403).json({
-      error: "الاختبار لم يبدأ بعد.",
-      startTime: quiz.startTime,
-    });
-  }
+    /* ---- RESUME PATH: an unfinished attempt exists ------------------- */
+    const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
+    if (inProgress) {
+      if (isAttemptExpired(inProgress, quiz) || !isWithinQuizWindow(quiz)) {
+        // Time ran out while they were away -> treat like any other
+        // auto-submit; do NOT let them keep solving.
+        const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
+        return res.json({
+          status: "auto_submitted",
+          message:
+            "انتهى وقت الاختبار قبل عودتك، وتم تسليم إجاجاتك المحفوظة تلقائياً.",
+          result: submittedSummary(finalized),
+        });
+      }
 
-  const questions = await getQuestionsForQuiz(quiz.id);
-  if (questions.length === 0) {
-    return res.status(400).json({ error: "الاختبار لا يحتوي أسئلة بعد." });
-  }
-  await attachImageUrls(questions);
-
-  /* ---- RESUME PATH: an unfinished attempt exists ------------------- */
-  const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
-  if (inProgress) {
-    if (isAttemptExpired(inProgress, quiz) || !isWithinQuizWindow(quiz)) {
-      // Time ran out while they were away -> treat like any other
-      // auto-submit; do NOT let them keep solving.
-      const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
+      // Still has time -> hand back the same questions + saved answers +
+      // REDUCED remaining seconds computed from the stored start timestamp.
       return res.json({
-        status: "auto_submitted",
-        message:
-          "انتهى وقت الاختبار قبل عودتك، وتم تسليم إجاجاتك المحفوظة تلقائياً.",
-        result: submittedSummary(finalized),
+        status: "resumed",
+        attemptId: inProgress.id,
+        startedAt: inProgress.startedAt,
+        personalDeadline: inProgress.personalDeadline,
+        endTime: quiz.endTime,
+        remainingSeconds: remainingSeconds(inProgress, quiz),
+        durationMinutes: quiz.durationMinutes,
+        // SAME persisted shuffle as the original start - never re-shuffled.
+        questions: applyAttemptOrdering(questions, inProgress.ordering).map(
+          sanitizeQuestionForStudent,
+        ),
+        savedAnswers: Object.fromEntries(
+          Object.entries(inProgress.answers).map(([questionId, entry]) => [
+            questionId,
+            entry.value,
+          ]),
+        ),
       });
     }
 
-    // Still has time -> hand back the same questions + saved answers +
-    // REDUCED remaining seconds computed from the stored start timestamp.
-    return res.json({
-      status: "resumed",
-      attemptId: inProgress.id,
-      startedAt: inProgress.startedAt,
-      personalDeadline: inProgress.personalDeadline,
+    /* ---- NEW ATTEMPT PATH -------------------------------------------- */
+    // (c) One-attempt rule: submitted attempts must fit under the allowance
+    // (1 by default, more only via teacher grant-retry).
+    const used = await countSubmittedAttempts(quiz.id, req.user.id);
+    const allowed = await getAllowedAttemptCount(quiz.id, req.user.id);
+    if (used >= allowed) {
+      return res.status(403).json({
+        error:
+          allowed > 1
+            ? "لقد استخدمتِ كل المحاولات المتاحة لك في هذا الاختبار."
+            : "لقد استخدمتِ محاولتك الوحيدة في هذا الاختبار.",
+      });
+    }
+
+    if (Date.now() > Date.parse(quiz.endTime)) {
+      return res.status(403).json({ error: "انتهى وقت الاختبار." });
+    }
+
+    // Personal cutoff recorded SERVER-SIDE at the moment of start.
+    const personalDeadline = new Date(
+      Date.now() + quiz.durationMinutes * 60 * 1000,
+    ).toISOString();
+    const attempt = await createAttempt(quiz.id, req.user.id, personalDeadline);
+
+    // Per-attempt shuffle generated SERVER-SIDE and PERSISTED on the attempt
+    // so resume replays the exact same order (grading matches by choice ID, so
+    // shuffling can never affect correctness).
+    const ordering = generateAttemptOrdering(questions);
+    await setAttemptOrdering(attempt.id, ordering);
+
+    return res.status(201).json({
+      status: "started",
+      attemptId: attempt.id,
+      startedAt: attempt.startedAt,
+      personalDeadline: attempt.personalDeadline,
       endTime: quiz.endTime,
-      remainingSeconds: remainingSeconds(inProgress, quiz),
+      remainingSeconds: remainingSeconds(attempt, quiz),
       durationMinutes: quiz.durationMinutes,
-      // SAME persisted shuffle as the original start - never re-shuffled.
-      questions: applyAttemptOrdering(questions, inProgress.ordering).map(
-        sanitizeQuestionForStudent
+      questions: applyAttemptOrdering(questions, ordering).map(
+        sanitizeQuestionForStudent,
       ),
-      savedAnswers: Object.fromEntries(
-        Object.entries(inProgress.answers).map(([questionId, entry]) => [
-          questionId,
-          entry.value,
-        ])
-      ),
+      savedAnswers: {},
     });
-  }
-
-  /* ---- NEW ATTEMPT PATH -------------------------------------------- */
-  // (c) One-attempt rule: submitted attempts must fit under the allowance
-  // (1 by default, more only via teacher grant-retry).
-  const used = await countSubmittedAttempts(quiz.id, req.user.id);
-  const allowed = await getAllowedAttemptCount(quiz.id, req.user.id);
-  if (used >= allowed) {
-    return res.status(403).json({
-      error: allowed > 1
-        ? "لقد استخدمتِ كل المحاولات المتاحة لك في هذا الاختبار."
-        : "لقد استخدمتِ محاولتك الوحيدة في هذا الاختبار.",
-    });
-  }
-
-  if (Date.now() > Date.parse(quiz.endTime)) {
-    return res.status(403).json({ error: "انتهى وقت الاختبار." });
-  }
-
-  // Personal cutoff recorded SERVER-SIDE at the moment of start.
-  const personalDeadline = new Date(
-    Date.now() + quiz.durationMinutes * 60 * 1000
-  ).toISOString();
-  const attempt = await createAttempt(quiz.id, req.user.id, personalDeadline);
-
-  // Per-attempt shuffle generated SERVER-SIDE and PERSISTED on the attempt
-  // so resume replays the exact same order (grading matches by choice ID, so
-  // shuffling can never affect correctness).
-  const ordering = generateAttemptOrdering(questions);
-  await setAttemptOrdering(attempt.id, ordering);
-
-  return res.status(201).json({
-    status: "started",
-    attemptId: attempt.id,
-    startedAt: attempt.startedAt,
-    personalDeadline: attempt.personalDeadline,
-    endTime: quiz.endTime,
-    remainingSeconds: remainingSeconds(attempt, quiz),
-    durationMinutes: quiz.durationMinutes,
-    questions: applyAttemptOrdering(questions, ordering).map(
-      sanitizeQuestionForStudent
-    ),
-    savedAnswers: {},
-  });
-});
+  },
+);
 
 /* ------------------------------------------------------------------ *
  * GET /quizzes/:quizId/attempt â€” cheap state probe for re-entry UIs.
  * Also finalizes lazily when the deadline passed while nobody called us.
  * ------------------------------------------------------------------ */
-router.get("/quizzes/:quizId/attempt", requireAuth, requireStudent, async (req, res) => {
-  const quiz = await loadQuizOr404(req, res);
-  if (!quiz) return;
+router.get(
+  "/quizzes/:quizId/attempt",
+  requireAuth,
+  requireStudent,
+  async (req, res) => {
+    const quiz = await loadQuizOr404(req, res);
+    if (!quiz) return;
 
-  const attempts = await getAttemptsForStudent(quiz.id, req.user.id);
-  const inProgress = attempts.find((a) => a.status === "in_progress");
+    const attempts = await getAttemptsForStudent(quiz.id, req.user.id);
+    const inProgress = attempts.find((a) => a.status === "in_progress");
 
-  if (inProgress && isAttemptExpired(inProgress, quiz)) {
-    const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
-    return res.json({
-      status: "submitted",
-      result: submittedSummary(finalized),
-    });
-  }
+    if (inProgress && isAttemptExpired(inProgress, quiz)) {
+      const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
+      return res.json({
+        status: "submitted",
+        result: submittedSummary(finalized),
+      });
+    }
 
-  if (inProgress) {
-    return res.json({
-      status: "in_progress",
-      attemptId: inProgress.id,
-      remainingSeconds: remainingSeconds(inProgress, quiz),
-      personalDeadline: inProgress.personalDeadline,
-      endTime: quiz.endTime,
-    });
-  }
+    if (inProgress) {
+      return res.json({
+        status: "in_progress",
+        attemptId: inProgress.id,
+        remainingSeconds: remainingSeconds(inProgress, quiz),
+        personalDeadline: inProgress.personalDeadline,
+        endTime: quiz.endTime,
+      });
+    }
 
-  const lastSubmitted = [...attempts]
-    .filter((a) => a.status === "submitted")
-    .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))
-    [0];
+    const lastSubmitted = [...attempts]
+      .filter((a) => a.status === "submitted")
+      .sort((a, b) =>
+        String(b.submittedAt).localeCompare(String(a.submittedAt)),
+      )[0];
 
-  if (lastSubmitted) {
-    return res.json({
-      status: "submitted",
-      result: submittedSummary(lastSubmitted),
-      canRetry: false,
-    });
-  }
+    if (lastSubmitted) {
+      return res.json({
+        status: "submitted",
+        result: submittedSummary(lastSubmitted),
+        canRetry: false,
+      });
+    }
 
-  return res.json({ status: "not_started" });
-});
+    return res.json({ status: "not_started" });
+  },
+);
 
 /* ------------------------------------------------------------------ *
  * POST /quizzes/:quizId/answers â€” incremental autosave (one answer)
  * Body: { questionId, value }  value = choice id | written text
  * ------------------------------------------------------------------ */
-router.post("/quizzes/:quizId/answers", requireAuth, requireStudent, async (req, res) => {
-  const quiz = await loadQuizOr404(req, res);
-  if (!quiz) return;
+router.post(
+  "/quizzes/:quizId/answers",
+  requireAuth,
+  requireStudent,
+  async (req, res) => {
+    const quiz = await loadQuizOr404(req, res);
+    if (!quiz) return;
 
-  const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
-  if (!inProgress) {
-    return res.status(409).json({ error: "لا توجد محاولة جارية." });
-  }
+    const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
+    if (!inProgress) {
+      return res.status(409).json({ error: "لا توجد محاولة جارية." });
+    }
 
-  // Deadline enforcement: once time is up we stop accepting changes and
-  // flip the attempt to submitted immediately (lazy auto-submit).
-  if (isAttemptExpired(inProgress, quiz)) {
-    const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
-    return res.status(409).json({
-      error: "انتهى الوقت وتم تسليم إجاباتك المحفوظة.",
-      result: submittedSummary(finalized),
-    });
-  }
+    // Deadline enforcement: once time is up we stop accepting changes and
+    // flip the attempt to submitted immediately (lazy auto-submit).
+    if (isAttemptExpired(inProgress, quiz)) {
+      const finalized = await autoSubmitExpiredAttempt(inProgress, quiz);
+      return res.status(409).json({
+        error: "انتهى الوقت وتم تسليم إجاباتك المحفوظة.",
+        result: submittedSummary(finalized),
+      });
+    }
 
-  const questionId = String((req.body && req.body.questionId) || "");
-  const value = String((req.body && req.body.value) ?? "");
+    const questionId = String((req.body && req.body.questionId) || "");
+    const value = String((req.body && req.body.value) ?? "");
 
-  const questions = await getQuestionsForQuiz(quiz.id);
-  if (!questions.some((question) => question.id === questionId)) {
-    return res.status(400).json({ error: "سؤال غير معروف." });
-  }
+    const questions = await getQuestionsForQuiz(quiz.id);
+    if (!questions.some((question) => question.id === questionId)) {
+      return res.status(400).json({ error: "سؤال غير معروف." });
+    }
 
-  const saved = await saveInProgressAnswer(inProgress.id, questionId, value);
-  if (!saved) {
-    return res.status(409).json({ error: "لا يمكن حفظ الإجابة الآن." });
-  }
+    const saved = await saveInProgressAnswer(inProgress.id, questionId, value);
+    if (!saved) {
+      return res.status(409).json({ error: "لا يمكن حفظ الإجابة الآن." });
+    }
 
-  return res.json({ message: "تم الحفظ.", questionId });
-});
+    return res.json({ message: "تم الحفظ.", questionId });
+  },
+);
 
 /* ------------------------------------------------------------------ *
  * POST /quizzes/:quizId/submit â€” finish the quiz
  * Optional body: { answers: { questionId: value } } final flush.
  * ------------------------------------------------------------------ */
-router.post("/quizzes/:quizId/submit", requireAuth, requireStudent, async (req, res) => {
-  const quiz = await loadQuizOr404(req, res);
-  if (!quiz) return;
+router.post(
+  "/quizzes/:quizId/submit",
+  requireAuth,
+  requireStudent,
+  async (req, res) => {
+    const quiz = await loadQuizOr404(req, res);
+    if (!quiz) return;
 
-  const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
-  if (!inProgress) {
-    return res
-      .status(409)
-      .json({ error: "لا توجد محاولة جارية لتسليمها." });
-  }
-
-  const expired = isAttemptExpired(inProgress, quiz);
-  let answersMap = { ...inProgress.answers };
-
-  if (!expired && req.body && req.body.answers) {
-    // Final flush of any answers changed since the last autosave.
-    // Only accepted BEFORE the deadline â€” late payloads are ignored and we
-    // grade what the server had saved up to the cutoff.
-    for (const [questionId, value] of Object.entries(req.body.answers)) {
-      answersMap[questionId] = { value: String(value == null ? "" : value) };
+    const inProgress = await findInProgressAttempt(quiz.id, req.user.id);
+    if (!inProgress) {
+      return res.status(409).json({ error: "لا توجد محاولة جارية لتسليمها." });
     }
-  }
 
-  const reason = expired ? expiryReason(inProgress, quiz) : "manual";
-  const questions = await getQuestionsForQuiz(quiz.id);
-  const { score, totalMcq } = gradeSubmission(questions, answersMap);
+    const expired = isAttemptExpired(inProgress, quiz);
+    let answersMap = { ...inProgress.answers };
 
-  const finalized = await finalizeAttempt(inProgress.id, {
-    score,
-    totalMcq,
-    reason,
-    submittedAt: expired
-      ? new Date(Math.min(Date.parse(inProgress.personalDeadline), Date.parse(quiz.endTime))).toISOString()
-      : new Date().toISOString(),
-  });
+    if (!expired && req.body && req.body.answers) {
+      // Final flush of any answers changed since the last autosave.
+      // Only accepted BEFORE the deadline â€” late payloads are ignored and we
+      // grade what the server had saved up to the cutoff.
+      for (const [questionId, value] of Object.entries(req.body.answers)) {
+        answersMap[questionId] = { value: String(value == null ? "" : value) };
+      }
+    }
 
-  return res.json({
-    message:
-      reason === "manual"
-        ? "تم تسليم الاختبار."
-        : "انتهى الوقت وتم التسليم التلقائي.",
-    result: submittedSummary(finalized || inProgress),
-  });
-});
+    const reason = expired ? expiryReason(inProgress, quiz) : "manual";
+    const questions = await getQuestionsForQuiz(quiz.id);
+    const { score, totalMcq } = gradeSubmission(questions, answersMap);
+
+    const finalized = await finalizeAttempt(inProgress.id, {
+      score,
+      totalMcq,
+      reason,
+      submittedAt: expired
+        ? new Date(
+            Math.min(
+              Date.parse(inProgress.personalDeadline),
+              Date.parse(quiz.endTime),
+            ),
+          ).toISOString()
+        : new Date().toISOString(),
+      mistakes: buildMistakes(
+        questions,
+        answersMap,
+        req.user.id,
+        quiz.id,
+        inProgress.id,
+      ),
+    });
+
+    return res.json({
+      message:
+        reason === "manual"
+          ? "تم تسليم الاختبار."
+          : "انتهى الوقت وتم التسليم التلقائي.",
+      result: submittedSummary(finalized || inProgress),
+    });
+  },
+);
 
 module.exports = router;

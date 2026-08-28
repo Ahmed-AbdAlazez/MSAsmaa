@@ -85,6 +85,7 @@ model Quiz {
   questions   QuizQuestion[]
   attempts    QuizAttempt[]
   quizLessons QuizLesson[]
+  mistakes    StudentMistake[]
 
   @@index([courseId])
   @@index([lessonId])
@@ -119,6 +120,7 @@ model QuizQuestion {
 
   quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   choices QuizChoice[]
+  mistakes StudentMistake[]
 
   @@unique([quizId, order])
   @@map("questions")
@@ -158,6 +160,7 @@ model QuizAttempt {
 
   quiz    Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers StudentAnswer[]
+  mistakes StudentMistake[]
 
   @@index([quizId, studentId])
   @@index([quizId, status])
@@ -178,6 +181,28 @@ model StudentAnswer {
 
   @@unique([attemptId, questionId])
   @@map("student_answers")
+}
+
+/// One incorrect MCQ answer recorded for a specific student attempt.
+model StudentMistake {
+  id            String   @id @default(cuid())
+  studentId     String   @map("student_id")
+  quizId        String   @map("quiz_id")
+  questionId    String   @map("question_id")
+  attemptId     String   @map("attempt_id")
+  studentAnswer String?  @map("student_answer")
+  correctAnswer String   @map("correct_answer")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  quiz     Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attempt  QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([studentId, createdAt])
+  @@index([quizId])
+  @@index([questionId])
+  @@map("student_mistakes")
 }
 
 /// Teacher-granted ADDITIONAL attempts per (quiz, student). Allowance = 1 + extra_count.
