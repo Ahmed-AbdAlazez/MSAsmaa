@@ -2935,7 +2935,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   ? data.value
                   : parseFloat(data.value);
               resolve(
-                Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+                Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0,
               );
             } catch (e) {}
           };
@@ -3082,7 +3082,7 @@ document.addEventListener("DOMContentLoaded", () => {
           timeInput.focus();
           showToast(
             "لم يُلتقط التوقيت تلقائياً من المشغّل — أدخلي التوقيت يدوياً ثم اضغطي «إضافة».",
-            "warning"
+            "warning",
           );
         }
       });
@@ -3092,7 +3092,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!s) return null;
         if (/^\d+$/.test(s)) return parseInt(s, 10);
         const parts = s.split(":").map((x) => parseFloat(x));
-        if (parts.some((n) => Number.isNaN(n)) || parts.length < 2 || parts.length > 3)
+        if (
+          parts.some((n) => Number.isNaN(n)) ||
+          parts.length < 2 ||
+          parts.length > 3
+        )
           return null;
         if (parts.length === 3) {
           return parts[0] * 3600 + parts[1] * 60 + Math.floor(parts[2]);
@@ -3114,7 +3118,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (parsed === null) {
             showToast(
               "أدخلي التوقيت بصيغة دقائق:ثوانٍ (مثال: 3:20).",
-              "warning"
+              "warning",
             );
             timeInput.focus();
             return;
@@ -3124,7 +3128,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (seconds === null) {
           showToast(
             "أدخلي التوقيت يدوياً بصيغة دقائق:ثوانٍ (مثال: 3:20) ثم اضغطي إضافة.",
-            "warning"
+            "warning",
           );
           timeInput.focus();
           return;
@@ -3132,11 +3136,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (videoObj.lengthSeconds && seconds > videoObj.lengthSeconds) {
           showToast(
             `التوقيت (${formatDuration(
-              seconds
+              seconds,
             )}) يتجاوز طول الفيديو (${formatDuration(
-              videoObj.lengthSeconds
+              videoObj.lengthSeconds,
             )}).`,
-            "danger"
+            "danger",
           );
           timeInput.focus();
           return;
