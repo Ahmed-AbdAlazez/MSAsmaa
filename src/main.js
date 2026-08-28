@@ -398,17 +398,17 @@ document.addEventListener("DOMContentLoaded", () => {
       markSwOwned(value) {
         swOwned = !!value;
       },
-      show(titleText) {
-        if (swOwned) return;
+      show(titleText, pct = 0, message = null, force = false) {
+        if (swOwned && !force) return;
         ensure();
         el.style.display = "block";
         active = true;
-        bar.style.width = "0%";
+        bar.style.width = `${pct}%`;
         el.querySelector(".ufl-title").textContent = titleText;
-        label.textContent = "0%";
+        label.textContent = message || `${pct}%`;
       },
-      update(pct, message) {
-        if (!el || swOwned) return;
+      update(pct, message, force = false) {
+        if (!el || (swOwned && !force)) return;
         bar.style.width = pct + "%";
         label.textContent = message || pct + "%";
       },
@@ -445,6 +445,67 @@ document.addEventListener("DOMContentLoaded", () => {
   // Browsers without SW fall back to the classic inline upload.
   // ------------------------------------------------------------------
   const UPLOAD_CHANNEL_NAME = "msasmaa-uploads";
+  const UPLOAD_WORKFLOW_STORAGE_KEY = "teacherUploadWorkflows";
+  const getUploadWorkflowStorageKey = () => {
+    const teacherId = String(localStorage.getItem("userId") || "").trim();
+    return teacherId ? `${UPLOAD_WORKFLOW_STORAGE_KEY}:${teacherId}` : null;
+  };
+  const readUploadWorkflows = () => {
+    const key = getUploadWorkflowStorageKey();
+    if (!key) return [];
+    try {
+      const workflows = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(workflows) ? workflows : [];
+    } catch (_) {
+      return [];
+    }
+  };
+  const writeUploadWorkflows = (workflows) => {
+    const key = getUploadWorkflowStorageKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(workflows));
+    } catch (_) {
+      /* best-effort */
+    }
+  };
+  const saveUploadWorkflow = (workflow) => {
+    const workflows = readUploadWorkflows().filter(
+      (item) => item.jobId !== workflow.jobId,
+    );
+    workflows.push(workflow);
+    writeUploadWorkflows(workflows);
+  };
+  const removeUploadWorkflow = (jobId) => {
+    writeUploadWorkflows(
+      readUploadWorkflows().filter((item) => item.jobId !== jobId),
+    );
+  };
+
+  const updateUploadWorkflowUi = (job, pct, message) => {
+    const kind = job.kind || job.meta?.kind;
+    const isPdf = kind === "pdf";
+    const progressArea = document.querySelector(
+      isPdf ? "#upload-pdf-progress-area" : "#upload-progress-area",
+    );
+    const progressBar = document.querySelector(
+      isPdf ? "#upload-pdf-progress-bar" : "#upload-progress-bar",
+    );
+    const statusText = document.querySelector(
+      isPdf ? "#upload-pdf-status-text" : "#upload-status-text",
+    );
+    const uploadButton = document.querySelector(
+      isPdf ? "#btn-upload-material" : "#btn-upload-video",
+    );
+    if (progressArea) progressArea.style.display = "block";
+    if (progressBar) progressBar.style.width = `${pct}%`;
+    if (statusText) statusText.textContent = message;
+    if (uploadButton) {
+      uploadButton.disabled = !["done", "failed"].includes(job.status);
+    }
+  };
+
+  let restoreTeacherUploadWorkflow = null;
   const swUploadAvailable =
     "serviceWorker" in navigator && typeof BroadcastChannel !== "undefined";
 
@@ -509,13 +570,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const m = event.data || {};
       if (m.type === "started") {
         UploadFloat.markSwOwned(true);
-        UploadFloat.show(m.label || "جاري رفع ملف");
+        UploadFloat.show(m.label || "جاري رفع ملف", 0, "جاري الرفع...", true);
       } else if (m.type === "progress") {
         UploadFloat.update(
           m.pct,
           m.stage === "finalizing"
             ? "جاري تحسين الملف على السيرفر..."
             : `جاري الرفع... ${m.pct}%`,
+          true,
         );
       } else if (m.type === "done") {
         UploadFloat.done("تم الرفع بنجاح ✔");
@@ -534,8 +596,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const stateChannel = new BroadcastChannel(UPLOAD_CHANNEL_NAME);
     stateChannel.onmessage = (event) => {
       const m = event.data || {};
-      if (m.type === "ACTIVE_JOBS" && m.jobs && m.jobs.length) {
-        UploadFloat.show(m.jobs[0].label || "جاري رفع ملف");
+      if (m.type === "UPLOAD_WORKFLOWS" && m.jobs && m.jobs.length) {
+        m.jobs.forEach((job) => {
+          const pct = Number(job.progress) || 0;
+          const message =
+            job.status === "finalizing"
+              ? "جاري تحسين الملف على السيرفر..."
+              : `جاري الرفع... ${pct}%`;
+          if (job.status === "done") {
+            updateUploadWorkflowUi(job, 100, "تم رفع الملف بنجاح ✔");
+            UploadFloat.markSwOwned(true);
+            UploadFloat.show(
+              job.label || "تم رفع الملف",
+              100,
+              "تم الرفع بنجاح ✔",
+              true,
+            );
+          } else if (job.status === "failed") {
+            updateUploadWorkflowUi(job, pct, `فشل الرفع: ${job.error || ""}`);
+            UploadFloat.markSwOwned(true);
+            UploadFloat.show(
+              job.label || "فشل الرفع",
+              pct,
+              `فشل الرفع: ${job.error || ""}`,
+              true,
+            );
+          } else {
+            updateUploadWorkflowUi(job, pct, message);
+            UploadFloat.markSwOwned(true);
+            UploadFloat.show(job.label || "جاري رفع ملف", pct, message, true);
+          }
+          restoreTeacherUploadWorkflow?.(job);
+        });
       }
     };
   }
@@ -633,6 +725,100 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return data;
   };
+
+  const restoredVideoPolls = new Set();
+  const acknowledgeUploadWorkflow = (jobId) => {
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        registration.active?.postMessage({
+          type: "ACK_UPLOAD_WORKFLOW",
+          jobId,
+        });
+      })
+      .catch(() => {});
+  };
+  const removeWorkflowLater = (jobId, delay = 10000) => {
+    window.setTimeout(() => {
+      removeUploadWorkflow(jobId);
+      acknowledgeUploadWorkflow(jobId);
+    }, delay);
+  };
+  const restoreVideoProcessing = (workflow) => {
+    if (!workflow.lessonId || restoredVideoPolls.has(workflow.jobId)) return;
+    restoredVideoPolls.add(workflow.jobId);
+
+    const progressArea = document.querySelector("#upload-progress-area");
+    const progressBar = document.querySelector("#upload-progress-bar");
+    const statusText = document.querySelector("#upload-status-text");
+    const update = (pct, message) => {
+      if (progressArea) progressArea.style.display = "block";
+      if (progressBar) progressBar.style.width = `${pct}%`;
+      if (statusText) statusText.textContent = message;
+      UploadFloat.markSwOwned(true);
+      UploadFloat.show(workflow.label || "فيديو", pct, message, true);
+      UploadFloat.update(pct, message, true);
+    };
+
+    let failures = 0;
+    const poll = async () => {
+      try {
+        const status = await fetchJson(
+          `/api/lessons/${encodeURIComponent(workflow.lessonId)}/video-status`,
+          { headers: authHeaders() },
+        );
+        failures = 0;
+        const pct = Math.max(Number(status.encodeProgress) || 0, 5);
+        if (status.ready) {
+          update(100, "الفيديو جاهز ✅ — تم الرفع بنجاح");
+          UploadFloat.done("الفيديو جاهز ✅");
+          removeWorkflowLater(workflow.jobId);
+          return;
+        }
+        if ([5, 6].includes(status.status)) {
+          update(pct, "فشلت معالجة الفيديو على Bunny.");
+          UploadFloat.fail("فشلت معالجة الفيديو.");
+          removeWorkflowLater(workflow.jobId);
+          return;
+        }
+        update(pct, "جاري معالجة الفيديو على Bunny...");
+      } catch (_) {
+        failures += 1;
+        update(
+          Number(workflow.progress) || 100,
+          `تعذر التحقق مؤقتاً — سنعيد المحاولة (${failures}/6)...`,
+        );
+        if (failures >= 6) {
+          UploadFloat.fail("انقطعت مراقبة المعالجة.");
+          return;
+        }
+      }
+      window.setTimeout(poll, 5000);
+    };
+    poll();
+  };
+
+  restoreTeacherUploadWorkflow = (job) => {
+    const stored = readUploadWorkflows().find((item) => item.jobId === job.id);
+    const workflow = { ...(stored || {}), ...(job.meta || {}), jobId: job.id };
+    if (
+      job.kind === "video" &&
+      (job.status === "done" || workflow.phase === "processing")
+    ) {
+      restoreVideoProcessing(workflow);
+    }
+    if (job.kind === "pdf" && job.status === "done") {
+      updateUploadWorkflowUi(job, 100, "تم رفع ملف PDF للدرس بنجاح ✔");
+      removeWorkflowLater(job.id);
+    }
+    if (job.status === "failed") {
+      removeWorkflowLater(job.id, 60000);
+    }
+  };
+  readUploadWorkflows().forEach((workflow) => {
+    if (workflow.kind === "video" && workflow.phase === "processing") {
+      restoreVideoProcessing(workflow);
+    }
+  });
 
   // --- Teacher registration requests --------------------------------------
   // This page uses the existing fetchJson/authHeaders/toast helpers. Its
@@ -2315,6 +2501,16 @@ document.addEventListener("DOMContentLoaded", () => {
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
           : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const workflow = {
+        jobId,
+        kind: "pdf",
+        lessonId,
+        filePath: prepared.filePath,
+        label: `PDF: ${formDataTitle}`,
+        phase: "uploading",
+        progress: 0,
+      };
+      saveUploadWorkflow(workflow);
 
       const outcome = await startSwUploadJob({
         id: jobId,
@@ -2333,13 +2529,14 @@ document.addEventListener("DOMContentLoaded", () => {
             title: formDataTitle,
           }),
         },
-        meta: { lessonId, label: `PDF: ${formDataTitle}` },
+        meta: { ...workflow },
         status: "queued",
       });
 
       if (!outcome.ok) {
         throw new Error(outcome.error || "فشل رفع ملف PDF.");
       }
+      saveUploadWorkflow({ ...workflow, phase: "completed", progress: 100 });
       result = {};
     } else {
       // INLINE FALLBACK (no service worker): classic in-page XHR upload.
@@ -2523,6 +2720,16 @@ document.addEventListener("DOMContentLoaded", () => {
             typeof crypto !== "undefined" && crypto.randomUUID
               ? crypto.randomUUID()
               : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const workflow = {
+            jobId,
+            kind: "video",
+            lessonId,
+            videoId: prepared.videoId,
+            label: `فيديو: ${videoName}`,
+            phase: "uploading",
+            progress: 0,
+          };
+          saveUploadWorkflow(workflow);
 
           const outcome = await startSwUploadJob({
             id: jobId,
@@ -2531,7 +2738,7 @@ document.addEventListener("DOMContentLoaded", () => {
             method: "PUT",
             headers: { AccessKey: prepared.accessKey },
             blob: file,
-            meta: { lessonId, label: `فيديو: ${videoName}` },
+            meta: { ...workflow },
             status: "queued",
           });
 
@@ -2544,6 +2751,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             throw new Error(outcome.error || "فشل رفع الملف.");
           }
+          saveUploadWorkflow({
+            ...workflow,
+            phase: "processing",
+            progress: 100,
+          });
         } else {
           // INLINE FALLBACK (no service worker).
           await new Promise((resolve, reject) => {
@@ -2723,7 +2935,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   ? data.value
                   : parseFloat(data.value);
               resolve(
-                Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+                Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0,
               );
             } catch (e) {}
           };
@@ -2734,7 +2946,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 context: "player.js",
                 method: "getCurrentTime",
               }),
-              "*"
+              "*",
             );
           } catch (e) {
             window.removeEventListener("message", onResp);
@@ -2769,8 +2981,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // --- 3) Running (temporary) list ---
       const listTitle = document.createElement("h5");
-      listTitle.style.cssText =
-        "font-size:0.9rem; font-weight:700; margin:0;";
+      listTitle.style.cssText = "font-size:0.9rem; font-weight:700; margin:0;";
       listTitle.textContent = `📋 علامات الفيديو الحالية (${markers.length})`;
       wrap.appendChild(listTitle);
 
@@ -2795,7 +3006,8 @@ document.addEventListener("DOMContentLoaded", () => {
           textSpan.style.cssText = "font-weight:600; flex:1; min-width:0;";
           textSpan.textContent = `${m.title} — ${formatDuration(m.startTimeSeconds)}`;
           const itemActions = document.createElement("div");
-          itemActions.style.cssText = "display:flex; gap:0.25rem; flex-shrink:0;";
+          itemActions.style.cssText =
+            "display:flex; gap:0.25rem; flex-shrink:0;";
           itemActions.innerHTML =
             `<button class="btn btn-light js-mk-edit" style="font-size:0.7rem; padding:0.2rem 0.4rem;" title="تعديل">✏️</button>` +
             `<button class="btn btn-light js-mk-del" style="font-size:0.7rem; padding:0.2rem 0.4rem; color:var(--color-danger);" title="حذف">🗑</button>`;
@@ -2870,7 +3082,7 @@ document.addEventListener("DOMContentLoaded", () => {
           timeInput.focus();
           showToast(
             "لم يُلتقط التوقيت تلقائياً من المشغّل — أدخلي التوقيت يدوياً ثم اضغطي «إضافة».",
-            "warning"
+            "warning",
           );
         }
       });
@@ -2880,7 +3092,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!s) return null;
         if (/^\d+$/.test(s)) return parseInt(s, 10);
         const parts = s.split(":").map((x) => parseFloat(x));
-        if (parts.some((n) => Number.isNaN(n)) || parts.length < 2 || parts.length > 3)
+        if (
+          parts.some((n) => Number.isNaN(n)) ||
+          parts.length < 2 ||
+          parts.length > 3
+        )
           return null;
         if (parts.length === 3) {
           return parts[0] * 3600 + parts[1] * 60 + Math.floor(parts[2]);
@@ -2902,7 +3118,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (parsed === null) {
             showToast(
               "أدخلي التوقيت بصيغة دقائق:ثوانٍ (مثال: 3:20).",
-              "warning"
+              "warning",
             );
             timeInput.focus();
             return;
@@ -2912,7 +3128,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (seconds === null) {
           showToast(
             "أدخلي التوقيت يدوياً بصيغة دقائق:ثوانٍ (مثال: 3:20) ثم اضغطي إضافة.",
-            "warning"
+            "warning",
           );
           timeInput.focus();
           return;
@@ -2920,11 +3136,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (videoObj.lengthSeconds && seconds > videoObj.lengthSeconds) {
           showToast(
             `التوقيت (${formatDuration(
-              seconds
+              seconds,
             )}) يتجاوز طول الفيديو (${formatDuration(
-              videoObj.lengthSeconds
+              videoObj.lengthSeconds,
             )}).`,
-            "danger"
+            "danger",
           );
           timeInput.focus();
           return;
@@ -2976,13 +3192,15 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
         const times = markers.map((m) => m.startTimeSeconds);
-        const dups = [...new Set(times.filter((t, i) => times.indexOf(t) !== i))];
+        const dups = [
+          ...new Set(times.filter((t, i) => times.indexOf(t) !== i)),
+        ];
         if (dups.length) {
           showToast(
             `لا يمكن الحفظ: أكثر من علامة في نفس التوقيت (${dups
               .map((t) => formatDuration(t))
               .join("، ")}). عدّلي التوقيتات ثم احفظي.`,
-            "danger"
+            "danger",
           );
           return;
         }
@@ -2990,23 +3208,23 @@ document.addEventListener("DOMContentLoaded", () => {
           if (times[i] < times[i - 1]) {
             showToast(
               "تحذير: توقيتات العلامات غير مرتبة — سأرتّبها تلقائياً عند الحفظ.",
-              "warning"
+              "warning",
             );
             break;
           }
         }
         if (videoObj.lengthSeconds) {
           const over = markers.find(
-            (m) => m.startTimeSeconds > videoObj.lengthSeconds
+            (m) => m.startTimeSeconds > videoObj.lengthSeconds,
           );
           if (over) {
             showToast(
               `توقيت العلامة "${over.title}" (${formatDuration(
-                over.startTimeSeconds
+                over.startTimeSeconds,
               )}) يتجاوز طول الفيديو (${formatDuration(
-                videoObj.lengthSeconds
+                videoObj.lengthSeconds,
               )}).`,
-              "danger"
+              "danger",
             );
             return;
           }
@@ -3020,16 +3238,16 @@ document.addEventListener("DOMContentLoaded", () => {
               method: "PUT",
               headers: { "Content-Type": "application/json", ...authHeaders() },
               body: JSON.stringify({ chapters: markers }),
-            }
+            },
           );
           showToast("تم حفظ التقسيم بنجاح.", "success");
           videoObj.chapters = result.chapters || [];
           const updated = await fetchJson(
             `/api/lessons/${manageLesson.value}/videos`,
-            { headers: authHeaders() }
+            { headers: authHeaders() },
           );
           const freshVideo = (updated.videos || []).find(
-            (x) => x.videoId === videoObj.videoId
+            (x) => x.videoId === videoObj.videoId,
           );
           if (freshVideo) {
             videoObj.chapters = freshVideo.chapters;
@@ -3038,7 +3256,7 @@ document.addEventListener("DOMContentLoaded", () => {
               markers.push({
                 title: c.title,
                 startTimeSeconds: c.startTimeSeconds,
-              })
+              }),
             );
             markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
           }
