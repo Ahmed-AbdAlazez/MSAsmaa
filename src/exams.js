@@ -99,7 +99,7 @@ function escapeHtml(value) {
 
 const STATUS_LABELS = {
   upcoming: "لم يبدأ بعد",
-  active: "متاح الآن — ابدئي",
+  active: "متاح الآن — ابدأ",
   ended: "انتهى",
 };
 
@@ -183,10 +183,10 @@ function examCardHtml(exam) {
         `<button class="btn btn-secondary btn-result" data-id="${exam.id}">النتيجة والمراجعة</button>`;
     } else {
       const startLabel = canResume
-        ? "كمّلي الحل"
+        ? "كمّل الحل"
         : submitted
-          ? "ابدئي الحل (محاولة إضافية)"
-          : "ابدئي الحل";
+          ? "ابدأ الحل (محاولة إضافية)"
+          : "ابدأ الحل";
       action =
         scoreChipHtml(submitted) +
         `<button class="btn btn-primary btn-take" data-id="${exam.id}">${startLabel}</button>`;
@@ -511,7 +511,7 @@ function questionBlockHtml(question, savedValue, qIndex) {
             <div class="q-head">${numBadge}<div class="q-text">${escapeHtml(question.text)}</div>${typeBadge}</div>
             ${image}
             <textarea class="written-answer" data-qid="${question.id}"
-              placeholder="اكتبي إجابتك هنا…">${escapeHtml(savedValue || "")}</textarea>
+              placeholder="اكتب إجابتك هنا…">${escapeHtml(savedValue || "")}</textarea>
           </div>`;
 }
 
@@ -806,7 +806,7 @@ async function openResult(quizId, resultId, summaryData = null) {
     lbBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 لوحة الترتيب تظهر بعد انتهاء وقت الاختبار للجميع (${formatDateTime(lb.data.availableAfter)}).</div>`;
   } else {
     lbBody.innerHTML = skeletonError(
-      "تعذر تحميل لوحة الترتيب، حاولي مرة أخرى.",
+      "تعذر تحميل لوحة الترتيب، حاول مرة أخرى.",
       "إعادة المحاولة",
     );
     lbBody
@@ -826,7 +826,7 @@ async function openResult(quizId, resultId, summaryData = null) {
   }
   if (!review.ok) {
     reviewBody.innerHTML = skeletonError(
-      "تعذر تحميل المراجعة، حاولي مرة أخرى.",
+      "تعذر تحميل المراجعة، حاول مرة أخرى.",
       "إعادة المحاولة",
     );
     reviewBody
@@ -919,7 +919,7 @@ async function loadCourseLeaderboard() {
   } catch (error) {
     console.error("[exams] failed to load course leaderboard:", error);
     body.innerHTML = skeletonError(
-      "تعذر تحميل لوحة الكورس، حاولي مرة أخرى.",
+      "تعذر تحميل لوحة الكورس، حاول مرة أخرى.",
       "إعادة المحاولة",
     );
     body
@@ -931,7 +931,7 @@ async function loadCourseLeaderboard() {
 
   if (!ok || !data || !Array.isArray(data.rankings)) {
     body.innerHTML = skeletonError(
-      "تعذر تحميل لوحة الكورس، حاولي مرة أخرى.",
+      "تعذر تحميل لوحة الكورس، حاول مرة أخرى.",
       "إعادة المحاولة",
     );
     body
