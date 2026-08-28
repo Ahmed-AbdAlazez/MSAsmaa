@@ -52,6 +52,7 @@
           </button>
           <a href="login.html" class="btn-login-minimal">تسجيل الدخول</a>
           <a href="login.html?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+          <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
         </div>
       </div>
     `;let t=document.querySelector(`.drawer-overlay`);t||(t=document.createElement(`div`),t.className=`drawer-overlay`,document.body.appendChild(t));let n=document.querySelector(`.mobile-drawer`);n||(n=document.createElement(`div`),n.className=`mobile-drawer`,document.body.appendChild(n)),n.innerHTML=`

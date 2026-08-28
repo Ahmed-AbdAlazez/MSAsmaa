@@ -47,6 +47,7 @@ export function initNavbar() {
           </button>
           <a href="login.html" class="btn-login-minimal">تسجيل الدخول</a>
           <a href="login.html?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+          <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
         </div>
       </div>
     `;
