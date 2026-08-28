@@ -1413,19 +1413,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const handleLogout = () => {
-    if (confirm("هل تريد بالتأكيد تسجيل الخروج من الحساب؟")) {
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("username");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("token");
-      showToast("تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋", "success");
-      updateAuthUI();
-      // Redirect to index page
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 800);
-    }
+  const handleLogout = async () => {
+    const confirmed = await showConfirmModal(
+      "هل تريد بالتأكيد تسجيل الخروج من الحساب؟",
+      { confirmText: "تسجيل الخروج", cancelText: "إلغاء" },
+    );
+    if (!confirmed) return;
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("username");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("token");
+    showToast("تم تسجيل الخروج بنجاح. نتمنى رؤيتك قريباً! 👋", "success");
+    updateAuthUI();
+    // Redirect to index page
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 800);
   };
 
   // NOTE: Login/signup submission now lives on the dedicated auth page
@@ -2017,7 +2020,10 @@ document.addEventListener("DOMContentLoaded", () => {
           actions
             .querySelector(".note-delete-btn")
             .addEventListener("click", async () => {
-              if (!confirm("هل أنت متأكد من حذف هذه الملاحظة؟")) return;
+              const confirmed = await showConfirmModal(
+                "هل أنت متأكد من حذف هذه الملاحظة؟",
+              );
+              if (!confirmed) return;
               try {
                 await fetchJson(`/api/notes/${note.id}`, {
                   method: "DELETE",
@@ -2755,12 +2761,11 @@ document.addEventListener("DOMContentLoaded", () => {
         row
           .querySelector(".js-delete-video")
           .addEventListener("click", async () => {
-            if (
-              !confirm(
-                `حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`,
-              )
-            )
-              return;
+            const confirmed = await showConfirmModal(
+              `حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`,
+              { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+            );
+            if (!confirmed) return;
             try {
               await fetchJson(`/api/videos/${v.videoId}`, {
                 method: "DELETE",
@@ -2842,7 +2847,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Teacher dashboard: manage lesson PDF materials (rename / delete) ---
   // Mirrors the video management block above: same selects pattern, same
-  // inline edit form, same native confirm() before deleting.
+  // inline edit form, same in-app confirm modal before deleting.
   const materialsManageChapter = document.querySelector(
     "#materials-manage-chapter",
   );
@@ -2946,12 +2951,11 @@ document.addEventListener("DOMContentLoaded", () => {
         row
           .querySelector(".js-delete-material")
           .addEventListener("click", async () => {
-            if (
-              !confirm(
-                `حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`,
-              )
-            )
-              return;
+            const confirmed = await showConfirmModal(
+              `حذف هذه المادة "${material.title || idx + 1}" نهائياً؟ لا يمكن التراجع.`,
+              { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+            );
+            if (!confirmed) return;
             try {
               await fetchJson(
                 `/api/materials/${encodeURIComponent(material.id)}`,

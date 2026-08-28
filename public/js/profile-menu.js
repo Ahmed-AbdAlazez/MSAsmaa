@@ -63,8 +63,14 @@
     }, 2200);
   }
 
-  function handleLogout() {
-    if (!window.confirm('هل تريد بالتأكيد تسجيل الخروج من الحساب؟')) return;
+  async function handleLogout() {
+    const confirmed = window.showConfirmModal
+      ? await window.showConfirmModal(
+          'هل تريد بالتأكيد تسجيل الخروج من الحساب؟',
+          { confirmText: 'تسجيل الخروج', cancelText: 'إلغاء' },
+        )
+      : true;
+    if (!confirmed) return;
     ['userRole', 'username', 'userId', 'token'].forEach((key) => {
       try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
     });

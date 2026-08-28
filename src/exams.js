@@ -1159,8 +1159,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const submitBtn = document.getElementById("btn-submit-quiz");
   if (submitBtn) {
-    submitBtn.addEventListener("click", () => {
-      if (confirm("هل تريدين تسليم الاختبار الآن؟")) submitQuiz(false);
+    submitBtn.addEventListener("click", async () => {
+      const confirmed = await window.showConfirmModal?.(
+        "هل تريدين تسليم الاختبار الآن؟",
+        { confirmText: "تسليم", cancelText: "إلغاء" },
+      );
+      if (confirmed) submitQuiz(false);
     });
   }
 

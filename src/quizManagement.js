@@ -145,7 +145,11 @@ async function loadQuizDetails(quizId) {
 }
 
 async function deleteQuestion(quizId, questionId) {
-  if (!confirm("هل تريدين حذف هذا السؤال؟")) return;
+  const confirmed = await window.showConfirmModal?.(
+    "هل تريدين حذف هذا السؤال؟",
+    { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+  );
+  if (!confirmed) return;
 
   const { ok, data } = await apiCall(
     "DELETE",
@@ -163,9 +167,11 @@ async function deleteQuestion(quizId, questionId) {
 }
 
 async function deleteEntireQuiz(quizId) {
-  if (!confirm("هل تريدين حذف هذا الاختبار بالكامل؟ لا يمكن التراجع عن هذا!")) {
-    return;
-  }
+  const confirmed = await window.showConfirmModal?.(
+    "هل تريدين حذف هذا الاختبار بالكامل؟ لا يمكن التراجع عن هذا!",
+    { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+  );
+  if (!confirmed) return;
 
   const { ok, data } = await apiCall("DELETE", `/api/quizzes/${quizId}`);
 

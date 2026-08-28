@@ -140,8 +140,12 @@ export function initStudentsPage({
   };
 
   const deleteStudent = async (student) => {
-    if (deletingId || !window.confirm("هل أنت متأكد من حذف هذا الطالب؟"))
-      return;
+    if (deletingId) return;
+    const confirmed = await window.showConfirmModal?.(
+      "هل أنت متأكد من حذف هذا الطالب؟",
+      { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+    );
+    if (!confirmed) return;
     deletingId = student.id;
     renderStudents();
     try {

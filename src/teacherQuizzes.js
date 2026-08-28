@@ -52,11 +52,21 @@ async function api(method, path, body) {
 }
 
 function toast(message, kind = "info", ms = 4000) {
-  // Reuse main.js's showToast when present; otherwise a quick alert-style
-  // fallback keeps this module self-contained for the teacher dashboard.
+  // Reuse main.js's showToast when present; otherwise fall back to a small
+  // DOM toast so this module never blocks on a native alert() dialog.
   if (typeof window.showToast === "function")
     return window.showToast(message, kind);
-  alert(message);
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+  const el = document.createElement("div");
+  el.className = `toast ${kind}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), ms);
 }
 
 /* ---------------- flatpickr instances ---------------- */
