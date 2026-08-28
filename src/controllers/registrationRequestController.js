@@ -1,6 +1,6 @@
-const { prisma } = require('../config/db');
-const AppError = require('../utils/appError');
-const catchAsync = require('../utils/catchAsync');
+const { prisma } = require("../config/db");
+const AppError = require("../utils/appError");
+const catchAsync = require("../utils/catchAsync");
 
 /**
  * Get count of pending registration requests
@@ -11,13 +11,13 @@ const catchAsync = require('../utils/catchAsync');
 const getPendingCount = catchAsync(async (req, res, next) => {
   const count = await prisma.user.count({
     where: {
-      status: 'PENDING',
-      role: 'STUDENT',
+      status: "PENDING",
+      role: "STUDENT",
     },
   });
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     data: {
       count,
     },
@@ -33,8 +33,8 @@ const getPendingCount = catchAsync(async (req, res, next) => {
 const getPendingRequests = catchAsync(async (req, res, next) => {
   const requests = await prisma.user.findMany({
     where: {
-      status: 'PENDING',
-      role: 'STUDENT',
+      status: "PENDING",
+      role: "STUDENT",
     },
     select: {
       id: true,
@@ -46,13 +46,13 @@ const getPendingRequests = catchAsync(async (req, res, next) => {
       updatedAt: true,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
     take: 100,
   });
 
   res.status(200).json({
-    status: 'success',
+    status: "success",
     results: requests.length,
     data: {
       requests,
@@ -75,27 +75,27 @@ const approveRequest = catchAsync(async (req, res, next) => {
   });
 
   if (!user) {
-    return next(new AppError('No student found with the provided ID.', 404));
+    return next(new AppError("No student found with the provided ID.", 404));
   }
 
   // 2. Ensure user is a student
-  if (user.role !== 'STUDENT') {
+  if (user.role !== "STUDENT") {
     return next(
-      new AppError('Only student registration requests can be approved.', 400)
+      new AppError("Only student registration requests can be approved.", 400),
     );
   }
 
   // 3. Check if already approved
-  if (user.status === 'APPROVED') {
+  if (user.status === "APPROVED") {
     return next(
-      new AppError('This student registration has already been approved.', 400)
+      new AppError("This student registration has already been approved.", 400),
     );
   }
 
   // 4. Update status to APPROVED (allows re-approving previously rejected students if teacher decides to accept them)
   const updatedUser = await prisma.user.update({
     where: { id },
-    data: { status: 'APPROVED' },
+    data: { status: "APPROVED" },
     select: {
       id: true,
       studentCode: true,
@@ -108,8 +108,8 @@ const approveRequest = catchAsync(async (req, res, next) => {
   });
 
   res.status(200).json({
-    status: 'success',
-    message: 'Student registration request approved successfully.',
+    status: "success",
+    message: "Student registration request approved successfully.",
     data: {
       user: updatedUser,
     },
@@ -125,47 +125,55 @@ const approveRequest = catchAsync(async (req, res, next) => {
 const rejectRequest = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
-  // 1. Find user by ID
-  const user = await prisma.user.findUnique({
-    where: { id },
-  });
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        studentCode: true,
+        name: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-  if (!user) {
-    return next(new AppError('No student found with the provided ID.', 404));
-  }
+    if (!user) {
+      throw new AppError("No student found with the provided ID.", 404);
+    }
 
-  // 2. Ensure user is a student
-  if (user.role !== 'STUDENT') {
-    return next(
-      new AppError('Only student registration requests can be rejected.', 400)
-    );
-  }
+    if (user.role !== "STUDENT") {
+      throw new AppError(
+        "Only student registration requests can be rejected.",
+        400,
+      );
+    }
 
-  // 3. Check if already rejected
-  if (user.status === 'REJECTED') {
-    return next(
-      new AppError('This student registration is already rejected.', 400)
-    );
-  }
+    const rejectedUser =
+      user.status === "REJECTED"
+        ? user
+        : await tx.user.update({
+            where: { id: user.id },
+            data: { status: "REJECTED" },
+            select: {
+              id: true,
+              studentCode: true,
+              name: true,
+              role: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
 
-  // 4. Update status to REJECTED
-  const updatedUser = await prisma.user.update({
-    where: { id },
-    data: { status: 'REJECTED' },
-    select: {
-      id: true,
-      studentCode: true,
-      name: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    await tx.user.delete({ where: { id: rejectedUser.id } });
+    return rejectedUser;
   });
 
   res.status(200).json({
-    status: 'success',
-    message: 'Student registration request rejected.',
+    status: "success",
+    message: "Student registration request rejected.",
     data: {
       user: updatedUser,
     },
