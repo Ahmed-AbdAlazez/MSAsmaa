@@ -1,70 +1,69 @@
 /**
- * enrollment.stub.service.js
+ * enrollment.service.js
  * ===========================================================================
- * ⚠️⚠️⚠️  REPLACE THIS STUB — DO NOT SHIP TO PRODUCTION  ⚠️⚠️⚠️
- * ===========================================================================
+ * Access-control gate for ALL biology curriculum content (lesson videos and
+ * PDF materials).
  *
- * This file is a TEMPORARY stand-in for the real enrollment check.
+ * Previously this was a stub that returned TRUE for every caller, which meant
+ * ANY authenticated user (student or not, approved or not) could watch every
+ * lesson video and download every PDF for free. That is no longer the case.
  *
- * It must be connected to the real "enrollments" table once the database
- * schema is finalized. Do not deploy to production with this stub still in
- * place.
+ * REAL BEHAVIOUR NOW:
+ *   Whoever asks for content must be a registered user who either:
+ *     - is the TEACHER (content owner, full access), OR
+ *     - is a STUDENT whose registration has been APPROVED by the teacher.
  *
- * WHAT IS FAKE RIGHT NOW:
- *   isStudentEnrolledInLessonCourse() below ALWAYS returns true, meaning
- *   every logged-in user (student or not) passes the access-control check
- *   in GET /api/lessons/:lessonId/video-url and receives a playable video
- *   URL. In other words: while this stub is active, ALL VIDEOS ARE PUBLIC
- *   TO ANY AUTHENTICATED USER.
+ *   PENDING and REJECTED students are BLOCKED. Unknown / deleted users are
+ *   blocked. This is the single point that gates:
+ *       GET /api/lessons/:lessonId/video-url     (video playback)
+ *       GET /api/lessons/:lessonId/videos        (video list + playback)
+ *       GET /api/lessons/:lessonId/materials     (PDF list)
+ *       GET /api/materials/:materialId/download  (PDF download URLs)
+ *       GET /api/lessons/:lessonId/notes         (lesson notes)
  *
- * HOW TO REPLACE IT (one file only):
- *   Rewrite the function body below to query the real database, e.g.:
- *
- *     async function isStudentEnrolledInLessonCourse(studentId, lessonId) {
- *       const enrollment = await prisma.enrollment.findFirst({
- *         where: {
- *           studentId: studentId,
- *           lessonId:  lessonId,   // adjust to your real schema relations:
- *                                  // you may need to go lesson -> unit ->
- *                                  // course -> enrollments depending on how
- *                                  // the schema ends up being modelled.
- *         },
- *       });
- *       return enrollment !== null;
- *     }
- *
- *   Keep the same function NAME, the same parameters and the same
- *   true/false return contract. Nothing else in the codebase needs to
- *   change, because every caller imports the function from THIS file.
- *
- * WHAT BREAKS IF YOU NEVER REPLACE IT:
- *   - Any authenticated user can watch ANY lesson video for free.
- *   - Paid courses have zero enforcement — the whole business model leaks.
- * ===========================================================================
+ * The function stays async and keeps its original signature so callers never
+ * change. A false result MUST always lead to a 403 Forbidden upstream.
  */
 
+const { prisma } = require("../config/db");
+
 /**
- * Checks whether a student is allowed to watch videos of a given lesson.
+ * Checks whether a user is allowed to access a lesson's curriculum content.
  *
- * STUB BEHAVIOUR: always returns true ("everyone is enrolled").
- * REAL BEHAVIOUR (after replacement): queries the enrollments table and
- * returns true only if an enrollment row links this student to the course
- * that contains this lesson.
- *
- * The function is async ON PURPOSE: the real database version will be async,
- * so callers already "await" it today. Replacing the stub later then requires
- * zero changes in the calling code.
- *
- * @param {string} studentId - ID of the user asking for the video.
- * @param {string} lessonId  - ID of the lesson they want to watch.
- * @returns {Promise<boolean>} true if enrolled, false otherwise.
+ * @param {string} studentId - ID of the user asking for the content.
+ * @param {string} lessonId  - ID of the lesson they want to access
+ *                             (unused today; kept for a future enrollment
+ *                             table that ties students to specific courses).
+ * @returns {Promise<boolean>} true if allowed, false otherwise.
  */
 async function isStudentEnrolledInLessonCourse(studentId, lessonId) {
-  // TODO(REPLACE-STUB): real implementation must query the enrollments table.
-  if (studentId === "student-2") {
+  if (!studentId) {
     return false;
   }
-  return true;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: String(studentId) },
+      select: { role: true, status: true },
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    // The teacher is the content owner and always has access.
+    if (user.role === "TEACHER") {
+      return true;
+    }
+
+    // Students must be approved by the teacher before accessing the
+    // curriculum. PENDING / REJECTED students are blocked.
+    return user.role === "STUDENT" && user.status === "APPROVED";
+  } catch (error) {
+    console.error("[enrollment] access-control check error:", error);
+    // Fail closed: if we cannot verify who the user is, deny access.
+    return false;
+  }
 }
 
 module.exports = { isStudentEnrolledInLessonCourse };

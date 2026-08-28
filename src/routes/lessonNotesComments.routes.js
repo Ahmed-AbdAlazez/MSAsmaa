@@ -14,12 +14,25 @@ const express = require("express");
 const router = express.Router();
 const { requireAuth } = require("../middleware/auth.middleware");
 const { prisma } = require("../config/db");
+const {
+  isStudentEnrolledInLessonCourse,
+} = require("../services/enrollment.stub.service.js");
 
 // ─── TEACHER NOTES ──────────────────────────────────────────────────────────
 
-/** List notes for a lesson (any authenticated user). */
+/** List notes for a lesson (approved students only; teacher full access). */
 router.get("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
   try {
+    const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
+      req.user.id,
+      req.params.lessonId
+    );
+    if (!studentIsEnrolled) {
+      return res.status(403).json({
+        error: "You are not enrolled in the course this lesson belongs to.",
+      });
+    }
+
     const { lessonId } = req.params;
     const notes = await prisma.lessonNote.findMany({
       where: { lessonId },

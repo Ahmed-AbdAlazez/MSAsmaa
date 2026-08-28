@@ -202,3 +202,19 @@ model LessonNote {
   @@index([lessonId])
   @@map("lesson_notes")
 }
+
+/// Labeled chapters/timestamps for uploaded videos (added for Adham's awareness).
+model VideoChapter {
+  id               String   @id @default(uuid())
+  videoId          String   @map("video_id")
+  title            String
+  startTimeSeconds Int      @map("start_time_seconds")
+  orderIndex       Int      @map("order_index")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([videoId])
+  @@index([videoId, orderIndex])
+  @@map("video_chapters")
+}
+
