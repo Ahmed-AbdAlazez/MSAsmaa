@@ -72,7 +72,7 @@ function completeLogin(role, displayName, userId, token) {
     if (String(role).toLowerCase() === 'teacher') {
       window.location.href = 'dashboard-teacher.html';
     } else {
-      window.location.href = 'dashboard-student.html';
+      window.location.href = 'courses.html';
     }
   }, 1000);
 }

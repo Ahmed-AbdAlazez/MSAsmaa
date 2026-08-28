@@ -871,7 +871,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // (#login-modal-backdrop). It was replaced by the dedicated auth page:
   //   login.html + css/login.css + src/loginPage.js
 
-  const QUIZZES_STORAGE_KEY = "frontEndQuizzes";
   const NOTIFICATIONS_STORAGE_KEY = "frontEndNotifications";
 
   const getStoredItems = (key, fallbackItems = []) => {
@@ -887,33 +886,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const setStoredItems = (key, items) => {
     localStorage.setItem(key, JSON.stringify(items));
   };
-
-  const getQuizzes = () =>
-    getStoredItems(QUIZZES_STORAGE_KEY, [
-      {
-        id: "quiz-dna-intro",
-        title: "اختبار سريع: DNA والبروتين",
-        chapter: "الوراثة الجزيئية",
-        dueDate: "اليوم 9:00 م",
-        questions: "10",
-        questionItems: [
-          {
-            type: "mcq",
-            text: "ما الجزء المسؤول عن حمل الشفرة الوراثية؟",
-            options: ["DNA", "الجدار الخلوي", "الريبوسوم", "السيتوبلازم"],
-            image: "",
-          },
-          {
-            type: "written",
-            text: "اشرح باختصار خطوات تضاعف DNA.",
-            options: [],
-            image: "",
-          },
-        ],
-        note: "اختبار قصير للتأكد من فهم تضاعف DNA والترجمة.",
-        createdAt: "جاهز الآن",
-      },
-    ]);
 
   let cachedNotifications = [];
   let notificationsFetchedAt = 0;
@@ -1113,118 +1085,7 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.readAsDataURL(file);
     });
 
-  const getQuizQuestionCount = (quiz) => {
-    if (Array.isArray(quiz.questionItems) && quiz.questionItems.length) {
-      return quiz.questionItems.length;
-    }
-
-    return Number.parseInt(quiz.questions, 10) || 0;
-  };
-
-  const renderQuestionSummary = (question, index) => {
-    const typeLabel = question.type === "written" ? "Written" : "MCQ";
-    const options =
-      question.type === "mcq" && question.options?.length
-        ? `<ol class="quiz-question-options">${question.options.map((option) => `<li>${escapeHTML(option)}</li>`).join("")}</ol>`
-        : '<p class="quiz-written-answer-line">مساحة إجابة كتابية للطالب</p>';
-    const image = question.image
-      ? `<img src="${question.image}" alt="Question attachment" class="quiz-question-image">`
-      : "";
-
-    return `
-      <article class="quiz-question-preview">
-        <div class="quiz-question-top">
-          <span class="quiz-question-number">${index + 1}</span>
-          <span class="badge ${question.type === "written" ? "badge-warning" : "badge-success"}">${typeLabel}</span>
-        </div>
-        <p>${escapeHTML(question.text)}</p>
-        ${image}
-        ${options}
-      </article>
-    `;
-  };
-
-  const renderStudentQuizList = () => {
-    const list = document.querySelector("#student-quiz-list");
-    if (!list) return;
-
-    const quizzes = getQuizzes();
-    list.innerHTML = quizzes
-      .map(
-        (quiz) => `
-      <div class="quiz-item">
-        <div class="quiz-item-icon">؟</div>
-        <div class="quiz-item-content">
-          <h4>${escapeHTML(quiz.title)}</h4>
-          <p>${escapeHTML(quiz.chapter)} • ${getQuizQuestionCount(quiz)} أسئلة • التسليم: ${escapeHTML(quiz.dueDate)}</p>
-          <div class="quiz-question-preview-list" hidden>
-            ${(quiz.questionItems || []).map(renderQuestionSummary).join("")}
-          </div>
-        </div>
-        <button class="btn btn-primary btn-quiz-start" type="button" data-quiz-title="${escapeHTML(quiz.title)}">ابدأ</button>
-      </div>
-    `,
-      )
-      .join("");
-
-    list.querySelectorAll(".btn-quiz-start").forEach((button) => {
-      button.addEventListener("click", () => {
-        const previewList = button
-          .closest(".quiz-item")
-          ?.querySelector(".quiz-question-preview-list");
-        if (previewList) previewList.hidden = !previewList.hidden;
-        showToast(
-          `بدأت اختبار "${button.dataset.quizTitle}" داخل الواجهة فقط.`,
-          "success",
-        );
-      });
-    });
-  };
-
   const initializeQuizExperience = () => {
-    const dashboardContainer = document.querySelector(
-      ".dashboard-layout .container",
-    );
-    if (!dashboardContainer) {
-      fetchNotifications().catch(() => {});
-      updateNotificationBadge();
-      return;
-    }
-
-    if (
-      window.location.pathname.includes("dashboard-student.html") &&
-      !document.querySelector("#student-quiz-panel")
-    ) {
-      const tasksTitle = Array.from(
-        document.querySelectorAll(".dashboard-section-title"),
-      ).find(
-        (title) =>
-          title.textContent.includes("المهام") ||
-          title.textContent.includes("الواجبات"),
-      );
-      const quizPanel = document.createElement("section");
-      quizPanel.id = "student-quiz-panel";
-      quizPanel.className = "quiz-workspace student-quiz-workspace";
-      quizPanel.innerHTML = `
-        <div class="quiz-panel-header">
-          <div>
-            <span class="section-tag">Quizzes</span>
-            <h2>اختبارات مرسلة من المعلمة</h2>
-            <p>أي اختبار جديد ترسله أ. أسماء يظهر هنا مباشرة مع إشعار في الأعلى.</p>
-          </div>
-          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
-        </div>
-        <div id="student-quiz-list" class="student-quiz-list"></div>
-      `;
-
-      if (tasksTitle?.parentElement) {
-        tasksTitle.parentElement.prepend(quizPanel);
-      } else {
-        dashboardContainer.appendChild(quizPanel);
-      }
-    }
-
-    renderStudentQuizList();
     fetchNotifications().catch(() => {});
     updateNotificationBadge();
   };
@@ -2705,60 +2566,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-
-  // --- Front-end only chatbot demos ---
-  const chatbotForms = document.querySelectorAll(".chatbot-form");
-  const chatbotReplies = {
-    ai: "هذا رد تجريبي من مساعد المنهج. لاحقاً يمكن ربط هذا المكان بنموذج AI مع RAG على محتوى الدروس والملخصات.",
-    teacher:
-      "تم حفظ رسالتك داخل الواجهة فقط. لاحقاً يمكن ربط هذه المحادثة برسائل المعلمة أو لوحة تحكم خاصة بها.",
-  };
-
-  const addChatMessage = (messagesBox, senderName, text, className) => {
-    const message = document.createElement("div");
-    message.className = `chat-message ${className}`;
-
-    const name = document.createElement("span");
-    name.className = "chat-message-name";
-    name.textContent = senderName;
-
-    const body = document.createElement("p");
-    body.textContent = text;
-
-    message.append(name, body);
-    messagesBox.appendChild(message);
-    messagesBox.scrollTop = messagesBox.scrollHeight;
-  };
-
-  chatbotForms.forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-
-      const chatbotType = form.dataset.chatbotForm;
-      const input = form.querySelector('input[name="message"]');
-      const messageText = input.value.trim();
-      const messagesBox = document.querySelector(
-        `[data-chatbot-messages="${chatbotType}"]`,
-      );
-
-      if (!messageText || !messagesBox) return;
-
-      addChatMessage(messagesBox, "أنت", messageText, "user-message");
-      input.value = "";
-
-      setTimeout(() => {
-        const sender = chatbotType === "teacher" ? "المعلمة" : "مساعد المنهج";
-        addChatMessage(
-          messagesBox,
-          sender,
-          chatbotReplies[chatbotType],
-          chatbotType === "teacher"
-            ? "bot-message teacher-message"
-            : "bot-message",
-        );
-      }, 450);
-    });
-  });
 
   // --- Teacher dashboard: manage already-uploaded videos (edit / delete) ---
   const manageChapter = document.querySelector("#manage-chapter");

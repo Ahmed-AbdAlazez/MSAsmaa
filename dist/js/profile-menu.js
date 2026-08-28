@@ -21,7 +21,7 @@
 
   const ROLE_LABELS = { student: 'طالب', teacher: 'معلم' };
   const DASHBOARDS = {
-    student: 'dashboard-student.html',
+    student: 'courses.html',
     teacher: 'dashboard-teacher.html',
   };
   const AVATAR_PALETTE = [
@@ -92,7 +92,7 @@
       '<div class="profile-dropdown" role="menu" hidden>',
       `<div class="profile-dropdown-header"><strong>${user.name || 'مستخدم'}</strong><small>${roleLabel}</small></div>`,
       '<button class="profile-menu-item" type="button" data-action="profile" role="menuitem">👤 الملف الشخصي</button>',
-      `<a class="profile-menu-item" href="${DASHBOARDS[user.role] || '#'}" role="menuitem">📊 لوحة التحكم</a>`,
+      `${user.role === 'student' ? '<a class="profile-menu-item" href="courses.html" role="menuitem">📚 الكورسات</a>' : `<a class="profile-menu-item" href="${DASHBOARDS[user.role] || '#'}" role="menuitem">📊 لوحة التحكم</a>`}`,
       '<button class="profile-menu-item profile-menu-danger" type="button" data-action="logout" role="menuitem">🚪 تسجيل الخروج</button>',
       '</div>',
     ].join('');

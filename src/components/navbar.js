@@ -85,15 +85,12 @@ export function initNavbar() {
   } else {
     // LOGGED IN STATE: Show full navbar with all navigation links
 
-    // Build dashboard link based on role
+    // Build dashboard link based on role (teacher only)
     let dashboardLink = "";
     let mobileDashboardLink = "";
     if (isTeacher) {
       dashboardLink = `<li><a href="dashboard-teacher.html" class="nav-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
       mobileDashboardLink = `<li><a href="dashboard-teacher.html" class="mobile-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
-    } else if (isStudent) {
-      dashboardLink = `<li><a href="dashboard-student.html" class="nav-link ${getActive(["dashboard-student.html"])}">لوحة الطالب</a></li>`;
-      mobileDashboardLink = `<li><a href="dashboard-student.html" class="mobile-link ${getActive(["dashboard-student.html"])}">لوحة الطالب</a></li>`;
     }
 
     const registrationRequestsLink = isTeacher
@@ -120,7 +117,6 @@ export function initNavbar() {
           <li><a href="index.html" class="nav-link ${getActive(["index.html"])}">الرئيسية</a></li>
           <li><a href="courses.html" class="nav-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
           <li><a href="exams.html" class="nav-link ${getActive(["exams.html"])}">الاختبارات</a></li>
-          <li><a href="chatbots.html" class="nav-link ${getActive(["chatbots.html"])}">المحادثات</a></li>
           ${dashboardLink}
           ${registrationRequestsLink}
           ${studentsManagementLink}
@@ -165,7 +161,6 @@ export function initNavbar() {
         <li><a href="index.html" class="mobile-link ${getActive(["index.html"])}">الرئيسية</a></li>
         <li><a href="courses.html" class="mobile-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
         <li><a href="exams.html" class="mobile-link ${getActive(["exams.html"])}">الاختبارات</a></li>
-        <li><a href="chatbots.html" class="mobile-link ${getActive(["chatbots.html"])}">المحادثات</a></li>
         ${mobileDashboardLink}
         ${mobileRegistrationRequestsLink}
         ${mobileStudentsManagementLink}

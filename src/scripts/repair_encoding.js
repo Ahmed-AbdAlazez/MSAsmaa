@@ -28,7 +28,6 @@ const FILES = [
   'index.html',
   'lessons.html',
   'course-biology.html',
-  'dashboard-student.html',
   'dashboard-teacher.html',
   'src/routes/quizzes/quizCreation.routes.js',
   'src/routes/quizzes/quizTaking.routes.js',
