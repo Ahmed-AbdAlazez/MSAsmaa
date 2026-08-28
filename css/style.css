@@ -811,6 +811,123 @@ html[dir="rtl"] .scroll-progress-fill {
   line-height: 1.8;
 }
 
+/* ============================================================
+   Top Students marquee section (homepage)
+   Auto-scroll runs purely on CSS transforms (compositor only).
+   The track is two identical halves animated 0 → -50% for a
+   seamless infinite loop with no visible reset point — each card
+   exits one side while its identical twin enters the other, like
+   a closed ring.
+
+   NOTE (RTL): the page is dir="rtl", which right-aligns the wide
+   flex track and would make translateX(-50%) slide it off-screen,
+   leaving a blank gap. Forcing the marquee to direction:ltr keeps
+   the loop geometry left→right (cards re-enter from the right),
+   while each card keeps direction:rtl so the Arabic text/bidi is
+   untouched.
+   ============================================================ */
+.top-students-section {
+  padding: 4.5rem 0;
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.top-students-marquee {
+  overflow: hidden;
+  padding: 0.5rem 0 1rem;
+  direction: ltr;
+}
+
+.top-students-track {
+  display: flex;
+  justify-content: flex-start;
+  width: max-content;
+  animation: top-students-scroll 42s linear infinite;
+  will-change: transform;
+}
+
+.top-students-marquee:hover .top-students-track {
+  animation-play-state: paused;
+}
+
+@keyframes top-students-scroll {
+  from { transform: translateX(0%); }
+  to   { transform: translateX(-50%); }
+}
+
+.top-student-card {
+  flex: 0 0 auto;
+  width: 250px;
+  margin-left: 1.25rem;
+  direction: rtl;
+  background: var(--surface-glass);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  transition: var(--transition);
+  text-align: center;
+}
+
+.top-student-card:hover {
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
+  transform: translateY(-3px);
+  border-color: var(--color-primary);
+}
+
+.top-student-avatar {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 0.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.45rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent-blue));
+  box-shadow: 0 6px 16px rgba(24, 119, 242, 0.25);
+  user-select: none;
+}
+
+.top-student-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--color-text-main);
+  margin-bottom: 0.35rem;
+}
+
+.top-student-year {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-ghost);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.6rem;
+  margin-bottom: 0.55rem;
+}
+
+.top-student-achievement {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-students-track {
+    animation: none;
+  }
+  .top-students-marquee {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* Video title subtitle shown beneath the lesson page's main heading */
 .lesson-video-subtitle {
   font-size: 1.05rem;
