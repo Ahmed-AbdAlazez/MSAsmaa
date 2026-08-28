@@ -25,6 +25,8 @@ const API = String(import.meta.env.VITE_API_URL || "").replace(
 );
 const COURSE_ID = "biology";
 
+import { skeletonCards, skeletonError, skeletonRows } from "./components/skeleton.js";
+
 /* ---------------- shared tiny helpers ---------------- */
 
 function getToken() {
@@ -312,6 +314,15 @@ function showTab(tab) {
 }
 
 async function loadHub() {
+  // Show skeleton placeholders in EVERY tab container immediately so the
+  // hub never looks empty/frozen while the database call is in flight.
+  const byLessonSkeleton = document.getElementById("exams-by-lesson");
+  const allSkeleton = document.getElementById("exams-all");
+  const mixedSkeleton = document.getElementById("exams-mixed");
+  if (byLessonSkeleton) byLessonSkeleton.innerHTML = skeletonCards(3);
+  if (allSkeleton) allSkeleton.innerHTML = skeletonCards(3);
+  if (mixedSkeleton) mixedSkeleton.innerHTML = skeletonCards(2);
+
   // One course per page: ask the backend for THIS course's exams only, so
   // rows from other courses (e.g. synthetic data used by automated tests)
   // can never appear here no matter what is in the database.
@@ -377,10 +388,17 @@ function renderHubError(status, message) {
       : status === 0
         ? "تعذر الوصول للسيرفر. تأكدي من تشغيله ثم أعيدي التحميل."
         : `تعذر تحميل الاختبارات (خطأ ${status}).`);
-  document.getElementById("exams-by-lesson").innerHTML =
-    `<p class="muted">${reason}</p>`;
-  document.getElementById("exams-all").innerHTML = "";
-  document.getElementById("exams-mixed").innerHTML = "";
+  // Inline error + retry INSIDE the already-open hub, never an infinite
+  // skeleton and never a frozen empty page.
+  const errorHtml = skeletonError(reason, "إعادة المحاولة");
+  const byLesson = document.getElementById("exams-by-lesson");
+  const all = document.getElementById("exams-all");
+  const mixed = document.getElementById("exams-mixed");
+  if (byLesson) byLesson.innerHTML = errorHtml;
+  if (all) all.innerHTML = "";
+  if (mixed) mixed.innerHTML = "";
+  const retry = document.querySelector("#exams-by-lesson .skeleton-retry-btn");
+  if (retry) retry.addEventListener("click", () => loadHub());
 }
 
 /* =====================================================================
@@ -731,8 +749,7 @@ async function openResult(quizId, resultId, summaryData = null) {
   // The score shows instantly — even before end_time releases the review.
   if (summaryData) {
     renderScoreBanner(summaryData);
-    document.getElementById("review-body").innerHTML =
-      '<div class="loading">جارٍ التحميل…</div>';
+    document.getElementById("review-body").innerHTML = skeletonRows(3);
   }
 
   // Opening an ENDED exam from the hub has no resultId yet - ask the
@@ -744,16 +761,15 @@ async function openResult(quizId, resultId, summaryData = null) {
       resultId = attempt.data.result.resultId;
       if (!summaryData) {
         renderScoreBanner(attempt.data.result);
-        document.getElementById("review-body").innerHTML =
-          '<div class="loading">جارٍ التحميل…</div>';
+        document.getElementById("review-body").innerHTML = skeletonRows(3);
       }
     }
   }
 
   /* ---- per-quiz leaderboard + review (parallel fetches) ----- */
-  lbBody.innerHTML = '<div class="loading">جارٍ التحميل…</div>';
+  lbBody.innerHTML = skeletonRows(4);
   reviewBody.innerHTML = resultId
-    ? '<div class="loading">جارٍ التحميل…</div>'
+    ? skeletonRows(3)
     : '<p class="muted">لا توجد محاولة مسجلة لهذا الاختبار بعد.</p>';
 
   const [lb, review] = await Promise.all([
@@ -764,29 +780,43 @@ async function openResult(quizId, resultId, summaryData = null) {
   ]);
 
   if (lb.ok && lb.data.released) {
-    lbBody.innerHTML = leaderboardTable(lb.data.rankings);
+    lbBody.innerHTML =
+      `<div class="skeleton-reveal">${leaderboardTable(lb.data.rankings)}</div>`;
   } else if (lb.ok) {
-    lbBody.innerHTML = `<div class="locked-note">🔒 لوحة الترتيب تظهر بعد انتهاء وقت الاختبار للجميع (${formatDateTime(lb.data.availableAfter)}).</div>`;
+    lbBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 لوحة الترتيب تظهر بعد انتهاء وقت الاختبار للجميع (${formatDateTime(lb.data.availableAfter)}).</div>`;
   } else {
-    lbBody.innerHTML = '<p class="muted">تعذر تحميل لوحة الترتيب.</p>';
+    lbBody.innerHTML = skeletonError(
+      "تعذر تحميل لوحة الترتيب، حاولي مرة أخرى.",
+      "إعادة المحاولة",
+    );
+    lbBody
+      .querySelector(".skeleton-retry-btn")
+      ?.addEventListener("click", () => openResult(quizId, resultId, summaryData));
   }
 
   if (!resultId) return;
 
   if (review.status === 403) {
-    reviewBody.innerHTML = `<div class="locked-note">🔒 ${escapeHtml(
+    reviewBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 ${escapeHtml(
       (review.data && review.data.message) || "المراجعة غير متاحة بعد.",
     )} (${formatDateTime(review.data && review.data.availableAfter)})</div>`;
     return;
   }
   if (!review.ok) {
-    reviewBody.innerHTML = '<p class="muted">تعذر تحميل المراجعة.</p>';
+    reviewBody.innerHTML = skeletonError(
+      "تعذر تحميل المراجعة، حاولي مرة أخرى.",
+      "إعادة المحاولة",
+    );
+    reviewBody
+      .querySelector(".skeleton-retry-btn")
+      ?.addEventListener("click", () => openResult(quizId, resultId, summaryData));
     return;
   }
 
   const r = review.data.review;
   renderScoreBanner(r);
-  reviewBody.innerHTML = r.questions.map(reviewQuestionHtml).join("");
+  reviewBody.innerHTML =
+    `<div class="skeleton-reveal">${r.questions.map(reviewQuestionHtml).join("")}</div>`;
 }
 
 function leaderboardTable(rankings) {
@@ -857,18 +887,33 @@ function reviewQuestionHtml(question) {
 
 async function loadCourseLeaderboard() {
   const body = document.getElementById("course-leaderboard-body");
+  if (!body) return;
+  // Skeleton inside the already-visible leaderboard card while fetching.
+  body.innerHTML = skeletonRows(4);
   let response;
   try {
     response = await api("GET", `/api/courses/${COURSE_ID}/leaderboard`);
   } catch (error) {
     console.error("[exams] failed to load course leaderboard:", error);
-    body.innerHTML = '<p class="muted">تعذر تحميل لوحة الكورس.</p>';
+    body.innerHTML = skeletonError(
+      "تعذر تحميل لوحة الكورس، حاولي مرة أخرى.",
+      "إعادة المحاولة",
+    );
+    body
+      .querySelector(".skeleton-retry-btn")
+      ?.addEventListener("click", () => loadCourseLeaderboard());
     return;
   }
   const { ok, data } = response;
 
   if (!ok || !data || !Array.isArray(data.rankings)) {
-    body.innerHTML = '<p class="muted">تعذر تحميل لوحة الكورس.</p>';
+    body.innerHTML = skeletonError(
+      "تعذر تحميل لوحة الكورس، حاولي مرة أخرى.",
+      "إعادة المحاولة",
+    );
+    body
+      .querySelector(".skeleton-retry-btn")
+      ?.addEventListener("click", () => loadCourseLeaderboard());
     return;
   }
 
@@ -878,11 +923,12 @@ async function loadCourseLeaderboard() {
       ⏳ ${data.pendingQuizzes.length} اختبار لسه شغال — درجاته تُضاف بعد انتهاء وقته:
       ${data.pendingQuizzes.map((quiz) => escapeHtml(quiz.title)).join("، ")}</div>`;
   }
-  body.innerHTML =
+  body.innerHTML = `<div class="skeleton-reveal">` +
     pendingNote +
     (data.rankings.length === 0
       ? '<p class="muted">لا توجد درجات بعد.</p>'
-      : leaderboardTable(data.rankings));
+      : leaderboardTable(data.rankings)) +
+    `</div>`;
 }
 
 /* =====================================================================

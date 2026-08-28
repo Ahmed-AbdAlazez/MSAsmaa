@@ -3221,3 +3221,111 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.6rem;
   flex-wrap: wrap;
 }
+
+/* ==========================================================================
+   SKELETON LOADING PLACEHOLDERS
+   Reusable pulsing placeholders shared across every loading state on the
+   site (notification menu, exams hub, dashboards, management lists...).
+   One design, driven by theme-aware tokens so light & dark both work.
+   ========================================================================== */
+:root {
+  --skeleton-base: #E2E8F0;
+  --skeleton-highlight: rgba(255, 255, 255, 0.6);
+}
+[data-theme="dark"] {
+  --skeleton-base: #1E2C3D;
+  --skeleton-highlight: rgba(255, 255, 255, 0.07);
+}
+
+.skeleton-shape {
+  display: inline-block;
+  background: var(--skeleton-base);
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+  position: relative;
+  vertical-align: middle;
+}
+.skeleton-shape::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--skeleton-highlight) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.4s infinite;
+}
+.skeleton-circle {
+  border-radius: 50%;
+}
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* A vertical stack of placeholder lines (generic). */
+.skeleton-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.25rem 0;
+}
+
+/* Row shaped like list items (icon circle + two text lines) — used for
+   the notification menu and similar item lists. */
+.skeleton-list-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.6rem 0;
+}
+.skeleton-list-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.15rem;
+}
+
+/* Grid of card-shaped blocks — used for exam cards / dashboard cards. */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  background: var(--surface-glass);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.35rem;
+}
+.skeleton-error {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  padding: 1rem;
+  border: 1px dashed var(--color-danger);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.06);
+  color: var(--color-text-main);
+}
+.skeleton-error p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+/* Smooth fade-in used when real content replaces a skeleton. */
+.skeleton-reveal {
+  animation: skeleton-fade 0.25s ease;
+}
+@keyframes skeleton-fade {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}

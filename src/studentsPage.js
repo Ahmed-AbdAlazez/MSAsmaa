@@ -1,3 +1,5 @@
+import { skeletonLines, skeletonError } from "./components/skeleton.js";
+
 export function initStudentsPage({
   API_BASE,
   authHeaders,
@@ -12,9 +14,7 @@ export function initStudentsPage({
   let page = 1;
   let pageInfo = { page: 1, totalPages: 0, total: 0 };
   let searchTimer;
-  let deletingId = "";
-
-  const formatDate = (value) => {
+  let deletingId = "";  const formatDate = (value) => {
     const date = value ? new Date(value) : null;
     return date && !Number.isNaN(date.getTime())
       ? new Intl.DateTimeFormat("ar-EG", {
@@ -107,7 +107,7 @@ export function initStudentsPage({
   };
 
   const loadStudents = async (requestedPage = 1) => {
-    list.innerHTML = '<p class="text-muted">جارٍ تحميل الطلاب...</p>';
+    list.innerHTML = skeletonLines(5);
     try {
       const params = new URLSearchParams({
         page: String(requestedPage),
@@ -127,7 +127,13 @@ export function initStudentsPage({
       renderStudents();
     } catch (error) {
       students = [];
-      list.innerHTML = '<p class="text-muted">تعذر تحميل الطلاب المقبولين.</p>';
+      list.innerHTML = skeletonError(
+        "تعذر تحميل الطلاب المقبولين، حاولي مرة أخرى.",
+        "إعادة المحاولة",
+      );
+      list
+        .querySelector(".skeleton-retry-btn")
+        ?.addEventListener("click", () => loadStudents());
       pagination.replaceChildren();
       showToast(error.message, "danger");
     }

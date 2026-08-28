@@ -15,6 +15,8 @@
 
 const API = "";
 
+import { skeletonRows, skeletonCards, skeletonError } from "./components/skeleton.js";
+
 /* ----------------------- Helpers ----------------------- */
 function getToken() {
   return localStorage.getItem("token");
@@ -93,8 +95,18 @@ let currentFilterMode = "by-lesson"; // "by-lesson" | "mixed"
 /* ----------------------- API Calls ----------------------- */
 
 async function loadTeacherQuizzes() {
+  const listContainer = document.getElementById("quiz-management-list");
+  if (listContainer) listContainer.innerHTML = skeletonCards(2);
   const { ok, data } = await apiCall("GET", "/api/quizzes-managed");
   if (!ok) {
+    if (listContainer)
+      listContainer.innerHTML = skeletonError(
+        "تعذر تحميل الاختبارات، حاولي مرة أخرى.",
+        "إعادة المحاولة",
+      );
+    listContainer
+      ?.querySelector(".skeleton-retry-btn")
+      ?.addEventListener("click", loadTeacherQuizzes);
     showToast("تعذر تحميل الاختبارات.", "danger");
     return false;
   }
@@ -103,12 +115,30 @@ async function loadTeacherQuizzes() {
 }
 
 async function loadQuizDetails(quizId) {
+  // OPEN the details view INSTANTLY using local state only — the panel shows
+  // a skeleton while the detail fetch is in flight, never waits blank.
+  selectedQuizId = quizId;
+  const listContainer = document.getElementById("quiz-management-list");
+  const detailsContainer = document.getElementById("quiz-management-details");
+  if (listContainer) listContainer.style.display = "none";
+  if (detailsContainer) {
+    detailsContainer.style.display = "block";
+    detailsContainer.innerHTML = skeletonRows(4);
+  }
+
   const { ok, data } = await apiCall("GET", `/api/quizzes/${quizId}/full`);
   if (!ok) {
+    if (detailsContainer)
+      detailsContainer.innerHTML = skeletonError(
+        "تعذر تحميل تفاصيل الاختبار، حاولي مرة أخرى.",
+        "إعادة المحاولة",
+      );
+    detailsContainer
+      ?.querySelector(".skeleton-retry-btn")
+      ?.addEventListener("click", () => loadQuizDetails(quizId));
     showToast("تعذر تحميل تفاصيل الاختبار.", "danger");
     return false;
   }
-  selectedQuizId = quizId;
   selectedQuiz = data;
   renderQuizDetails();
   return true;

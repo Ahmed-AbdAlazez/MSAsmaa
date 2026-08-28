@@ -1,5 +1,6 @@
 import { initNavbar } from "./components/navbar.js";
 import { initStudentsPage } from "./studentsPage.js";
+import { skeletonRows, skeletonError } from "./components/skeleton.js";
 
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
 // 'storage' event fires only in other tabs/documents, so flipping dark
@@ -726,8 +727,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const loadRequests = async () => {
-      list.innerHTML =
-        '<p class="text-muted registration-requests-loading">Loading registration requests...</p>';
+      list.innerHTML = skeletonRows(3);
       try {
         const data = await fetchJson(`${API_BASE}/registration-requests`, {
           headers: authHeaders(),
@@ -739,8 +739,13 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         requests = [];
         count.textContent = "0";
-        list.innerHTML =
-          '<p class="text-muted registration-requests-empty">Unable to load registration requests.</p>';
+        list.innerHTML = skeletonError(
+          "Unable to load registration requests.",
+          "Retry",
+        );
+        list
+          .querySelector(".skeleton-retry-btn")
+          ?.addEventListener("click", loadRequests);
         showToast(error.message, "danger");
       }
     };
@@ -912,29 +917,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let cachedNotifications = [];
   let notificationsFetchedAt = 0;
+  let notificationsInFlight = null;
   const NOTIFICATIONS_CACHE_TTL = 30_000; // 30 seconds
 
   const fetchNotifications = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return [];
-    // Return cached data if still fresh (avoids 4x redundant calls on page load)
+    const headers = authHeaders();
+    const call = () =>
+      fetchJson(`${API_BASE}/notifications`, { headers }).then(
+        (data) => data.notifications || [],
+      );
+    // Fresh cache → return it and quietly refresh in the background so the
+    // bell is never stale.
     if (
       cachedNotifications.length &&
       Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL
     ) {
+      call()
+        .then((fresh) => {
+          cachedNotifications = fresh;
+          notificationsFetchedAt = Date.now();
+          if (document.querySelector("#notification-menu.show")) {
+            renderNotificationsMenu();
+          }
+        })
+        .catch(() => {
+          /* keep showing cached list */
+        });
       return cachedNotifications;
     }
-    try {
-      const data = await fetchJson(`${API_BASE}/notifications`, {
-        headers: authHeaders(),
-      });
-      cachedNotifications = data.notifications || [];
-      notificationsFetchedAt = Date.now();
-      return cachedNotifications;
-    } catch (error) {
-      console.warn("[notifications] Failed to fetch notifications:", error);
-      return cachedNotifications;
+    // Memoize the in-flight request so the page-load prefetch and a quick
+    // bell click (before it resolves) share ONE network call.
+    if (!notificationsInFlight) {
+      notificationsInFlight = call()
+        .then((notifications) => {
+          cachedNotifications = notifications;
+          notificationsFetchedAt = Date.now();
+          return notifications;
+        })
+        .finally(() => {
+          notificationsInFlight = null;
+        });
     }
+    return notificationsInFlight;
   };
 
   const addNotification = (title, message, type = "news") => {
@@ -962,10 +988,38 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const renderNotificationsMenu = async () => {
-    const notifications = await fetchNotifications();
+  const renderNotificationsMenu = async (mode = "data") => {
     const list = document.querySelector("#notification-list");
     if (!list) return;
+
+    // The container is ALREADY open (opened instantly on click); this only
+    // repaints the INSIDE of it. Skeleton/error/data are three separate
+    // internal states, never coupled to the open/close state of the menu.
+    if (mode === "loading") {
+      list.innerHTML = skeletonRows(4);
+      return;
+    }
+    if (mode === "error") {
+      list.innerHTML = '<div id="notifications-error-placeholder"></div>';
+      const box = list.querySelector("#notifications-error-placeholder");
+      box.innerHTML = skeletonError(
+        "تعذر تحميل الإشعارات، حاولي مرة أخرى.",
+        "إعادة المحاولة",
+      );
+      box.querySelector(".skeleton-retry-btn").addEventListener("click", () => {
+        loadNotificationsIntoMenu(true);
+      });
+      return;
+    }
+
+    let notifications;
+    try {
+      notifications = await fetchNotifications();
+    } catch (error) {
+      console.warn("[notifications] Failed to fetch notifications:", error);
+      renderNotificationsMenu("error");
+      return;
+    }
 
     if (!notifications.length) {
       list.innerHTML =
@@ -973,10 +1027,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    list.innerHTML = notifications
-      .slice(0, 6)
-      .map(
-        (item) => `
+    list.innerHTML =
+      '<div class="skeleton-reveal">' +
+      notifications
+        .slice(0, 6)
+        .map(
+          (item) => `
       <div class="notification-item ${(item.isRead ?? item.read) ? "" : "unread"}" data-id="${item.id}" data-link="${escapeHTML(item.link || "")}">
         <div class="notification-item-icon">${item.type === "quiz" ? "؟" : "!"}</div>
         <div>
@@ -985,8 +1041,9 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
     `,
-      )
-      .join("");
+        )
+        .join("") +
+      "</div>";
 
     // Bind click events on notification items to mark read on the backend and navigate
     list.querySelectorAll(".notification-item").forEach((item) => {
@@ -1010,6 +1067,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+  };
+
+  /** Opens the (already-mounted) menu instantly, then fills it with data.
+   *  Fires a background prefetch on page load so the list is usually ready
+   *  by the time the user actually clicks the bell. */
+  const loadNotificationsIntoMenu = async (force = false) => {
+    const menu = document.querySelector("#notification-menu");
+    if (!menu) return;
+    // If notifications are already cached (from the page-load prefetch), show
+    // them immediately — no skeleton needed. Only fall back to the skeleton
+    // when we genuinely have no data yet.
+    const hasFresh = cachedNotifications.length > 0 && !force;
+    renderNotificationsMenu(hasFresh ? "data" : "loading");
+    try {
+      await fetchNotifications();
+      renderNotificationsMenu("data");
+    } catch (error) {
+      renderNotificationsMenu("error");
+    }
   };
 
   const escapeHTML = (value = "") =>
@@ -1246,10 +1322,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const notificationBtn = document.querySelector("#notification-btn");
     const notificationMenu = document.querySelector("#notification-menu");
     if (notificationBtn && notificationMenu) {
-      notificationBtn.addEventListener("click", async (event) => {
+      notificationBtn.addEventListener("click", (event) => {
         event.stopPropagation();
-        await renderNotificationsMenu();
-        notificationMenu.classList.toggle("show");
+        // OPEN INSTANTLY using pure local state — never wait for the fetch.
+        // The closed->open transition uses only the .show class toggle, so
+        // it happens on the very next frame regardless of network speed.
+        const willOpen = !notificationMenu.classList.contains("show");
+        notificationMenu.classList.toggle("show", willOpen);
+        if (willOpen) {
+          // Fill the inside with data (skeleton while loading). Repainting
+          // the content must NOT gate the visibility transition above.
+          loadNotificationsIntoMenu();
+        }
       });
     }
 
@@ -1477,8 +1561,37 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     };
 
+    // Manages a single "loading / error" placeholder node that lives inside
+    // the PDF viewer panel next to the iframe.
+    const setViewerPlaceholder = (html) => {
+      if (!viewerFrame) return;
+      let box = viewerFrame.previousElementSibling;
+      if (box && box.classList.contains("lesson-material-loading")) {
+        box.remove();
+      }
+      if (!html) return;
+      box = document.createElement("div");
+      box.className = "lesson-material-loading";
+      box.innerHTML = html;
+      viewerFrame.insertAdjacentElement("beforebegin", box);
+      return box;
+    };
+
     /** Shows the inline PDF viewer panel with a short-lived signed URL. */
     const openMaterialInViewer = async (material, triggerButton) => {
+      // OPEN THE PANEL INSTANTLY with the title; the frame shows a loading
+      // skeleton until the signed URL arrives. Never block appearance on
+      // the network call.
+      if (viewerTitle) viewerTitle.textContent = material.title || "ملف PDF";
+      if (viewerPanel) {
+        viewerPanel.hidden = false;
+        viewerPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (viewerFrame) {
+        viewerFrame.hidden = true;
+        viewerFrame.src = "about:blank";
+      }
+      setViewerPlaceholder(skeletonRows(3));
       try {
         if (triggerButton) triggerButton.disabled = true;
         const data = await fetchJson(
@@ -1489,11 +1602,18 @@ document.addEventListener("DOMContentLoaded", () => {
           window.open(data.downloadUrl, "_blank", "noopener");
           return;
         }
-        viewerTitle.textContent = material.title || "ملف PDF";
+        setViewerPlaceholder(null);
+        viewerFrame.hidden = false;
         viewerFrame.src = data.downloadUrl;
-        viewerPanel.hidden = false;
-        viewerPanel.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (error) {
+        if (viewerFrame) {
+          const box = setViewerPlaceholder(
+            skeletonError("تعذر تحميل الملف، حاولي مرة أخرى.", "إعادة المحاولة"),
+          );
+          box
+            ?.querySelector(".skeleton-retry-btn")
+            ?.addEventListener("click", () => openMaterialInViewer(material, null));
+        }
         showToast(error.message, "danger");
       } finally {
         if (triggerButton) triggerButton.disabled = false;
@@ -1502,6 +1622,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const closePdfViewer = () => {
       if (!viewerPanel) return;
+      const box = viewerFrame && viewerFrame.previousElementSibling;
+      if (box && box.classList.contains("lesson-material-loading")) box.remove();
       viewerPanel.hidden = true;
       if (viewerFrame) viewerFrame.src = "about:blank";
     };
@@ -1626,6 +1748,7 @@ document.addEventListener("DOMContentLoaded", () => {
           /* keep showing cached list */
         });
     } else {
+      if (materialsBox) materialsBox.innerHTML = skeletonRows(3);
       fetchJson(`/api/lessons/${lessonId}/materials`, {
         headers: authHeaders(),
       })
@@ -1635,10 +1758,28 @@ document.addEventListener("DOMContentLoaded", () => {
           renderLessonMaterials(materials);
         })
         .catch((error) => {
-          const materialsBox = document.querySelector("#lesson-materials-list");
-          if (materialsBox) {
-            materialsBox.innerHTML =
-              '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
+          const box = document.querySelector("#lesson-materials-list");
+          if (box) {
+            box.innerHTML = skeletonError(
+              "تعذر تحميل ملفات الدرس، حاولي مرة أخرى.",
+              "إعادة المحاولة",
+            );
+            box
+              .querySelector(".skeleton-retry-btn")
+              ?.addEventListener("click", () => {
+                box.innerHTML = skeletonRows(3);
+                fetchJson(`/api/lessons/${lessonId}/materials`, {
+                  headers: authHeaders(),
+                })
+                  .then((data) => {
+                    renderLessonMaterials(data.materials || []);
+                  })
+                  .catch(() => {
+                    if (box)
+                      box.innerHTML =
+                        '<p class="text-muted" style="font-size:0.9rem; margin:0;">تعذر تحميل ملفات الدرس.</p>';
+                  });
+              });
           }
           console.warn("[materials] list failed:", error);
         });
@@ -1971,12 +2112,25 @@ document.addEventListener("DOMContentLoaded", () => {
         renderLessonExams(data.exams || [], data.attempts || {});
       } catch (err) {
         console.error("[lesson exams] refresh failed:", err);
+        if (examsContainer)
+          examsContainer.innerHTML = skeletonError(
+            "تعذر تحميل امتحانات الدرس، حاولي مرة أخرى.",
+            "إعادة المحاولة",
+          );
+        examsContainer
+          ?.querySelector(".skeleton-retry-btn")
+          ?.addEventListener("click", window.refreshLessonExams);
       }
     };
 
     const loadLessonExams = async () => {
       if (lessonExamsLoaded) return;
       lessonExamsLoaded = true;
+      // The Exams tab is already active/visible — show a skeleton inside it
+      // immediately while the fetch runs.
+      if (examsContainer && !examsContainer.childElementCount) {
+        examsContainer.innerHTML = skeletonRows(3);
+      }
       await window.refreshLessonExams();
     };
 
@@ -2575,9 +2729,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const loadVideosList = async () => {
       const lessonId = manageLesson.value;
+      if (!lessonId) return;
+      // Show a skeleton immediately in the already-visible list box while
+      // the database call is in flight (never a blank/frozen area).
+      videosListBox.innerHTML = skeletonRows(3);
       try {
-        videosListBox.innerHTML =
-          '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
         const data = await fetchJson(`/api/lessons/${lessonId}/videos`, {
           headers: authHeaders(),
         });
@@ -2585,7 +2741,13 @@ document.addEventListener("DOMContentLoaded", () => {
         renderManageList();
       } catch (error) {
         loadedVideos = [];
-        videosListBox.innerHTML = "";
+        videosListBox.innerHTML = skeletonError(
+          "تعذر تحميل الفيديوهات، حاولي مرة أخرى.",
+          "إعادة المحاولة",
+        );
+        videosListBox
+          .querySelector(".skeleton-retry-btn")
+          ?.addEventListener("click", loadVideosList);
         showToast(error.message, "danger");
       }
     };
@@ -2762,9 +2924,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const loadMaterialsManageList = async () => {
       const lessonId = materialsManageLesson.value;
       if (!lessonId) return;
+      materialsListBox.innerHTML = skeletonRows(3);
       try {
-        materialsListBox.innerHTML =
-          '<p class="text-muted" style="margin:0;">جاري التحميل...</p>';
         const data = await fetchJson(
           `/api/lessons/${lessonId}/materials/manage`,
           { headers: authHeaders() },
@@ -2773,7 +2934,13 @@ document.addEventListener("DOMContentLoaded", () => {
         renderMaterialsManageList();
       } catch (error) {
         loadedMaterials = [];
-        materialsListBox.innerHTML = "";
+        materialsListBox.innerHTML = skeletonError(
+          "تعذر تحميل ملفات PDF، حاولي مرة أخرى.",
+          "إعادة المحاولة",
+        );
+        materialsListBox
+          .querySelector(".skeleton-retry-btn")
+          ?.addEventListener("click", loadMaterialsManageList);
         showToast(error.message, "danger");
       }
     };
