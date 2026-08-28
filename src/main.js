@@ -929,7 +929,9 @@ document.addEventListener("DOMContentLoaded", () => {
         (data) => data.notifications || [],
       );
     // Fresh cache → return it and quietly refresh in the background so the
-    // bell is never stale.
+    // bell is never stale. (No re-render here — re-rendering while the menu
+    // is open replays the fade-in and looks like blinking; the next open
+    // shows the freshly fetched data instead.)
     if (
       cachedNotifications.length &&
       Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL
@@ -938,9 +940,6 @@ document.addEventListener("DOMContentLoaded", () => {
         .then((fresh) => {
           cachedNotifications = fresh;
           notificationsFetchedAt = Date.now();
-          if (document.querySelector("#notification-menu.show")) {
-            renderNotificationsMenu();
-          }
         })
         .catch(() => {
           /* keep showing cached list */
@@ -1071,18 +1070,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** Opens the (already-mounted) menu instantly, then fills it with data.
    *  Fires a background prefetch on page load so the list is usually ready
-   *  by the time the user actually clicks the bell. */
+   *  by the time the user actually clicks the bell.
+   *  Renders exactly once (which is what prevents the "blinking": we never
+   *  repaint the same data twice back-to-back). */
   const loadNotificationsIntoMenu = async (force = false) => {
     const menu = document.querySelector("#notification-menu");
     if (!menu) return;
-    // If notifications are already cached (from the page-load prefetch), show
-    // them immediately — no skeleton needed. Only fall back to the skeleton
-    // when we genuinely have no data yet.
-    const hasFresh = cachedNotifications.length > 0 && !force;
-    renderNotificationsMenu(hasFresh ? "data" : "loading");
+    // Data already cached (e.g. from the page-load prefetch) → render it
+    // straight away, no skeleton, no double paint.
+    if (!force && cachedNotifications.length) {
+      await renderNotificationsMenu("data");
+      return;
+    }
+    // No data yet → show the skeleton once, then the real content once.
+    renderNotificationsMenu("loading");
     try {
       await fetchNotifications();
-      renderNotificationsMenu("data");
+      await renderNotificationsMenu("data");
     } catch (error) {
       renderNotificationsMenu("error");
     }
@@ -1182,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ".dashboard-layout .container",
     );
     if (!dashboardContainer) {
-      renderNotificationsMenu();
+      fetchNotifications().catch(() => {});
       updateNotificationBadge();
       return;
     }
@@ -1221,7 +1225,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     renderStudentQuizList();
-    renderNotificationsMenu();
+    fetchNotifications().catch(() => {});
     updateNotificationBadge();
   };
 
@@ -1381,7 +1385,10 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    renderNotificationsMenu();
+    // Warm the notification cache in the background so the bell opens
+    // instantly; the render itself happens on click (loadNotificationsIntoMenu)
+    // so we never paint twice and never get a blink.
+    fetchNotifications().catch(() => {});
     updateNotificationBadge();
   };
 
