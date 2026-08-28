@@ -2713,15 +2713,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 typeof event.data === "string"
                   ? JSON.parse(event.data)
                   : event.data;
-              if (
-                data &&
-                data.context === "player.js" &&
-                (data.event === "getCurrentTime" ||
-                  data.method === "getCurrentTime")
-              ) {
-                window.removeEventListener("message", onResp);
-                resolve(Math.floor(data.value || 0));
-              }
+              if (!data || data.context !== "player.js") return;
+              const evt = String(data.event || data.method || "");
+              if (evt !== "getCurrentTime" && evt.indexOf("CurrentTime") === -1)
+                return;
+              window.removeEventListener("message", onResp);
+              const value =
+                typeof data.value === "number"
+                  ? data.value
+                  : parseFloat(data.value);
+              resolve(
+                Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+              );
             } catch (e) {}
           };
           window.addEventListener("message", onResp);
@@ -2740,7 +2743,7 @@ document.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => {
             window.removeEventListener("message", onResp);
             resolve(null);
-          }, 1000);
+          }, 2500);
         });
 
       // --- 2) "Add marker here" bar (captures current paused timestamp) ---
@@ -2757,8 +2760,9 @@ document.addEventListener("DOMContentLoaded", () => {
       titleRow.style.cssText =
         "display:none; align-items:center; gap:0.5rem; flex-wrap:wrap; background:var(--color-surface); border:1px solid var(--color-border); padding:0.6rem 0.8rem; border-radius:var(--radius-md);";
       titleRow.innerHTML =
-        `<span style="font-size:0.85rem; font-weight:700; white-space:nowrap;">⏱ <span id="captured-time-label">0:00</span></span>` +
-        `<input id="marker-title-input" type="text" placeholder="عنوان العلامة (مثال: سؤال 1)" autocomplete="off" style="flex:2; min-width:160px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
+        `<span style="font-size:0.85rem; font-weight:700; white-space:nowrap;">⏱ <span id="captured-time-label">—</span></span>` +
+        `<input id="marker-time-input" type="text" placeholder="التوقيت (مثال: 3:20)" autocomplete="off" dir="ltr" style="flex:1; min-width:90px; max-width:120px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; text-align:center;">` +
+        `<input id="marker-title-input" type="text" placeholder="عنوان العلامة (مثال: سؤال 1)" autocomplete="off" style="flex:2; min-width:150px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
         `<button type="button" id="marker-confirm-btn" class="btn btn-success" style="font-size:0.8rem; border-radius:var(--radius-sm);">إضافة</button>` +
         `<button type="button" id="marker-cancel-btn" class="btn btn-light" style="font-size:0.8rem; border-radius:var(--radius-sm);">إلغاء</button>`;
       wrap.appendChild(titleRow);
@@ -2842,6 +2846,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // --- 4) Marker capture + inline title commit ---
       let capturedTime = null;
       const addMarkerBtn = wrap.querySelector("#add-marker-btn");
+      const timeInput = wrap.querySelector("#marker-time-input");
       const titleInput = wrap.querySelector("#marker-title-input");
       const confirmBtn = wrap.querySelector("#marker-confirm-btn");
       const cancelBtn = wrap.querySelector("#marker-cancel-btn");
@@ -2853,20 +2858,35 @@ document.addEventListener("DOMContentLoaded", () => {
         const secs = await askCurrentTime();
         addMarkerBtn.disabled = false;
         addMarkerBtn.textContent = "🚩 ＋ إضافة علامة هنا";
-        if (secs === null) {
-          showToast(
-            "تعذّر قراءة توقيت الفيديو. شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم أعدي المحاولة.",
-            "warning"
-          );
-          return;
-        }
         capturedTime = secs;
-        capturedLabel.textContent = formatDuration(secs);
         titleRow.style.display = "flex";
         titleInput.value = "";
-        titleInput.placeholder = `عنوان العلامة (مثال: سؤال 1) — عند ${formatDuration(secs)}`;
-        titleInput.focus();
+        timeInput.value = secs !== null ? formatDuration(secs) : "";
+        if (secs !== null) {
+          capturedLabel.textContent = formatDuration(secs);
+          titleInput.placeholder = `عنوان العلامة (مثال: سؤال 1) — عند ${formatDuration(secs)}`;
+        } else {
+          capturedLabel.textContent = "يدوي";
+          timeInput.focus();
+          showToast(
+            "لم يُلتقط التوقيت تلقائياً من المشغّل — أدخلي التوقيت يدوياً ثم اضغطي «إضافة».",
+            "warning"
+          );
+        }
       });
+
+      const parseTimeInput = (raw) => {
+        const s = String(raw || "").trim();
+        if (!s) return null;
+        if (/^\d+$/.test(s)) return parseInt(s, 10);
+        const parts = s.split(":").map((x) => parseFloat(x));
+        if (parts.some((n) => Number.isNaN(n)) || parts.length < 2 || parts.length > 3)
+          return null;
+        if (parts.length === 3) {
+          return parts[0] * 3600 + parts[1] * 60 + Math.floor(parts[2]);
+        }
+        return parts[0] * 60 + parts[1];
+      };
 
       const commitMarker = () => {
         const title = titleInput.value.trim();
@@ -2875,8 +2895,41 @@ document.addEventListener("DOMContentLoaded", () => {
           titleInput.focus();
           return;
         }
-        if (capturedTime === null) return;
-        markers.push({ title, startTimeSeconds: capturedTime });
+        const rawTime = timeInput.value.trim();
+        let seconds = capturedTime;
+        if (rawTime) {
+          const parsed = parseTimeInput(rawTime);
+          if (parsed === null) {
+            showToast(
+              "أدخلي التوقيت بصيغة دقائق:ثوانٍ (مثال: 3:20).",
+              "warning"
+            );
+            timeInput.focus();
+            return;
+          }
+          seconds = parsed;
+        }
+        if (seconds === null) {
+          showToast(
+            "أدخلي التوقيت يدوياً بصيغة دقائق:ثوانٍ (مثال: 3:20) ثم اضغطي إضافة.",
+            "warning"
+          );
+          timeInput.focus();
+          return;
+        }
+        if (videoObj.lengthSeconds && seconds > videoObj.lengthSeconds) {
+          showToast(
+            `التوقيت (${formatDuration(
+              seconds
+            )}) يتجاوز طول الفيديو (${formatDuration(
+              videoObj.lengthSeconds
+            )}).`,
+            "danger"
+          );
+          timeInput.focus();
+          return;
+        }
+        markers.push({ title, startTimeSeconds: seconds });
         markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
         titleRow.style.display = "none";
         renderList();
