@@ -411,7 +411,7 @@ async function main() {
   const resumeBtn = resumeCard.querySelector(".btn-take");
   check(
     "in_progress card offers resume",
-    Boolean(resumeBtn) && resumeBtn.textContent.includes("كمّلي الحل")
+    Boolean(resumeBtn) && resumeBtn.textContent.includes("كمّل الحل")
   );
   check(
     "resume state shows no score chip yet",

@@ -99,9 +99,9 @@ function updateWindowPreview() {
   }
   const startsLater = start.getTime() > Date.now();
   windowPreview.innerHTML =
-    `⏰ يفتح الاختبار للطالبات: <b>${formatLocalArabic(start)}</b> — ويُغلق: <b>${formatLocalArabic(end)}</b>` +
+    `⏰ يفتح الاختبار للطلاب: <b>${formatLocalArabic(start)}</b> — ويُغلق: <b>${formatLocalArabic(end)}</b>` +
     (startsLater
-      ? `<br><span class="badge">⚠️ وقت البدء في المستقبل — الطالبات لا يرين لوحة الترتيب أو المراجعة إلا بعد وقت النهاية.</span>`
+      ? `<br><span class="badge">⚠️ وقت البدء في المستقبل — الطلاب لا يرون لوحة الترتيب أو المراجعة إلا بعد وقت النهاية.</span>`
       : "");
 }
 
@@ -469,7 +469,7 @@ async function publishQuiz() {
       }
     }
 
-    toast("تم نشر الاختبار وإشعار الطالبات ✅", "success");
+    toast("تم نشر الاختبار وإشعار الطلاب ✅", "success");
     resetBuilder();
   } catch (error) {
     toast(error.message, "danger");

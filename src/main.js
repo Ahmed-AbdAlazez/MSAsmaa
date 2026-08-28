@@ -681,11 +681,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Persist upload form fields so typed info (video name, links...) survives
   // navigating between pages and back within the same tab.
-  const UPLOAD_PERSIST_FIELDS = [
-    "upload-title",
-    "upload-attachment",
-    "upload-description",
-  ];
+  const UPLOAD_PERSIST_FIELDS = ["upload-title"];
   const restoreUploadFormFields = () => {
     UPLOAD_PERSIST_FIELDS.forEach((fieldId) => {
       const field = document.querySelector(`#${fieldId}`);
@@ -2674,8 +2670,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (uploadBtn) {
     uploadBtn.addEventListener("click", async () => {
       const titleInput = document.querySelector("#upload-title");
-      const attachmentInput = document.querySelector("#upload-attachment");
-      const descriptionInput = document.querySelector("#upload-description");
       const fileInput = document.querySelector("#upload-file");
       const progressArea = document.querySelector("#upload-progress-area");
       const progressBar = document.querySelector("#upload-progress-bar");
@@ -2683,8 +2677,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const lessonId = lessonSelect ? lessonSelect.value : "";
       const videoName = (titleInput?.value || "").trim();
-      const attachmentUrl = (attachmentInput?.value || "").trim();
-      const description = (descriptionInput?.value || "").trim();
       const file = fileInput?.files[0];
 
       if (!lessonId) {
@@ -2722,8 +2714,6 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             title: videoName,
-            attachmentUrl,
-            description,
           }),
         });
 
@@ -3454,8 +3444,7 @@ document.addEventListener("DOMContentLoaded", () => {
         info.innerHTML =
           `<div style="font-weight:700;">${idx + 1}. ${v.name || "(بدون اسم)"}</div>` +
           `<div class="text-muted" style="font-size:0.8rem;">` +
-          `${v.ready ? `⏱ ${Math.max(1, Math.round(v.lengthSeconds / 60))} دقيقة` : "⏳ قيد المعالجة"}` +
-          `${v.description ? ` • ${v.description.slice(0, 60)}` : ""}</div>`;
+          `${v.ready ? `⏱ ${Math.max(1, Math.round(v.lengthSeconds / 60))} دقيقة` : "⏳ قيد المعالجة"}</div>`;
 
         const actions = document.createElement("div");
         actions.style.cssText = "display:flex; gap:0.5rem; flex-wrap:wrap;";
@@ -3499,10 +3488,6 @@ document.addEventListener("DOMContentLoaded", () => {
         row.querySelector(".js-edit-video").addEventListener("click", () => {
           document.querySelector("#edit-video-id").value = v.videoId;
           document.querySelector("#edit-name").value = v.name || "";
-          document.querySelector("#edit-attachment").value =
-            v.attachmentUrl || "";
-          document.querySelector("#edit-description").value =
-            v.description || "";
           document.querySelector("#edit-move-lesson").value = "";
           editForm.style.display = "block";
           editForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -3571,8 +3556,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const videoId = document.querySelector("#edit-video-id").value;
         const body = {
           name: document.querySelector("#edit-name").value,
-          attachmentUrl: document.querySelector("#edit-attachment").value,
-          description: document.querySelector("#edit-description").value,
         };
         const moveTo = document.querySelector("#edit-move-lesson").value;
         if (moveTo) body.lessonId = moveTo;

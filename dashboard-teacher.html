@@ -84,21 +84,10 @@
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
           <div style="flex:2; min-width:220px;">
-            <label for="upload-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط وسائط إضافي (اختياري)</label>
-            <input id="upload-attachment" type="url" placeholder="https://drive.google.com/..."
-              style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;" dir="ltr">
-          </div>
-          <div style="flex:2; min-width:220px;">
             <label for="upload-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف الفيديو *</label>
             <input id="upload-file" type="file" accept="video/*"
               style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
-        </div>
-
-        <div style="margin-top:1rem;">
-          <label for="upload-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الفيديو (اختياري)</label>
-          <textarea id="upload-description" rows="3" placeholder="ملخص محتوى الشرح، المصادر، تعليمات للطلاب..."
-            style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
         </div>
 
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
@@ -182,14 +171,6 @@
               <select id="edit-move-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"><option value="">â€” إبقاء الدرس الحالي â€”</option></select>
             </div>
           </div>
-          <div style="margin-top:1rem;">
-            <label for="edit-attachment" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط الملف الإضافي</label>
-            <input id="edit-attachment" type="url" dir="ltr" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
-          </div>
-          <div style="margin-top:1rem;">
-            <label for="edit-description" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">وصف الدرس</label>
-            <textarea id="edit-description" rows="3" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; resize:vertical;"></textarea>
-          </div>
           <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
             <button id="btn-save-edit" class="btn btn-primary">💾 حفظ التعديلات</button>
             <button id="btn-cancel-edit" class="btn btn-light">إلغاء</button>
@@ -232,7 +213,7 @@
       <section id="teacher-quiz-builder" class="card" style="margin-top:2.5rem; padding:1.5rem; border-radius:14px; box-shadow:var(--shadow-sm,0 2px 8px rgba(0,0,0,.06));">
         <h2 style="margin-bottom:.25rem;">📝 إنشاء اختبار جديد</h2>
         <p class="muted" style="color:#777; font-size:.9rem; margin-bottom:1.25rem;">
-          حددي التوقيتات من التقويم، أبني الأسئلة، ثم انشري الاختبار â€” تُخطَر الطالبات تلقائياً.
+          حددي التوقيتات من التقويم، ابني الأسئلة، ثم انشري الاختبار — ويتم إشعار الطلاب تلقائياً.
         </p>
 
         <!-- Quiz shell -->
