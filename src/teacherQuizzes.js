@@ -226,6 +226,83 @@ function setupQuizTypeToggle() {
 /** Questions staged before publishing. Images kept as File objects until
  *  publish time (single multipart POST per question at the end). */
 let stagedQuestions = [];
+const DRAFT_STORAGE_KEY_PREFIX = "teacherQuizDraft:";
+
+function getDraftStorageKey() {
+  const userId = String(localStorage.getItem("userId") || "").trim();
+  return userId ? `${DRAFT_STORAGE_KEY_PREFIX}${userId}` : null;
+}
+
+function saveBuilderDraft() {
+  const key = getDraftStorageKey();
+  if (!key) return;
+
+  const quizType = document.querySelector(
+    'input[name="quiz-type"]:checked',
+  )?.value;
+  const draft = {
+    title: byId("builder-quiz-title").value,
+    duration: byId("quiz-duration").value,
+    startTime: pickerIso(startPicker),
+    endTime: pickerIso(endPicker),
+    quizType,
+    lessonId: byId("quiz-lesson").value,
+    mixedLessonIds: [
+      ...document.querySelectorAll(".mixed-lesson-check:checked"),
+    ].map((checkbox) => checkbox.value),
+    questionType: byId("question-type").value,
+    questionText: byId("question-text").value,
+    choices: ["choice-1", "choice-2", "choice-3", "choice-4"].map(
+      (id) => byId(id).value,
+    ),
+    modelAnswer: byId("model-answer").value,
+    stagedQuestions: stagedQuestions.map(
+      ({ imageFile, imagePreviewUrl, ...question }) => question,
+    ),
+  };
+
+  try {
+    localStorage.setItem(key, JSON.stringify(draft));
+  } catch (_) {}
+}
+
+function restoreBuilderDraft() {
+  const key = getDraftStorageKey();
+  if (!key) return;
+
+  let draft;
+  try {
+    draft = JSON.parse(localStorage.getItem(key) || "null");
+  } catch (_) {
+    return;
+  }
+  if (!draft || typeof draft !== "object") return;
+
+  byId("builder-quiz-title").value = draft.title || "";
+  byId("quiz-duration").value = draft.duration || "20";
+  byId("question-type").value = draft.questionType || "mcq";
+  byId("question-text").value = draft.questionText || "";
+  ["choice-1", "choice-2", "choice-3", "choice-4"].forEach((id, index) => {
+    byId(id).value = draft.choices?.[index] || "";
+  });
+  byId("model-answer").value = draft.modelAnswer || "";
+
+  if (draft.quizType) {
+    const quizType = document.querySelector(
+      `input[name="quiz-type"][value="${draft.quizType}"]`,
+    );
+    if (quizType) quizType.checked = true;
+  }
+  if (draft.lessonId) byId("quiz-lesson").value = draft.lessonId;
+  document.querySelectorAll(".mixed-lesson-check").forEach((checkbox) => {
+    checkbox.checked = draft.mixedLessonIds?.includes(checkbox.value) || false;
+  });
+  if (draft.startTime) startPicker.setDate(draft.startTime, false);
+  if (draft.endTime) endPicker.setDate(draft.endTime, false);
+  stagedQuestions = Array.isArray(draft.stagedQuestions)
+    ? draft.stagedQuestions
+    : [];
+}
 
 function readBuilderForm() {
   const type = byId("question-type").value;
@@ -404,6 +481,8 @@ async function publishQuiz() {
 
 function resetBuilder() {
   stagedQuestions = [];
+  const key = getDraftStorageKey();
+  if (key) localStorage.removeItem(key);
   renderStagedQuestions();
   byId("builder-quiz-title").value = "";
   byId("quiz-duration").value = "20";
@@ -437,7 +516,30 @@ document.addEventListener("DOMContentLoaded", () => {
   populateLessonSelect();
   populateMixedLessonCheckboxes();
   setupQuizTypeToggle();
+  restoreBuilderDraft();
+  document
+    .querySelector('input[name="quiz-type"]:checked')
+    ?.dispatchEvent(new Event("change"));
   renderStagedQuestions();
+
+  [
+    "builder-quiz-title",
+    "quiz-duration",
+    "question-type",
+    "question-text",
+    "choice-1",
+    "choice-2",
+    "choice-3",
+    "choice-4",
+    "model-answer",
+    "quiz-lesson",
+  ].forEach((id) => {
+    byId(id).addEventListener("input", saveBuilderDraft);
+    byId(id).addEventListener("change", saveBuilderDraft);
+  });
+  document
+    .querySelectorAll('input[name="quiz-type"], .mixed-lesson-check')
+    .forEach((element) => element.addEventListener("change", saveBuilderDraft));
 
   // MCQ <-> Written toggle swaps which fields are visible.
   byId("question-type").addEventListener("change", (event) => {
@@ -470,6 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     stagedQuestions.push(fields);
     renderStagedQuestions();
+    saveBuilderDraft();
 
     // Clear inputs for the next question.
     byId("question-text").value = "";
@@ -494,12 +597,14 @@ document.addEventListener("DOMContentLoaded", () => {
         stagedQuestions[index],
       ];
       renderStagedQuestions();
+      saveBuilderDraft();
       return;
     }
     const removeButton = event.target.closest("[data-remove]");
     if (removeButton) {
       stagedQuestions.splice(Number(removeButton.dataset.remove), 1);
       renderStagedQuestions();
+      saveBuilderDraft();
     }
   });
 
