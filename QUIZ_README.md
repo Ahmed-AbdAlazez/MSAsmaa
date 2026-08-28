@@ -405,7 +405,7 @@ src/exams.js                     hub logic: tabs, take/resume, autosave,
                                  countdown+warnings, result/leaderboard/review
 src/teacherQuizzes.js            teacher builder (flatpickr date-time pickers)
 dashboard-teacher.html           + "إنشاء اختبار جديد" section & script tag
-index/dashboard-student/dashboard-teacher/lessons/course-biology/
+index/dashboard-teacher/lessons/courses/course-biology/
 assignments .html                + "الاختبارات" nav link → exams.html
 vite.config.js                   + exams build entry
 package.json                     + flatpickr dependency

@@ -871,7 +871,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // (#login-modal-backdrop). It was replaced by the dedicated auth page:
   //   login.html + css/login.css + src/loginPage.js
 
-  const QUIZZES_STORAGE_KEY = "frontEndQuizzes";
   const NOTIFICATIONS_STORAGE_KEY = "frontEndNotifications";
 
   const getStoredItems = (key, fallbackItems = []) => {
@@ -887,33 +886,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const setStoredItems = (key, items) => {
     localStorage.setItem(key, JSON.stringify(items));
   };
-
-  const getQuizzes = () =>
-    getStoredItems(QUIZZES_STORAGE_KEY, [
-      {
-        id: "quiz-dna-intro",
-        title: "اختبار سريع: DNA والبروتين",
-        chapter: "الوراثة الجزيئية",
-        dueDate: "اليوم 9:00 م",
-        questions: "10",
-        questionItems: [
-          {
-            type: "mcq",
-            text: "ما الجزء المسؤول عن حمل الشفرة الوراثية؟",
-            options: ["DNA", "الجدار الخلوي", "الريبوسوم", "السيتوبلازم"],
-            image: "",
-          },
-          {
-            type: "written",
-            text: "اشرح باختصار خطوات تضاعف DNA.",
-            options: [],
-            image: "",
-          },
-        ],
-        note: "اختبار قصير للتأكد من فهم تضاعف DNA والترجمة.",
-        createdAt: "جاهز الآن",
-      },
-    ]);
 
   let cachedNotifications = [];
   let notificationsFetchedAt = 0;
@@ -1113,118 +1085,7 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.readAsDataURL(file);
     });
 
-  const getQuizQuestionCount = (quiz) => {
-    if (Array.isArray(quiz.questionItems) && quiz.questionItems.length) {
-      return quiz.questionItems.length;
-    }
-
-    return Number.parseInt(quiz.questions, 10) || 0;
-  };
-
-  const renderQuestionSummary = (question, index) => {
-    const typeLabel = question.type === "written" ? "Written" : "MCQ";
-    const options =
-      question.type === "mcq" && question.options?.length
-        ? `<ol class="quiz-question-options">${question.options.map((option) => `<li>${escapeHTML(option)}</li>`).join("")}</ol>`
-        : '<p class="quiz-written-answer-line">مساحة إجابة كتابية للطالب</p>';
-    const image = question.image
-      ? `<img src="${question.image}" alt="Question attachment" class="quiz-question-image">`
-      : "";
-
-    return `
-      <article class="quiz-question-preview">
-        <div class="quiz-question-top">
-          <span class="quiz-question-number">${index + 1}</span>
-          <span class="badge ${question.type === "written" ? "badge-warning" : "badge-success"}">${typeLabel}</span>
-        </div>
-        <p>${escapeHTML(question.text)}</p>
-        ${image}
-        ${options}
-      </article>
-    `;
-  };
-
-  const renderStudentQuizList = () => {
-    const list = document.querySelector("#student-quiz-list");
-    if (!list) return;
-
-    const quizzes = getQuizzes();
-    list.innerHTML = quizzes
-      .map(
-        (quiz) => `
-      <div class="quiz-item">
-        <div class="quiz-item-icon">؟</div>
-        <div class="quiz-item-content">
-          <h4>${escapeHTML(quiz.title)}</h4>
-          <p>${escapeHTML(quiz.chapter)} • ${getQuizQuestionCount(quiz)} أسئلة • التسليم: ${escapeHTML(quiz.dueDate)}</p>
-          <div class="quiz-question-preview-list" hidden>
-            ${(quiz.questionItems || []).map(renderQuestionSummary).join("")}
-          </div>
-        </div>
-        <button class="btn btn-primary btn-quiz-start" type="button" data-quiz-title="${escapeHTML(quiz.title)}">ابدأ</button>
-      </div>
-    `,
-      )
-      .join("");
-
-    list.querySelectorAll(".btn-quiz-start").forEach((button) => {
-      button.addEventListener("click", () => {
-        const previewList = button
-          .closest(".quiz-item")
-          ?.querySelector(".quiz-question-preview-list");
-        if (previewList) previewList.hidden = !previewList.hidden;
-        showToast(
-          `بدأت اختبار "${button.dataset.quizTitle}" داخل الواجهة فقط.`,
-          "success",
-        );
-      });
-    });
-  };
-
   const initializeQuizExperience = () => {
-    const dashboardContainer = document.querySelector(
-      ".dashboard-layout .container",
-    );
-    if (!dashboardContainer) {
-      fetchNotifications().catch(() => {});
-      updateNotificationBadge();
-      return;
-    }
-
-    if (
-      window.location.pathname.includes("dashboard-student.html") &&
-      !document.querySelector("#student-quiz-panel")
-    ) {
-      const tasksTitle = Array.from(
-        document.querySelectorAll(".dashboard-section-title"),
-      ).find(
-        (title) =>
-          title.textContent.includes("المهام") ||
-          title.textContent.includes("الواجبات"),
-      );
-      const quizPanel = document.createElement("section");
-      quizPanel.id = "student-quiz-panel";
-      quizPanel.className = "quiz-workspace student-quiz-workspace";
-      quizPanel.innerHTML = `
-        <div class="quiz-panel-header">
-          <div>
-            <span class="section-tag">Quizzes</span>
-            <h2>اختبارات مرسلة من المعلمة</h2>
-            <p>أي اختبار جديد ترسله أ. أسماء يظهر هنا مباشرة مع إشعار في الأعلى.</p>
-          </div>
-          <div class="quiz-icon-badge" title="الاختبارات">؟</div>
-        </div>
-        <div id="student-quiz-list" class="student-quiz-list"></div>
-      `;
-
-      if (tasksTitle?.parentElement) {
-        tasksTitle.parentElement.prepend(quizPanel);
-      } else {
-        dashboardContainer.appendChild(quizPanel);
-      }
-    }
-
-    renderStudentQuizList();
     fetchNotifications().catch(() => {});
     updateNotificationBadge();
   };
@@ -1574,6 +1435,93 @@ document.addEventListener("DOMContentLoaded", () => {
         'allowfullscreen loading="lazy"></iframe>';
     };
 
+    let targetSeekTime = null;
+
+    /** Seeks the active player to a specific timestamp in seconds. */
+    const seekToTime = (seconds) => {
+      const iframe = playerBox.querySelector("iframe");
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({
+            context: "player.js",
+            method: "setCurrentTime",
+            value: seconds,
+          }),
+          "*"
+        );
+        iframe.contentWindow.postMessage(
+          JSON.stringify({
+            context: "player.js",
+            method: "play",
+          }),
+          "*"
+        );
+      } else {
+        targetSeekTime = seconds;
+        const videoEntry = lessonVideos[currentVideoIdx];
+        if (videoEntry) {
+          if (playBtn) playBtn.disabled = true;
+          showToast("جاري تشغيل الفيديو من بداية الفصل...", "success");
+          loadIframe(videoEntry);
+        }
+      }
+    };
+
+    /** Renders the chapters list for a video part. */
+    const renderChapters = (videoEntry) => {
+      const chaptersContainer = document.querySelector(
+        "#lesson-video-chapters-container"
+      );
+      const chaptersList = document.querySelector("#lesson-video-chapters-list");
+      if (!chaptersContainer || !chaptersList) return;
+
+      const chapters = videoEntry.chapters || [];
+      if (!chapters.length) {
+        chaptersContainer.style.display = "none";
+        return;
+      }
+
+      chaptersList.innerHTML = "";
+      chaptersContainer.style.display = "block";
+
+      chapters.forEach((ch) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "btn btn-secondary";
+        chip.style.cssText =
+          "font-size:0.85rem; padding:0.4rem 0.9rem; border-radius:50px;";
+        chip.textContent = `${ch.title} — ${formatDuration(ch.startTimeSeconds)}`;
+        chip.addEventListener("click", () => {
+          seekToTime(ch.startTimeSeconds);
+        });
+        chaptersList.appendChild(chip);
+      });
+    };
+
+    // Listen to messages from the Bunny Stream player for ready events
+    window.addEventListener("message", (event) => {
+      try {
+        const data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        if (
+          data &&
+          (data.event === "ready" ||
+            data.method === "ready" ||
+            data.api === "ready")
+        ) {
+          if (targetSeekTime !== null) {
+            const timeToSeek = targetSeekTime;
+            targetSeekTime = null;
+            setTimeout(() => {
+              seekToTime(timeToSeek);
+            }, 300);
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    });
+
     /** Part buttons under the player when a lesson has several videos. */
     const renderVideoChooser = () => {
       if (!playerBox || lessonVideos.length <= 1) return;
@@ -1600,6 +1548,7 @@ document.addEventListener("DOMContentLoaded", () => {
         partBtn.addEventListener("click", () => {
           currentVideoIdx = idx;
           renderVideoChooser();
+          renderChapters(video);
           // Once playback started, switching parts loads them instantly.
           if (playerBox.querySelector("iframe")) {
             if (video.ready) {
@@ -1863,6 +1812,7 @@ document.addEventListener("DOMContentLoaded", () => {
       currentVideoIdx = readyIdx >= 0 ? readyIdx : 0;
 
       renderVideoChooser();
+      renderChapters(lessonVideos[currentVideoIdx]);
     };
 
     const cachedVideos = lessonCacheRead("videos", lessonId);
@@ -2617,60 +2567,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Front-end only chatbot demos ---
-  const chatbotForms = document.querySelectorAll(".chatbot-form");
-  const chatbotReplies = {
-    ai: "هذا رد تجريبي من مساعد المنهج. لاحقاً يمكن ربط هذا المكان بنموذج AI مع RAG على محتوى الدروس والملخصات.",
-    teacher:
-      "تم حفظ رسالتك داخل الواجهة فقط. لاحقاً يمكن ربط هذه المحادثة برسائل المعلمة أو لوحة تحكم خاصة بها.",
-  };
-
-  const addChatMessage = (messagesBox, senderName, text, className) => {
-    const message = document.createElement("div");
-    message.className = `chat-message ${className}`;
-
-    const name = document.createElement("span");
-    name.className = "chat-message-name";
-    name.textContent = senderName;
-
-    const body = document.createElement("p");
-    body.textContent = text;
-
-    message.append(name, body);
-    messagesBox.appendChild(message);
-    messagesBox.scrollTop = messagesBox.scrollHeight;
-  };
-
-  chatbotForms.forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-
-      const chatbotType = form.dataset.chatbotForm;
-      const input = form.querySelector('input[name="message"]');
-      const messageText = input.value.trim();
-      const messagesBox = document.querySelector(
-        `[data-chatbot-messages="${chatbotType}"]`,
-      );
-
-      if (!messageText || !messagesBox) return;
-
-      addChatMessage(messagesBox, "أنت", messageText, "user-message");
-      input.value = "";
-
-      setTimeout(() => {
-        const sender = chatbotType === "teacher" ? "المعلمة" : "مساعد المنهج";
-        addChatMessage(
-          messagesBox,
-          sender,
-          chatbotReplies[chatbotType],
-          chatbotType === "teacher"
-            ? "bot-message teacher-message"
-            : "bot-message",
-        );
-      }, 450);
-    });
-  });
-
   // --- Teacher dashboard: manage already-uploaded videos (edit / delete) ---
   const manageChapter = document.querySelector("#manage-chapter");
   const manageLesson = document.querySelector("#manage-lesson");
@@ -2716,6 +2612,259 @@ document.addEventListener("DOMContentLoaded", () => {
     const videosListBox = document.querySelector("#manage-videos-list");
     let loadedVideos = [];
 
+    const renderVideoChaptersPanel = (videoObj, panelEl) => {
+      panelEl.innerHTML = "";
+
+      const grid = document.createElement("div");
+      grid.style.cssText =
+        "display:grid; grid-template-columns:1.2fr 1fr; gap:1rem; margin-top:0.5rem;";
+
+      if (window.innerWidth <= 768) {
+        grid.style.gridTemplateColumns = "1fr";
+      }
+
+      // Column 1: Preview Player & Add Form
+      const col1 = document.createElement("div");
+      col1.style.cssText = "display:flex; flex-direction:column; gap:0.75rem;";
+
+      const previewWrap = document.createElement("div");
+      previewWrap.style.cssText =
+        "aspect-ratio:16/9; background:#000; border-radius:var(--radius-md); overflow:hidden; border: 1px solid var(--color-border);";
+      previewWrap.innerHTML = `<iframe id="preview-player-${videoObj.videoId}" src="${videoObj.playbackUrl}" style="width:100%; height:100%; border:0;" allow="autoplay" allowfullscreen></iframe>`;
+      col1.appendChild(previewWrap);
+
+      const addForm = document.createElement("div");
+      addForm.style.cssText =
+        "background:var(--color-bg); padding:0.75rem; border-radius:var(--radius-md); display:flex; flex-direction:column; gap:0.5rem;";
+      addForm.innerHTML =
+        `<h5 style="margin-bottom:0.25rem; font-size:0.9rem; font-weight:700;">➕ إضافة فصل جديد</h5>` +
+        `<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">` +
+        `  <input id="add-ch-title-${videoObj.videoId}" type="text" placeholder="عنوان الفصل (مثال: سؤال 1)" style="flex:2; min-width:140px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
+        `  <input id="add-ch-time-${videoObj.videoId}" type="text" placeholder="الوقت (مثال: 3:20)" style="flex:1; min-width:80px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; text-align:center;" dir="ltr">` +
+        `</div>` +
+        `<div style="display:flex; gap:0.5rem; justify-content:space-between; align-items:center; margin-top:0.25rem;">` +
+        `  <button id="btn-use-current-${videoObj.videoId}" type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-radius:var(--radius-sm);">⏱ استخدم الوقت الحالي</button>` +
+        `  <button id="btn-add-ch-${videoObj.videoId}" type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.3rem 0.8rem; border-radius:var(--radius-sm);">إضافة</button>` +
+        `</div>`;
+      col1.appendChild(addForm);
+
+      // Column 2: Chapters List
+      const col2 = document.createElement("div");
+      col2.style.cssText = "display:flex; flex-direction:column; gap:0.5rem;";
+      col2.innerHTML = `<h5 style="font-size:0.9rem; font-weight:700; margin-bottom:0.25rem;">📋 فصول الفيديو الحالية:</h5>`;
+
+      const listWrap = document.createElement("div");
+      listWrap.style.cssText =
+        "display:flex; flex-direction:column; gap:0.4rem; max-height:260px; overflow-y:auto; padding-inline-end:0.25rem;";
+
+      const chapters = videoObj.chapters || [];
+      if (!chapters.length) {
+        listWrap.innerHTML = `<p class="text-muted" style="font-size:0.8rem; margin:0;">لا توجد فصول مضافة بعد لهذا الفيديو.</p>`;
+      } else {
+        chapters.forEach((ch) => {
+          const item = document.createElement("div");
+          item.style.cssText =
+            "display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem; gap:0.5rem;";
+
+          const textSpan = document.createElement("span");
+          textSpan.style.fontWeight = "600";
+          textSpan.textContent = `${ch.title} — ${formatDuration(ch.startTimeSeconds)}`;
+
+          const itemActions = document.createElement("div");
+          itemActions.style.cssText = "display:flex; gap:0.25rem;";
+          itemActions.innerHTML =
+            `<button class="btn btn-light js-edit-ch" style="font-size:0.7rem; padding:0.2rem 0.4rem;">✏️</button>` +
+            `<button class="btn btn-light js-delete-ch" style="font-size:0.7rem; padding:0.2rem 0.4rem; color:var(--color-danger);">🗑</button>`;
+
+          item.append(textSpan, itemActions);
+          listWrap.appendChild(item);
+
+          // Click handlers for edit and delete
+          itemActions
+            .querySelector(".js-delete-ch")
+            .addEventListener("click", async () => {
+              const confirmed = await showConfirmModal(
+                `هل تريد بالتأكيد حذف الفصل "${ch.title}"؟`,
+                {
+                  isDestructive: true,
+                  confirmText: "حذف",
+                  cancelText: "إلغاء",
+                }
+              );
+              if (!confirmed) return;
+              try {
+                await fetchJson(`/api/videos/chapters/${ch.id}`, {
+                  method: "DELETE",
+                  headers: authHeaders(),
+                });
+                showToast("تم حذف الفصل بنجاح.", "success");
+                const updated = await fetchJson(
+                  `/api/lessons/${manageLesson.value}/videos`,
+                  { headers: authHeaders() }
+                );
+                const freshVideo = (updated.videos || []).find(
+                  (x) => x.videoId === videoObj.videoId
+                );
+                if (freshVideo) {
+                  videoObj.chapters = freshVideo.chapters;
+                  renderVideoChaptersPanel(videoObj, panelEl);
+                }
+              } catch (err) {
+                showToast(err.message, "danger");
+              }
+            });
+
+          itemActions
+            .querySelector(".js-edit-ch")
+            .addEventListener("click", async () => {
+              const newTitle = await window.showPromptModal(
+                "أدخل الاسم الجديد للفصل:",
+                ch.title,
+                { confirmText: "حفظ", cancelText: "إلغاء" }
+              );
+              if (newTitle === null) return;
+              if (!newTitle.trim())
+                return showToast("اسم الفصل لا يمكن أن يكون فارغاً.", "warning");
+
+              const newTime = await window.showPromptModal(
+                "أدخل توقيت البداية الجديد (مثال 3:20 أو بالثواني):",
+                formatDuration(ch.startTimeSeconds),
+                { confirmText: "حفظ", cancelText: "إلغاء" }
+              );
+              if (newTime === null) return;
+
+              try {
+                await fetchJson(`/api/videos/chapters/${ch.id}`, {
+                  method: "PATCH",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...authHeaders(),
+                  },
+                  body: JSON.stringify({
+                    title: newTitle.trim(),
+                    startTimeSeconds: newTime,
+                  }),
+                });
+                showToast("تم تعديل الفصل بنجاح.", "success");
+                const updated = await fetchJson(
+                  `/api/lessons/${manageLesson.value}/videos`,
+                  { headers: authHeaders() }
+                );
+                const freshVideo = (updated.videos || []).find(
+                  (x) => x.videoId === videoObj.videoId
+                );
+                if (freshVideo) {
+                  videoObj.chapters = freshVideo.chapters;
+                  renderVideoChaptersPanel(videoObj, panelEl);
+                }
+              } catch (err) {
+                showToast(err.message, "danger");
+              }
+            });
+        });
+      }
+
+      col2.appendChild(listWrap);
+      grid.append(col1, col2);
+      panelEl.appendChild(grid);
+
+      // Add chapter submission handler
+      const addBtn = addForm.querySelector(
+        `#btn-add-ch-${videoObj.videoId}`
+      );
+      addBtn.addEventListener("click", async () => {
+        const titleInput = addForm.querySelector(
+          `#add-ch-title-${videoObj.videoId}`
+        );
+        const timeInput = addForm.querySelector(
+          `#add-ch-time-${videoObj.videoId}`
+        );
+        const title = titleInput.value.trim();
+        const time = timeInput.value.trim();
+
+        if (!title) return showToast("يرجى إدخال عنوان الفصل.", "warning");
+        if (!time) return showToast("يرجى إدخال وقت الفصل.", "warning");
+
+        try {
+          addBtn.disabled = true;
+          await fetchJson(`/api/videos/${videoObj.videoId}/chapters`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+            body: JSON.stringify({ title, startTimeSeconds: time }),
+          });
+          showToast("تم إضافة الفصل بنجاح.", "success");
+          titleInput.value = "";
+          timeInput.value = "";
+
+          // Refresh lists
+          const updated = await fetchJson(
+            `/api/lessons/${manageLesson.value}/videos`,
+            { headers: authHeaders() }
+          );
+          const freshVideo = (updated.videos || []).find(
+            (x) => x.videoId === videoObj.videoId
+          );
+          if (freshVideo) {
+            videoObj.chapters = freshVideo.chapters;
+            renderVideoChaptersPanel(videoObj, panelEl);
+          }
+        } catch (err) {
+          showToast(err.message, "danger");
+        } finally {
+          addBtn.disabled = false;
+        }
+      });
+
+      // Use current time button handler
+      const useCurrentBtn = addForm.querySelector(
+        `#btn-use-current-${videoObj.videoId}`
+      );
+      useCurrentBtn.addEventListener("click", () => {
+        const iframe = previewWrap.querySelector("iframe");
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({
+              context: "player.js",
+              method: "getCurrentTime",
+            }),
+            "*"
+          );
+
+          const onTimeResponse = (event) => {
+            try {
+              const data =
+                typeof event.data === "string"
+                  ? JSON.parse(event.data)
+                  : event.data;
+              if (
+                data &&
+                data.context === "player.js" &&
+                (data.event === "getCurrentTime" ||
+                  data.method === "getCurrentTime")
+              ) {
+                const secs = Math.floor(data.value || 0);
+                const timeInput = addForm.querySelector(
+                  `#add-ch-time-${videoObj.videoId}`
+                );
+                if (timeInput) {
+                  timeInput.value = formatDuration(secs);
+                }
+                window.removeEventListener("message", onTimeResponse);
+              }
+            } catch (e) {}
+          };
+          window.addEventListener("message", onTimeResponse);
+
+          setTimeout(() => {
+            window.removeEventListener("message", onTimeResponse);
+          }, 1000);
+        }
+      });
+    };
+
     const renderManageList = () => {
       videosListBox.innerHTML = "";
 
@@ -2728,7 +2877,11 @@ document.addEventListener("DOMContentLoaded", () => {
       loadedVideos.forEach((v, idx) => {
         const row = document.createElement("div");
         row.style.cssText =
-          "display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem;";
+          "display:flex; flex-direction:column; gap:0.75rem; padding:0.9rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); margin-bottom:0.75rem; background: var(--surface-glass);";
+
+        const topRow = document.createElement("div");
+        topRow.style.cssText =
+          "display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; width:100%;";
 
         const info = document.createElement("div");
         info.style.cssText = "flex:1; min-width:200px;";
@@ -2739,12 +2892,39 @@ document.addEventListener("DOMContentLoaded", () => {
           `${v.description ? ` • ${v.description.slice(0, 60)}` : ""}</div>`;
 
         const actions = document.createElement("div");
-        actions.style.cssText = "display:flex; gap:0.5rem;";
+        actions.style.cssText = "display:flex; gap:0.5rem; flex-wrap:wrap;";
         actions.innerHTML =
+          '<button class="btn btn-secondary js-manage-chapters" style="font-size:0.8rem; background-color:var(--color-primary-ghost); color:var(--color-primary-ink); border-color:var(--color-primary-light);">📖 الفصول</button>' +
           '<button class="btn btn-light js-edit-video" style="font-size:0.8rem;">✏️ تعديل</button>' +
           '<button class="btn btn-light js-delete-video" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
 
-        row.append(info, actions);
+        topRow.append(info, actions);
+        row.append(topRow);
+
+        const chaptersPanel = document.createElement("div");
+        chaptersPanel.className = "chapters-manage-panel";
+        chaptersPanel.style.cssText =
+          "display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed var(--color-border);";
+        row.append(chaptersPanel);
+
+        // Click handler for chapters panel
+        row
+          .querySelector(".js-manage-chapters")
+          .addEventListener("click", () => {
+            const isHidden = chaptersPanel.style.display === "none";
+            document
+              .querySelectorAll(".chapters-manage-panel")
+              .forEach((panel) => {
+                panel.style.display = "none";
+              });
+
+            if (isHidden) {
+              chaptersPanel.style.display = "block";
+              renderVideoChaptersPanel(v, chaptersPanel);
+            } else {
+              chaptersPanel.style.display = "none";
+            }
+          });
 
         row.querySelector(".js-edit-video").addEventListener("click", () => {
           document.querySelector("#edit-video-id").value = v.videoId;
@@ -2763,7 +2943,7 @@ document.addEventListener("DOMContentLoaded", () => {
           .addEventListener("click", async () => {
             const confirmed = await showConfirmModal(
               `حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`,
-              { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+              { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" }
             );
             if (!confirmed) return;
             try {
