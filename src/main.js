@@ -2892,6 +2892,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const videosListBox = document.querySelector("#manage-videos-list");
     let loadedVideos = [];
 
+    // Loads Bunny's OFFICIAL playerjs client library (from Bunny's CDN) once.
+    // Bunny's Stream embed player is designed to be driven through this
+    // library, so we attach to it the moment it is available.
+    let playerJsLibPromise = null;
+    const ensurePlayerJs = () => {
+      if (playerJsLibPromise) return playerJsLibPromise;
+      playerJsLibPromise = new Promise((resolve) => {
+        if (window.playerjs) return resolve(true);
+        const script = document.createElement("script");
+        script.src =
+          "https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js";
+        script.async = true;
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          resolve(!!window.playerjs);
+        };
+        script.onload = done;
+        script.onerror = done;
+        setTimeout(done, 5000);
+        document.head.appendChild(script);
+      });
+      return playerJsLibPromise;
+    };
+
     const renderVideoChaptersPanel = (videoObj, panelEl) => {
       panelEl.innerHTML = "";
       // Stop any previous time-ticker still bound to this panel (each open
@@ -2921,16 +2947,26 @@ document.addEventListener("DOMContentLoaded", () => {
       wrap.appendChild(playerBox);
 
       // --- Helper: read the player's CURRENT time via the Bunny player API ---
-      // Bunny's embedded player speaks the player.js postMessage protocol. It
-      // PUSHES `timeupdate` events whose payload looks like
-      //   {context:"player.js", event:"timeupdate", value:'{"seconds":12.4,"duration":60}'}
-      // and ANSWERS explicit `getCurrentTime` requests with
-      //   {context:"player.js", event:"getCurrentTime", value:12.4}
-      // A single passive listener absorbs whichever messages arrive and keeps
-      // `lastKnownTime` fresh, so clicking "add marker" captures the exact
-      // current (or paused) position instantly — the teacher never types a time.
+      // Bunny's embedded player speaks the player.js protocol (its timeupdate
+      // data is a JSON string: "{\"seconds\":12.4,\"duration\":60}"). We drive
+      // it with Bunny's OFFICIAL playerjs library (window.playerjs) — the
+      // documented, reliable path — and keep a raw postMessage listener/poller
+      // as a fallback. However the time arrives, `lastKnownTime` stays fresh so
+      // clicking "add marker" captures the exact current (or paused) position
+      // instantly — the teacher never types a time.
       let lastKnownTime = null;
+      let playerObj = null;
       const videoIframe = playerBox.querySelector("iframe");
+
+      // Shared update point for every capture path (library + raw messages).
+      const rememberTime = (rawSeconds) => {
+        const numeric = extractSeconds(rawSeconds);
+        if (numeric === null || !Number.isFinite(numeric)) return;
+        lastKnownTime = Math.max(0, Math.floor(numeric));
+        if (liveTimeLabel) {
+          liveTimeLabel.textContent = formatDuration(lastKnownTime);
+        }
+      };
 
       // Pulls a seconds value out of the many shapes the player can send
       // (a number, a numeric string, or a JSON string / object with `seconds`).
@@ -2963,15 +2999,44 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
       };
 
-      // Persistent listener: lives for the whole time the panel is open and
-      // captures the position from timeupdate pushes as well as getCurrentTime
-      // responses. Only accepts messages coming from THIS video's iframe.
+      // Official flow: once the library is present, wrap this video's iframe
+      // and subscribe to ready + timeupdate; the ticker also polls via the API.
+      const attachOfficialPlayer = () => {
+        if (playerObj || !videoIframe || !window.playerjs) return;
+        try {
+          playerObj = new window.playerjs.Player(videoIframe);
+          playerObj.on("ready", () => {
+            if (captureStatus) {
+              captureStatus.textContent = "✓ متصل بالفيديو";
+              captureStatus.title = "جهاز التوقيت متصل بمشغل Bunny.";
+            }
+            askCurrentTime();
+          });
+          playerObj.on("timeupdate", (payload) => rememberTime(payload));
+          playerObj.on("error", (error) => {
+            console.error("[chapters] playerjs error:", error);
+          });
+        } catch (error) {
+          console.error("[chapters] playerjs init failed:", error);
+          playerObj = null;
+        }
+      };
+      // Wait for the library to load (async) and attach as soon as it exists.
+      ensurePlayerJs().then(attachOfficialPlayer);
+      // Safety net: if the script finishes loading after the wait resolved,
+      // attach on a later tick too.
+      setTimeout(() => {
+        if (window.playerjs && !playerObj) attachOfficialPlayer();
+      }, 6000);
+
+      // Raw fallback listener: captures time from THIS iframe's messages even
+      // if the official library never loads.
       const onPlayerMessage = (event) => {
         try {
           if (
-            !event.source ||
             !videoIframe ||
             !videoIframe.contentWindow ||
+            !event.source ||
             event.source !== videoIframe.contentWindow
           ) {
             return;
@@ -2986,25 +3051,22 @@ document.addEventListener("DOMContentLoaded", () => {
           ) {
             return;
           }
-          const seconds = extractSeconds(
-            data.value !== undefined ? data.value : data.data,
-          );
-          if (seconds !== null && Number.isFinite(seconds)) {
-            lastKnownTime = Math.max(0, Math.floor(seconds));
-            if (liveTimeLabel) {
-              liveTimeLabel.textContent = formatDuration(lastKnownTime);
-            }
-          }
+          rememberTime(data.value !== undefined ? data.value : data.data);
         } catch (e) {}
       };
       window.addEventListener("message", onPlayerMessage);
 
-      // One-shot fallback used only when nothing has arrived yet: asks the
-      // player directly, then resolves with whatever the passive listener got.
-      const requestCurrentTime = (quiet) =>
-        new Promise((resolve) => {
-          if (!videoIframe || !videoIframe.contentWindow) return resolve(null);
+      // Ticker: keep asking the player for its current time every 400ms —
+      // through the official API when attached, raw postMessage otherwise.
+      const askCurrentTime = () => {
+        if (playerObj) {
           try {
+            playerObj.getCurrentTime((value) => rememberTime(value));
+            return true;
+          } catch (e) {}
+        }
+        try {
+          if (videoIframe && videoIframe.contentWindow) {
             videoIframe.contentWindow.postMessage(
               JSON.stringify({
                 context: "player.js",
@@ -3012,20 +3074,21 @@ document.addEventListener("DOMContentLoaded", () => {
               }),
               "*",
             );
-          } catch (e) {}
-          setTimeout(() => resolve(lastKnownTime), quiet ? 300 : 800);
-        });
+            return true;
+          }
+        } catch (e) {}
+        return false;
+      };
 
       const timeTicker = setInterval(() => {
-        if (document.visibilityState === "visible") {
-          requestCurrentTime(true).catch(() => {});
-        }
+        if (document.visibilityState === "visible") askCurrentTime();
       }, 400);
 
       // Cleanup on panel close / re-open so listeners never accumulate.
       panelEl.__stopTimeTicker = () => {
         window.removeEventListener("message", onPlayerMessage);
         clearInterval(timeTicker);
+        playerObj = null;
       };
 
       // --- 2) "Add marker here" bar (captures current paused timestamp) ---
@@ -3035,7 +3098,8 @@ document.addEventListener("DOMContentLoaded", () => {
       markerBar.innerHTML =
         `<button type="button" id="add-marker-btn" class="btn btn-primary" style="font-size:0.85rem; border-radius:50px;">🚩 ＋ إضافة علامة هنا</button>` +
         `<span style="font-size:0.78rem; flex:1; min-width:150px;">شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم اضغطي الزر لالتقاط التوقيت الحالي تلقائياً.</span>` +
-        `<span class="text-muted" style="font-size:0.78rem; white-space:nowrap; font-variant-numeric:tabular-nums;" title="الوقت الحالي المقروء من الفيديو">⏱ <span id="live-time-label" style="font-weight:700;">0:00</span></span>`;
+        `<span class="text-muted" style="font-size:0.78rem; white-space:nowrap; font-variant-numeric:tabular-nums;" title="الوقت الحالي المقروء من الفيديو">⏱ <span id="live-time-label" style="font-weight:700;">0:00</span></span>` +
+        `<span id="chapters-capture-status" class="text-muted" style="font-size:0.72rem; white-space:nowrap;" title="حالة اتصال المشغل">جاري الاتصال بالمشغل…</span>`;
       wrap.appendChild(markerBar);
 
       // Inline title-capture row (hidden until a marker is captured).
@@ -3135,15 +3199,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const cancelBtn = wrap.querySelector("#marker-cancel-btn");
       const capturedLabel = wrap.querySelector("#captured-time-label");
       const liveTimeLabel = wrap.querySelector("#live-time-label");
+      const captureStatus = wrap.querySelector("#chapters-capture-status");
 
       addMarkerBtn.addEventListener("click", async () => {
         addMarkerBtn.disabled = true;
         addMarkerBtn.textContent = "⏳ جاري التقاط التوقيت...";
         let secs = lastKnownTime;
         if (secs === null || !Number.isFinite(secs)) {
-          secs = await requestCurrentTime();
-        } else {
-          requestCurrentTime(true).catch(() => {});
+          // Ask the player once and give the listeners a moment to answer.
+          askCurrentTime();
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          secs = lastKnownTime;
         }
         addMarkerBtn.disabled = false;
         addMarkerBtn.textContent = "🚩 ＋ إضافة علامة هنا";
