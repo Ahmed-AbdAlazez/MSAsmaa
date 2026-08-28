@@ -25,7 +25,11 @@ const API = String(import.meta.env.VITE_API_URL || "").replace(
 );
 const COURSE_ID = "biology";
 
-import { skeletonCards, skeletonError, skeletonRows } from "./components/skeleton.js";
+import {
+  skeletonCards,
+  skeletonError,
+  skeletonRows,
+} from "./components/skeleton.js";
 
 /* ---------------- shared tiny helpers ---------------- */
 
@@ -780,8 +784,7 @@ async function openResult(quizId, resultId, summaryData = null) {
   ]);
 
   if (lb.ok && lb.data.released) {
-    lbBody.innerHTML =
-      `<div class="skeleton-reveal">${leaderboardTable(lb.data.rankings)}</div>`;
+    lbBody.innerHTML = `<div class="skeleton-reveal">${leaderboardTable(lb.data.rankings)}</div>`;
   } else if (lb.ok) {
     lbBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 لوحة الترتيب تظهر بعد انتهاء وقت الاختبار للجميع (${formatDateTime(lb.data.availableAfter)}).</div>`;
   } else {
@@ -791,7 +794,9 @@ async function openResult(quizId, resultId, summaryData = null) {
     );
     lbBody
       .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () => openResult(quizId, resultId, summaryData));
+      ?.addEventListener("click", () =>
+        openResult(quizId, resultId, summaryData),
+      );
   }
 
   if (!resultId) return;
@@ -809,14 +814,15 @@ async function openResult(quizId, resultId, summaryData = null) {
     );
     reviewBody
       .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () => openResult(quizId, resultId, summaryData));
+      ?.addEventListener("click", () =>
+        openResult(quizId, resultId, summaryData),
+      );
     return;
   }
 
   const r = review.data.review;
   renderScoreBanner(r);
-  reviewBody.innerHTML =
-    `<div class="skeleton-reveal">${r.questions.map(reviewQuestionHtml).join("")}</div>`;
+  reviewBody.innerHTML = `<div class="skeleton-reveal">${r.questions.map(reviewQuestionHtml).join("")}</div>`;
 }
 
 function leaderboardTable(rankings) {
@@ -923,7 +929,8 @@ async function loadCourseLeaderboard() {
       ⏳ ${data.pendingQuizzes.length} اختبار لسه شغال — درجاته تُضاف بعد انتهاء وقته:
       ${data.pendingQuizzes.map((quiz) => escapeHtml(quiz.title)).join("، ")}</div>`;
   }
-  body.innerHTML = `<div class="skeleton-reveal">` +
+  body.innerHTML =
+    `<div class="skeleton-reveal">` +
     pendingNote +
     (data.rankings.length === 0
       ? '<p class="muted">لا توجد درجات بعد.</p>'
@@ -1160,9 +1167,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = document.getElementById("btn-submit-quiz");
   if (submitBtn) {
     submitBtn.addEventListener("click", async () => {
+      const runPanel = document.querySelector(
+        "#quiz-run-overlay .overlay-panel",
+      );
       const confirmed = await window.showConfirmModal?.(
         "هل تريدين تسليم الاختبار الآن؟",
-        { confirmText: "تسليم", cancelText: "إلغاء" },
+        {
+          confirmText: "تسليم",
+          cancelText: "إلغاء",
+          container: runPanel,
+        },
       );
       if (confirmed) submitQuiz(false);
     });

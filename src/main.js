@@ -137,6 +137,10 @@ document.addEventListener("DOMContentLoaded", () => {
         opacity: 0;
         transition: opacity 0.2s ease;
       }
+      .custom-modal-overlay.custom-modal-overlay-inline {
+        position: absolute;
+        z-index: 10;
+      }
       .custom-modal-overlay.show {
         opacity: 1;
       }
@@ -250,7 +254,14 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
 
-      document.body.appendChild(overlay);
+      const mount = options.container || document.body;
+      if (options.container) {
+        overlay.classList.add("custom-modal-overlay-inline");
+        if (getComputedStyle(mount).position === "static") {
+          mount.style.position = "relative";
+        }
+      }
+      mount.appendChild(overlay);
 
       // Trigger transition
       requestAnimationFrame(() => overlay.classList.add("show"));
