@@ -2717,14 +2717,19 @@ document.addEventListener("DOMContentLoaded", () => {
           itemActions
             .querySelector(".js-edit-ch")
             .addEventListener("click", async () => {
-              const newTitle = prompt("أدخل الاسم الجديد للفصل:", ch.title);
+              const newTitle = await window.showPromptModal(
+                "أدخل الاسم الجديد للفصل:",
+                ch.title,
+                { confirmText: "حفظ", cancelText: "إلغاء" }
+              );
               if (newTitle === null) return;
               if (!newTitle.trim())
                 return showToast("اسم الفصل لا يمكن أن يكون فارغاً.", "warning");
 
-              const newTime = prompt(
+              const newTime = await window.showPromptModal(
                 "أدخل توقيت البداية الجديد (مثال 3:20 أو بالثواني):",
-                formatDuration(ch.startTimeSeconds)
+                formatDuration(ch.startTimeSeconds),
+                { confirmText: "حفظ", cancelText: "إلغاء" }
               );
               if (newTime === null) return;
 
