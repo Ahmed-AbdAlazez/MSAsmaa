@@ -783,6 +783,40 @@ document.addEventListener("DOMContentLoaded", () => {
     initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
+  const teacherDashboard = document.querySelector("#teacher-dashboard-page");
+  if (teacherDashboard) {
+    document
+      .querySelector("#btn-teacher-add")
+      ?.addEventListener("click", () => {
+        window.location.href = "students.html";
+      });
+
+    const totalStudents = document.querySelector("#teacher-total-students");
+    const activeQuizzes = document.querySelector("#teacher-active-quizzes");
+    Promise.all([
+      fetchJson(`${API_BASE}/students/count`, { headers: authHeaders() }),
+      fetchJson("/api/quizzes-managed", { headers: authHeaders() }),
+    ])
+      .then(([studentData, quizData]) => {
+        if (totalStudents) {
+          totalStudents.textContent = String(studentData?.data?.count ?? 0);
+        }
+        if (activeQuizzes) {
+          const now = Date.now();
+          const count = (quizData?.quizzes || []).filter((quiz) => {
+            return (
+              Date.parse(quiz.startTime) <= now &&
+              Date.parse(quiz.endTime) > now
+            );
+          }).length;
+          activeQuizzes.textContent = String(count);
+        }
+      })
+      .catch((error) => {
+        console.warn("[teacher-dashboard] Failed to refresh summary:", error);
+      });
+  }
+
   // --- Tab Switcher Logic (e.g., Lesson Page) ---
   const tabBtns = document.querySelectorAll(".tab-btn");
   const tabPanels = document.querySelectorAll(".tab-panel");
@@ -1447,14 +1481,14 @@ document.addEventListener("DOMContentLoaded", () => {
             method: "setCurrentTime",
             value: seconds,
           }),
-          "*"
+          "*",
         );
         iframe.contentWindow.postMessage(
           JSON.stringify({
             context: "player.js",
             method: "play",
           }),
-          "*"
+          "*",
         );
       } else {
         targetSeekTime = seconds;
@@ -1470,9 +1504,11 @@ document.addEventListener("DOMContentLoaded", () => {
     /** Renders the chapters list for a video part. */
     const renderChapters = (videoEntry) => {
       const chaptersContainer = document.querySelector(
-        "#lesson-video-chapters-container"
+        "#lesson-video-chapters-container",
       );
-      const chaptersList = document.querySelector("#lesson-video-chapters-list");
+      const chaptersList = document.querySelector(
+        "#lesson-video-chapters-list",
+      );
       if (!chaptersContainer || !chaptersList) return;
 
       const chapters = videoEntry.chapters || [];
@@ -1610,11 +1646,16 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         if (viewerFrame) {
           const box = setViewerPlaceholder(
-            skeletonError("تعذر تحميل الملف، حاولي مرة أخرى.", "إعادة المحاولة"),
+            skeletonError(
+              "تعذر تحميل الملف، حاولي مرة أخرى.",
+              "إعادة المحاولة",
+            ),
           );
           box
             ?.querySelector(".skeleton-retry-btn")
-            ?.addEventListener("click", () => openMaterialInViewer(material, null));
+            ?.addEventListener("click", () =>
+              openMaterialInViewer(material, null),
+            );
         }
         showToast(error.message, "danger");
       } finally {
@@ -1625,7 +1666,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const closePdfViewer = () => {
       if (!viewerPanel) return;
       const box = viewerFrame && viewerFrame.previousElementSibling;
-      if (box && box.classList.contains("lesson-material-loading")) box.remove();
+      if (box && box.classList.contains("lesson-material-loading"))
+        box.remove();
       viewerPanel.hidden = true;
       if (viewerFrame) viewerFrame.src = "about:blank";
     };
@@ -2689,7 +2731,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   isDestructive: true,
                   confirmText: "حذف",
                   cancelText: "إلغاء",
-                }
+                },
               );
               if (!confirmed) return;
               try {
@@ -2700,10 +2742,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 showToast("تم حذف الفصل بنجاح.", "success");
                 const updated = await fetchJson(
                   `/api/lessons/${manageLesson.value}/videos`,
-                  { headers: authHeaders() }
+                  { headers: authHeaders() },
                 );
                 const freshVideo = (updated.videos || []).find(
-                  (x) => x.videoId === videoObj.videoId
+                  (x) => x.videoId === videoObj.videoId,
                 );
                 if (freshVideo) {
                   videoObj.chapters = freshVideo.chapters;
@@ -2720,16 +2762,19 @@ document.addEventListener("DOMContentLoaded", () => {
               const newTitle = await window.showPromptModal(
                 "أدخل الاسم الجديد للفصل:",
                 ch.title,
-                { confirmText: "حفظ", cancelText: "إلغاء" }
+                { confirmText: "حفظ", cancelText: "إلغاء" },
               );
               if (newTitle === null) return;
               if (!newTitle.trim())
-                return showToast("اسم الفصل لا يمكن أن يكون فارغاً.", "warning");
+                return showToast(
+                  "اسم الفصل لا يمكن أن يكون فارغاً.",
+                  "warning",
+                );
 
               const newTime = await window.showPromptModal(
                 "أدخل توقيت البداية الجديد (مثال 3:20 أو بالثواني):",
                 formatDuration(ch.startTimeSeconds),
-                { confirmText: "حفظ", cancelText: "إلغاء" }
+                { confirmText: "حفظ", cancelText: "إلغاء" },
               );
               if (newTime === null) return;
 
@@ -2748,10 +2793,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 showToast("تم تعديل الفصل بنجاح.", "success");
                 const updated = await fetchJson(
                   `/api/lessons/${manageLesson.value}/videos`,
-                  { headers: authHeaders() }
+                  { headers: authHeaders() },
                 );
                 const freshVideo = (updated.videos || []).find(
-                  (x) => x.videoId === videoObj.videoId
+                  (x) => x.videoId === videoObj.videoId,
                 );
                 if (freshVideo) {
                   videoObj.chapters = freshVideo.chapters;
@@ -2769,15 +2814,13 @@ document.addEventListener("DOMContentLoaded", () => {
       panelEl.appendChild(grid);
 
       // Add chapter submission handler
-      const addBtn = addForm.querySelector(
-        `#btn-add-ch-${videoObj.videoId}`
-      );
+      const addBtn = addForm.querySelector(`#btn-add-ch-${videoObj.videoId}`);
       addBtn.addEventListener("click", async () => {
         const titleInput = addForm.querySelector(
-          `#add-ch-title-${videoObj.videoId}`
+          `#add-ch-title-${videoObj.videoId}`,
         );
         const timeInput = addForm.querySelector(
-          `#add-ch-time-${videoObj.videoId}`
+          `#add-ch-time-${videoObj.videoId}`,
         );
         const title = titleInput.value.trim();
         const time = timeInput.value.trim();
@@ -2802,10 +2845,10 @@ document.addEventListener("DOMContentLoaded", () => {
           // Refresh lists
           const updated = await fetchJson(
             `/api/lessons/${manageLesson.value}/videos`,
-            { headers: authHeaders() }
+            { headers: authHeaders() },
           );
           const freshVideo = (updated.videos || []).find(
-            (x) => x.videoId === videoObj.videoId
+            (x) => x.videoId === videoObj.videoId,
           );
           if (freshVideo) {
             videoObj.chapters = freshVideo.chapters;
@@ -2820,7 +2863,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Use current time button handler
       const useCurrentBtn = addForm.querySelector(
-        `#btn-use-current-${videoObj.videoId}`
+        `#btn-use-current-${videoObj.videoId}`,
       );
       useCurrentBtn.addEventListener("click", () => {
         const iframe = previewWrap.querySelector("iframe");
@@ -2830,7 +2873,7 @@ document.addEventListener("DOMContentLoaded", () => {
               context: "player.js",
               method: "getCurrentTime",
             }),
-            "*"
+            "*",
           );
 
           const onTimeResponse = (event) => {
@@ -2847,7 +2890,7 @@ document.addEventListener("DOMContentLoaded", () => {
               ) {
                 const secs = Math.floor(data.value || 0);
                 const timeInput = addForm.querySelector(
-                  `#add-ch-time-${videoObj.videoId}`
+                  `#add-ch-time-${videoObj.videoId}`,
                 );
                 if (timeInput) {
                   timeInput.value = formatDuration(secs);
@@ -2943,7 +2986,7 @@ document.addEventListener("DOMContentLoaded", () => {
           .addEventListener("click", async () => {
             const confirmed = await showConfirmModal(
               `حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`,
-              { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" }
+              { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
             );
             if (!confirmed) return;
             try {
