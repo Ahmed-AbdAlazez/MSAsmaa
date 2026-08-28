@@ -44,6 +44,7 @@ export default defineConfig({
         "dashboard-teacher": "dashboard-teacher.html",
         "registration-requests": "registration-requests.html",
         students: "students.html",
+        "student-mistakes": "student-mistakes.html",
       },
     },
   },

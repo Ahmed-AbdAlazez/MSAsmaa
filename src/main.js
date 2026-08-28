@@ -1,5 +1,6 @@
 import { initNavbar } from "./components/navbar.js";
 import { initStudentsPage } from "./studentsPage.js";
+import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
 
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
@@ -978,6 +979,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const studentsSection = document.querySelector("#teacher-students-section");
   if (studentsSection) {
     initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast });
+  }
+
+  if (document.querySelector('#student-mistakes-page')) {
+    initStudentMistakesPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
   const teacherDashboard = document.querySelector("#teacher-dashboard-page");

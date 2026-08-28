@@ -1611,6 +1611,18 @@ html[dir="rtl"] .scroll-progress-fill {
   gap: 0.85rem;
 }
 
+/* Student mistake-history dashboard */
+.mistakes-list { display: grid; gap: 1rem; }
+.mistake-card { padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--surface-glass); box-shadow: 0 8px 20px rgba(15, 23, 42, .04); }
+.mistake-card h2 { font-size: 1.05rem; line-height: 1.7; margin: .45rem 0 1rem; color: var(--color-heading); }
+.mistake-exam { color: var(--color-text-muted); margin: 0; }
+.mistake-answer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .85rem; margin-top: .55rem; border-radius: var(--radius-md); }
+.mistake-answer.wrong { background: rgba(239, 68, 68, .09); color: #b91c1c; }
+.mistake-answer.correct { background: rgba(16, 185, 129, .1); color: var(--color-primary-ink); }
+.mistake-card time { display: block; margin-top: .85rem; color: var(--color-text-muted); font-size: .85rem; }
+.mistakes-empty { padding: 2.25rem 1rem; text-align: center; border: 1px dashed var(--color-primary-light); border-radius: var(--radius-lg); color: var(--color-primary-ink); background: var(--surface-glass); }
+.mistakes-pagination { display: flex; gap: .75rem; justify-content: center; align-items: center; margin-top: 1.25rem; }
+
 .quiz-item,
 .quiz-mini-row {
   display: flex;

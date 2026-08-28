@@ -106,6 +106,13 @@ export function initNavbar() {
       ? `<li><a href="students.html" class="mobile-link ${getActive(["students.html"])}">الطلاب</a></li>`
       : "";
 
+    const mistakesLink = isStudent
+      ? `<li><a href="student-mistakes.html" class="nav-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A; / My Mistakes</a></li>`
+      : "";
+    const mobileMistakesLink = isStudent
+      ? `<li><a href="student-mistakes.html" class="mobile-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A; / My Mistakes</a></li>`
+      : "";
+
     // Generate navbar inner HTML
     navbarElement.innerHTML = `
       <div class="container">
@@ -118,6 +125,7 @@ export function initNavbar() {
           <li><a href="courses.html" class="nav-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
           <li><a href="exams.html" class="nav-link ${getActive(["exams.html"])}">الاختبارات</a></li>
           ${dashboardLink}
+          ${mistakesLink}
           ${registrationRequestsLink}
           ${studentsManagementLink}
         </ul>
@@ -162,6 +170,7 @@ export function initNavbar() {
         <li><a href="courses.html" class="mobile-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
         <li><a href="exams.html" class="mobile-link ${getActive(["exams.html"])}">الاختبارات</a></li>
         ${mobileDashboardLink}
+        ${mobileMistakesLink}
         ${mobileRegistrationRequestsLink}
         ${mobileStudentsManagementLink}
       </ul>

@@ -495,26 +495,46 @@ async function setAttemptOrdering(attemptId, ordering) {
  * @returns {Promise<object|null>}
  */
 async function finalizeAttempt(attemptId, result) {
-  const existing = await prisma.quizAttempt.findUnique({
-    where: { id: String(attemptId) },
-    select: { status: true },
-  });
-  if (!existing || existing.status === "submitted") return null;
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.quizAttempt.findUnique({
+      where: { id: String(attemptId) },
+      select: { status: true },
+    });
+    if (!existing || existing.status === "submitted") return null;
 
-  const row = await prisma.quizAttempt.update({
-    where: { id: String(attemptId) },
-    data: {
-      status: "submitted",
-      score: Number(result.score),
-      totalMcq: Number(result.totalMcq),
-      submissionReason: String(result.reason),
-      submittedAt: result.submittedAt
-        ? new Date(result.submittedAt)
-        : new Date(),
-    },
-    include: ATTEMPT_INCLUDE,
+    const row = await tx.quizAttempt.update({
+      where: { id: String(attemptId) },
+      data: {
+        status: "submitted",
+        score: Number(result.score),
+        totalMcq: Number(result.totalMcq),
+        submissionReason: String(result.reason),
+        submittedAt: result.submittedAt
+          ? new Date(result.submittedAt)
+          : new Date(),
+      },
+      include: ATTEMPT_INCLUDE,
+    });
+
+    if (Array.isArray(result.mistakes) && result.mistakes.length) {
+      await tx.studentMistake.createMany({
+        data: result.mistakes.map((mistake) => ({
+          studentId: String(mistake.studentId),
+          quizId: String(mistake.quizId),
+          questionId: String(mistake.questionId),
+          attemptId: String(attemptId),
+          studentAnswer:
+            mistake.studentAnswer == null
+              ? null
+              : String(mistake.studentAnswer),
+          correctAnswer: String(mistake.correctAnswer),
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return mapAttempt(row);
   });
-  return mapAttempt(row);
 }
 
 /**
