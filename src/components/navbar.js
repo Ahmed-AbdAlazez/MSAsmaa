@@ -97,10 +97,10 @@ export function initNavbar() {
     }
 
     const registrationRequestsLink = isTeacher
-      ? `<li><a href="registration-requests.html" class="nav-link ${getActive(["registration-requests.html"])}">Registration Requests</a></li>`
+      ? `<li><a href="registration-requests.html" class="nav-link ${getActive(["registration-requests.html"])}">طلبات التسجيل</a></li>`
       : "";
     const mobileRegistrationRequestsLink = isTeacher
-      ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(["registration-requests.html"])}">Registration Requests</a></li>`
+      ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(["registration-requests.html"])}">طلبات التسجيل</a></li>`
       : "";
     const studentsManagementLink = isTeacher
       ? `<li><a href="students.html" class="nav-link ${getActive(["students.html"])}">الطلاب</a></li>`
