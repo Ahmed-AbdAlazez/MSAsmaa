@@ -421,6 +421,7 @@ const runState = {
   answers: {}, // questionId -> value (client mirror for the final flush)
   inFullscreen: false, // tracking fullscreen mode
   fullscreenExitCount: 0, // track accidental exits (don't auto-submit)
+  intentionalFullscreenExit: false,
 };
 
 function stopTimer() {
@@ -592,10 +593,14 @@ function openRun(payload, quizTitle, quizId) {
   };
 }
 
-function closeRun() {
+function closeRun({ exitFullscreen = true } = {}) {
   stopTimer();
   // Exit fullscreen when closing the quiz (after submission)
-  if (document.fullscreenElement) {
+  if (
+    exitFullscreen &&
+    document.fullscreenElement &&
+    typeof document.exitFullscreen === "function"
+  ) {
     document.exitFullscreen().catch(() => {
       // Ignore errors if already exited
     });
@@ -650,7 +655,23 @@ async function submitQuiz(auto = false) {
       `/api/quizzes/${runState.quizId}/submit`,
       { answers: runState.answers },
     );
-    closeRun();
+
+    if (!ok) {
+      showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
+      return;
+    }
+
+    // Leave browser fullscreen only after the backend confirms submission.
+    runState.intentionalFullscreenExit = true;
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (_) {
+      // A browser may reject the request; submission and result flow continue.
+    }
+    closeRun({ exitFullscreen: false });
+    runState.intentionalFullscreenExit = false;
     if (document.getElementById("exams-by-lesson")) {
       loadHub(); // refresh statuses
     }
@@ -658,10 +679,6 @@ async function submitQuiz(auto = false) {
       window.refreshLessonExams(); // refresh statuses on lesson page
     }
 
-    if (!ok) {
-      showToast(data && data.error ? data.error : "تعذر التسليم.", "danger");
-      return;
-    }
     showToast(
       auto ? "انتهى الوقت — تم التسليم التلقائي." : "تم تسليم الاختبار ✅",
       "success",
@@ -959,7 +976,11 @@ function setupFullscreenHandler() {
       runState.inFullscreen = false;
     }
 
-    if (!document.fullscreenElement && runState.quizId) {
+    if (
+      !document.fullscreenElement &&
+      runState.quizId &&
+      !runState.intentionalFullscreenExit
+    ) {
       // User exited fullscreen while a quiz is active
       runState.fullscreenExitCount++;
       showToast(
