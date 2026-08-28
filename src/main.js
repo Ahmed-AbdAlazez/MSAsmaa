@@ -1492,6 +1492,49 @@ document.addEventListener("DOMContentLoaded", () => {
     const durationEl = document.querySelector("#lesson-video-duration");
     const materialsBox = document.querySelector("#lesson-materials-list");
 
+    // --- "دروس هذا الباب": render every lesson of the current chapter in
+    // the sidebar so students can jump between sibling lessons instantly.
+    const renderSidebarLessons = () => {
+      const sidebar = document.querySelector("#sidebar-lessons-list");
+      if (!sidebar) return;
+
+      const chapters = (window.CURRICULUM && window.CURRICULUM.biology) || [];
+      let chapter = chapters.find((c) => c.id === urlParams.get("chapter"));
+
+      // Fallback: if no chapter param (e.g. opened via a legacy title link),
+      // derive it from the current lesson id.
+      if (!chapter) {
+        chapter = chapters.find((c) =>
+          c.lessons.some((l) => l.id === lessonId),
+        );
+      }
+
+      if (!chapter) {
+        sidebar.innerHTML =
+          '<p class="text-muted" style="font-size:0.9rem; margin:0;">لا توجد دروس معروضة.</p>';
+        return;
+      }
+
+      sidebar.innerHTML = "";
+      chapter.lessons.forEach((lesson) => {
+        const item = document.createElement("a");
+        item.className = "lesson-list-item";
+        item.style.cssText = "margin-bottom:0.5rem;";
+        item.href =
+          `lesson-view.html?lesson=${encodeURIComponent(lesson.id)}` +
+          `&chapter=${encodeURIComponent(chapter.id)}` +
+          `&title=${encodeURIComponent(lesson.name)}`;
+        item.innerHTML = `<div class="lesson-list-item-title"><span class="lesson-list-item-icon">▶️</span><span>${lesson.name}</span></div>`;
+
+        if (lesson.id === lessonId) {
+          item.classList.add("sidebar-current");
+          item.setAttribute("aria-current", "page");
+        }
+        sidebar.appendChild(item);
+      });
+    };
+    renderSidebarLessons();
+
     // Inline PDF viewer (markup lives in lesson-view.html).
     const viewerPanel = document.querySelector("#lesson-pdf-viewer");
     const viewerTitle = document.querySelector("#lesson-pdf-viewer-title");

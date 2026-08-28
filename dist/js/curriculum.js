@@ -90,6 +90,12 @@ window.CURRICULUM = {
     .filter((link) => link.offsetParent); // skip display:none legacy sections
 
   visibleLinks.forEach((link, index) => {
+    // Skip links that already carry an explicit lesson id (e.g. the
+    // "دروس هذا الباب" sidebar links on lesson-view.html) so we never
+    // overwrite a chapter-correct one by DOM position.
+    const existing = new URL(link.href, window.location.href);
+    if (existing.searchParams.get('lesson')) return;
+
     const lesson = allLessons[index];
     if (!lesson) return;
     const chapter = chapters.find((c) =>
