@@ -2954,7 +2954,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const playerBox = document.createElement("div");
       playerBox.style.cssText =
         "position:relative; aspect-ratio:16/9; background:#000; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--color-border);";
-      playerBox.innerHTML = `<iframe id="chapters-preview-player" src="${videoObj.playbackUrl}" style="width:100%; height:100%; border:0; position:absolute; inset:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+      // player.js needs a unique iframe src per player instance, otherwise
+      // reopening the same video's panel can collide with the previous one.
+      const playerSrcNonce = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+      const playerSrc = `${videoObj.playbackUrl}${
+        videoObj.playbackUrl.indexOf("?") !== -1 ? "&" : "?"
+      }t=${playerSrcNonce}`;
+      playerBox.innerHTML = `<iframe id="chapters-preview-player" src="${playerSrc}" style="width:100%; height:100%; border:0; position:absolute; inset:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
       wrap.appendChild(playerBox);
 
       // --- Helper: read the player's CURRENT time via the Bunny player API ---
