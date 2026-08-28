@@ -1790,6 +1790,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const applyVideosData = (data) => {
       lessonVideos = data.videos || [];
 
+      // Video-title subtitle: show the title(s) of the lesson's video(s) right
+      // beneath the main heading, each as its own line. Hidden if none have a name.
+      const subtitleEl = document.querySelector("#lesson-video-subtitle");
+      if (subtitleEl) {
+        const namedVideos = (lessonVideos || []).filter(
+          (v) => v && typeof v.name === "string" && v.name.trim(),
+        );
+        if (namedVideos.length) {
+          subtitleEl.innerHTML = namedVideos
+            .map(
+              (v) =>
+                `<span class="lesson-video-subtitle-line">فيديو: ${escapeHTML(
+                  v.name.trim(),
+                )}</span>`,
+            )
+            .join("");
+          subtitleEl.hidden = false;
+        } else {
+          subtitleEl.hidden = true;
+          subtitleEl.innerHTML = "";
+        }
+      }
+
       if (!lessonVideos.length) {
         if (durationEl) {
           durationEl.textContent = "لا يوجد فيديو مرفوع لهذا الدرس بعد";
