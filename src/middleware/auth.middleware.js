@@ -25,7 +25,7 @@ function requireAuth(req, res, next) {
 
   if (!token) {
     return res.status(401).json({
-      error: "Authentication required.",
+      error: "مطلوب تسجيل الدخول.",
     });
   }
 
@@ -33,7 +33,7 @@ function requireAuth(req, res, next) {
     .then((decoded) => {
       if (!decoded || !decoded.id) {
         return res.status(401).json({
-          error: "Invalid token. Please log in again.",
+          error: "رمز غير صالح. يرجى تسجيل الدخول مرة أخرى.",
         });
       }
 
@@ -49,8 +49,8 @@ function requireAuth(req, res, next) {
       return res.status(401).json({
         error:
           error && error.name === "TokenExpiredError"
-            ? "Your session has expired. Please log in again."
-            : "Invalid token. Please log in again.",
+            ? "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى."
+            : "رمز غير صالح. يرجى تسجيل الدخول مرة أخرى.",
       });
     });
 }

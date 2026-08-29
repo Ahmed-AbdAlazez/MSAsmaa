@@ -18,7 +18,7 @@ router.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
     status: "ok",
-    message: "Educational Platform API is running smoothly",
+    message: "منصة التعلم تعمل بشكل جيد",
     timestamp: new Date().toISOString(),
   });
 });
@@ -32,7 +32,7 @@ router.get("/health", (req, res) => {
 router.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Welcome to Educational Platform API",
+    message: "مرحباً بك في منصة التعلم",
     version: "1.0.0",
   });
 });

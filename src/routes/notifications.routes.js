@@ -14,7 +14,7 @@ const requireStudent = (req, res, next) => {
   if (req.user.role !== "student") {
     return res
       .status(403)
-      .json({ error: "Only students can access notifications." });
+      .json({ error: "الطلاب فقط يمكنهم الوصول إلى الإشعارات." });
   }
   return next();
 };
@@ -33,7 +33,7 @@ router.get("/notifications", requireAuth, requireStudent, async (req, res) => {
     });
   } catch (error) {
     console.error("[notifications.routes] Fetch failed:", error);
-    return res.status(500).json({ error: "Failed to load notifications." });
+    return res.status(500).json({ error: "فشل تحميل الإشعارات." });
   }
 });
 
@@ -47,7 +47,7 @@ router.get(
       return res.json({ success: true, count });
     } catch (error) {
       console.error("[notifications.routes] Unread count failed:", error);
-      return res.status(500).json({ error: "Failed to load unread count." });
+      return res.status(500).json({ error: "فشل تحميل عدد الإشعارات غير المقروءة." });
     }
   },
 );
@@ -68,14 +68,14 @@ router.post(
       if (!success) {
         return res
           .status(404)
-          .json({ error: "Notification not found or access denied." });
+          .json({ error: "الإشعار غير موجود أو لا يمكن الوصول إليه." });
       }
       return res.json({ success: true });
     } catch (error) {
       console.error("[notifications.routes] Mark read failed:", error);
       return res
         .status(500)
-        .json({ error: "Failed to mark notification as read." });
+        .json({ error: "فشل تعليم الإشعار كمقروء." });
     }
   },
 );
@@ -90,13 +90,13 @@ router.patch(
       if (!success)
         return res
           .status(404)
-          .json({ error: "Notification not found or access denied." });
+          .json({ error: "الإشعار غير موجود أو لا يمكن الوصول إليه." });
       return res.json({ success: true });
     } catch (error) {
       console.error("[notifications.routes] Mark read failed:", error);
       return res
         .status(500)
-        .json({ error: "Failed to mark notification as read." });
+        .json({ error: "فشل تعليم الإشعار كمقروء." });
     }
   },
 );
@@ -118,7 +118,7 @@ router.post(
       console.error("[notifications.routes] Mark all read failed:", error);
       return res
         .status(500)
-        .json({ error: "Failed to mark notifications as read." });
+        .json({ error: "فشل تعليم الإشعارات كمقروءة." });
     }
   },
 );
@@ -135,7 +135,7 @@ router.patch(
       console.error("[notifications.routes] Mark all read failed:", error);
       return res
         .status(500)
-        .json({ error: "Failed to mark notifications as read." });
+        .json({ error: "فشل تعليم الإشعارات كمقروءة." });
     }
   },
 );
@@ -148,12 +148,12 @@ router.post("/notifications/quiz", requireAuth, async (req, res) => {
   if (req.user.role !== "teacher") {
     return res
       .status(403)
-      .json({ error: "Only teachers can publish quiz notifications." });
+      .json({ error: "المعلمات فقط يمكنهن نشر إشعارات الاختبارات." });
   }
 
   const { title } = req.body || {};
   if (!title || !title.trim()) {
-    return res.status(400).json({ error: "Quiz title is required." });
+    return res.status(400).json({ error: "عنوان الاختبار مطلوب." });
   }
 
   try {
@@ -170,7 +170,7 @@ router.post("/notifications/quiz", requireAuth, async (req, res) => {
     console.error("[notifications.routes] Quiz notification failed:", error);
     return res
       .status(500)
-      .json({ error: "Failed to publish quiz notification." });
+      .json({ error: "فشل نشر إشعار الاختبار." });
   }
 });
 

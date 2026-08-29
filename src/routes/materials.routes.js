@@ -41,7 +41,7 @@ const router = express.Router();
 function requireTeacher(request, response, next) {
   if (request.user.role !== "teacher") {
     return response.status(403).json({
-      error: "Only teachers can manage lesson materials.",
+      error: "المعلمون فقط يمكنهم إدارة ملفات الدرس.",
     });
   }
   return next();
@@ -88,7 +88,7 @@ function getMaterialTitle(request) {
   const submittedTitle = request.body && request.body.title;
   const fallbackTitle = request.file && request.file.originalname;
 
-  return String(submittedTitle || fallbackTitle || "Lesson material")
+  return String(submittedTitle || fallbackTitle || "مادة الدرس")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -111,12 +111,12 @@ function uploadSinglePdf(request, response, next) {
 
     if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
       return response.status(400).json({
-        error: "PDF upload failed. Files must be 20MB or smaller.",
+        error: "فشل رفع ملف PDF. يجب أن يكون حجم الملف 20 ميجابايت أو أقل.",
       });
     }
 
     return response.status(400).json({
-      error: "PDF upload failed. Please send one PDF file in the file field.",
+      error: "فشل رفع ملف PDF. يرجى إرسال ملف PDF واحد في حقل الملف.",
     });
   });
 }
@@ -135,19 +135,19 @@ router.post(
   async (request, response) => {
     if (request.user.role !== "teacher") {
       return response.status(403).json({
-        error: "Only teachers can upload lesson materials.",
+        error: "المعلمات فقط يمكنهن رفع ملفات مواد الدرس.",
       });
     }
 
     if (!request.file) {
       return response.status(400).json({
-        error: "Please upload a PDF file using the file field.",
+        error: "يرجى رفع ملف PDF باستخدام حقل الملف.",
       });
     }
 
     if (!isPdfFile(request.file)) {
       return response.status(400).json({
-        error: "Only PDF files are allowed for lesson materials.",
+        error: "يُسمح فقط بملفات PDF لمواد الدرس.",
       });
     }
 
@@ -172,7 +172,7 @@ router.post(
       );
 
       return response.status(201).json({
-        message: "PDF material uploaded successfully.",
+        message: "تم رفع مادة PDF بنجاح.",
         lessonId: request.params.lessonId,
         material: {
           id: materialRecord.id,
@@ -185,7 +185,7 @@ router.post(
         error
       );
       return response.status(500).json({
-        error: "Failed to upload the PDF material. Please try again later.",
+        error: "فشل رفع مادة PDF. يرجى المحاولة لاحقاً.",
       });
     }
   }
@@ -206,7 +206,7 @@ router.get("/lessons/:lessonId/materials", requireAuth, async (request, response
 
     if (!studentIsEnrolled) {
       return response.status(403).json({
-        error: "You are not enrolled in the course this lesson belongs to.",
+        error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
       });
     }
 
@@ -225,7 +225,7 @@ router.get("/lessons/:lessonId/materials", requireAuth, async (request, response
       error
     );
     return response.status(500).json({
-      error: "Failed to load the PDF materials. Please try again later.",
+      error: "فشل تحميل ملفات PDF. يرجى المحاولة لاحقاً.",
     });
   }
 });
@@ -244,7 +244,7 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
 
   if (!materialRecord) {
     return response.status(404).json({
-      error: "Material not found.",
+      error: "المادة غير موجودة.",
     });
   }
 
@@ -263,7 +263,7 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
 
   if (!studentIsEnrolled) {
     return response.status(403).json({
-      error: "You are not enrolled in the course this material belongs to.",
+      error: "أنت غير مسجلة في الكورس الذي تتبع له هذه المادة.",
     });
   }
 
@@ -288,7 +288,7 @@ router.get("/materials/:materialId/download", requireAuth, async (request, respo
       error
     );
     return response.status(500).json({
-      error: "Failed to create the PDF download URL. Please try again later.",
+      error: "فشل إنشاء رابط تحميل PDF. يرجى المحاولة لاحقاً.",
     });
   }
 });
@@ -324,7 +324,7 @@ router.post(
         error
       );
       return response.status(500).json({
-        error: "Failed to prepare the direct upload. Please try again later.",
+        error: "فشل تجهيز الرفع المباشر. يرجى المحاولة لاحقاً.",
       });
     }
   }
@@ -345,7 +345,7 @@ router.post("/materials/finalize", requireAuth, requireTeacher, async (request, 
 
   if (!lessonId || !filePath) {
     return response.status(400).json({
-      error: "lessonId and filePath are required.",
+      error: "مطلوب معرف الدرس ومسار الملف.",
     });
   }
 
@@ -355,7 +355,7 @@ router.post("/materials/finalize", requireAuth, requireTeacher, async (request, 
     .replace(/[^a-z0-9-]+/g, "-")}/`;
   if (!filePath.startsWith(expectedPrefix) || filePath.includes("..")) {
     return response.status(400).json({
-      error: "filePath does not belong to this lesson.",
+      error: "مسار الملف لا يتبع هذا الدرس.",
     });
   }
 
@@ -403,7 +403,7 @@ router.post("/materials/finalize", requireAuth, requireTeacher, async (request, 
       error
     );
     return response.status(500).json({
-      error: "Failed to register the uploaded PDF. Please try again later.",
+      error: "فشل تسجيل ملف PDF المرفوع. يرجى المحاولة لاحقاً.",
     });
   }
 });
@@ -441,7 +441,7 @@ router.get(
         error
       );
       return response.status(500).json({
-        error: "Failed to load the materials for management. Please try again later.",
+        error: "فشل تحميل المواد للإدارة. يرجى المحاولة لاحقاً.",
       });
     }
   }
@@ -459,7 +459,7 @@ router.patch("/materials/:materialId", requireAuth, requireTeacher, async (reque
 
   if (!newTitle) {
     return response.status(400).json({
-      error: "A non-empty title is required.",
+      error: "العنوان مطلوب ولا يمكن أن يكون فارغاً.",
     });
   }
 
@@ -481,7 +481,7 @@ router.patch("/materials/:materialId", requireAuth, requireTeacher, async (reque
 
   if (!teacherOwnsCourse) {
     return response.status(403).json({
-      error: "You do not own the course this material belongs to.",
+      error: "أنت لا تملكين الكورس الذي تتبع له هذه المادة.",
     });
   }
 
@@ -531,7 +531,7 @@ router.delete("/materials/:materialId", requireAuth, requireTeacher, async (requ
 
   if (!teacherOwnsCourse) {
     return response.status(403).json({
-      error: "You do not own the course this material belongs to.",
+      error: "أنت لا تملكين الكورس الذي تتبع له هذه المادة.",
     });
   }
 

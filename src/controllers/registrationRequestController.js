@@ -75,20 +75,20 @@ const approveRequest = catchAsync(async (req, res, next) => {
   });
 
   if (!user) {
-    return next(new AppError("No student found with the provided ID.", 404));
+    return next(new AppError("لا يوجد طالب بالمعرّف المحدد.", 404));
   }
 
   // 2. Ensure user is a student
   if (user.role !== "STUDENT") {
     return next(
-      new AppError("Only student registration requests can be approved.", 400),
+      new AppError("يمكن الموافقة على طلبات تسجيل الطلاب فقط.", 400),
     );
   }
 
   // 3. Check if already approved
   if (user.status === "APPROVED") {
     return next(
-      new AppError("This student registration has already been approved.", 400),
+      new AppError("تمت الموافقة على طلب تسجيل هذا الطالب بالفعل.", 400),
     );
   }
 
@@ -109,7 +109,7 @@ const approveRequest = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    message: "Student registration request approved successfully.",
+    message: "تمت الموافقة على طلب تسجيل الطالب بنجاح.",
     data: {
       user: updatedUser,
     },
@@ -140,12 +140,12 @@ const rejectRequest = catchAsync(async (req, res, next) => {
     });
 
     if (!user) {
-      throw new AppError("No student found with the provided ID.", 404);
+      throw new AppError("لا يوجد طالب بالمعرّف المحدد.", 404);
     }
 
     if (user.role !== "STUDENT") {
       throw new AppError(
-        "Only student registration requests can be rejected.",
+        "يمكن رفض طلبات تسجيل الطلاب فقط.",
         400,
       );
     }
@@ -173,7 +173,7 @@ const rejectRequest = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    message: "Student registration request rejected.",
+    message: "تم رفض طلب تسجيل الطالب.",
     data: {
       user: updatedUser,
     },

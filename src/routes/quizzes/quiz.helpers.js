@@ -44,7 +44,7 @@ async function getCachedSignedUrl(imagePath, expiresIn) {
 function requireTeacher(request, response, next) {
   if (!request.user || request.user.role !== "teacher") {
     return response.status(403).json({
-      error: "Only teachers can do this.",
+      error: "المعلمات فقط يمكنهن القيام بهذا الإجراء.",
     });
   }
   return next();
@@ -54,7 +54,7 @@ function requireTeacher(request, response, next) {
 function requireStudent(request, response, next) {
   if (!request.user || request.user.role !== "student") {
     return response.status(403).json({
-      error: "Only students can take quizzes.",
+      error: "الطلاب فقط يمكنهم المشاركة في الاختبارات.",
     });
   }
   return next();
