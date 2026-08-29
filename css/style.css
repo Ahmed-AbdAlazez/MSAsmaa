@@ -1053,10 +1053,15 @@ html[dir="rtl"] .scroll-progress-fill {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 0.95fr 1.05fr;
   align-items: center;
   gap: 4rem;
 }
+
+/* Explicit physical columns so the text sits on the LEFT and the teacher
+   photo sits on the RIGHT regardless of RTL flow (hero layout spec). */
+.hero-content { grid-column: 1; grid-row: 1; }
+.hero-media   { grid-column: 2; grid-row: 1; }
 
 @media (max-width: 992px) {
   .hero-grid {
@@ -1064,7 +1069,12 @@ html[dir="rtl"] .scroll-progress-fill {
     text-align: center;
     gap: 3rem;
   }
-  
+
+  .hero-content,
+  .hero-media {
+    grid-column: 1;
+  }
+
   .hero-actions {
     justify-content: center;
   }
@@ -1127,6 +1137,131 @@ html[dir="rtl"] .scroll-progress-fill {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Pill badge above the headline */
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: var(--surface-glass-strong);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--color-primary-ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+/* Right column: photo framed by organic decorative blobs */
+.hero-media {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 440px;
+  text-align: start;
+}
+
+.hero-photo-wrap {
+  position: relative;
+  z-index: 3;
+  width: min(400px, 100%);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 6px solid var(--surface-solid);
+  box-shadow: 0 30px 70px rgba(15, 76, 58, 0.25), 0 12px 30px rgba(6, 182, 212, 0.12);
+}
+
+.hero-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Organic blob shapes behind the photo (never covering the person) */
+.hero-blob {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 55% 45% 62% 38% / 48% 55% 45% 52%;
+  filter: blur(2px);
+}
+
+.hero-blob-1 {
+  width: 340px;
+  height: 320px;
+  top: 4%;
+  inset-inline-start: 2%;
+  background: radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.34), rgba(6, 182, 212, 0.12) 70%);
+  transform: rotate(-14deg);
+}
+
+.hero-blob-2 {
+  width: 280px;
+  height: 280px;
+  bottom: 0;
+  inset-inline-end: 0;
+  background: radial-gradient(circle at 60% 40%, rgba(245, 158, 11, 0.2), rgba(20, 184, 166, 0.1) 72%);
+  transform: rotate(22deg);
+}
+
+.hero-blob-3 {
+  width: 180px;
+  height: 180px;
+  top: 44%;
+  inset-inline-end: 6%;
+  background: radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.3), rgba(6, 182, 212, 0.08) 75%);
+  transform: rotate(8deg);
+}
+
+/* Small floating biology icon badges near the photo edges */
+.hero-float-badge {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--surface-glass-strong);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  font-size: 1.4rem;
+  animation: hero-float 5s ease-in-out infinite alternate;
+}
+
+.hero-float-dna {
+  top: 8%;
+  inset-inline-start: 12%;
+}
+
+.hero-float-leaf {
+  bottom: 6%;
+  inset-inline-end: 10%;
+  animation-delay: 2.2s;
+}
+
+@keyframes hero-float {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-10px); }
+}
+
+/* Dark mode: brighten blobs so they stay visible on the dark hero background */
+[data-theme="dark"] .hero-blob-1 {
+  background: radial-gradient(circle at 30% 30%, rgba(52, 211, 153, 0.38), rgba(20, 184, 166, 0.14) 72%);
+}
+[data-theme="dark"] .hero-blob-2 {
+  background: radial-gradient(circle at 60% 40%, rgba(251, 191, 36, 0.24), rgba(45, 212, 191, 0.14) 72%);
+}
+[data-theme="dark"] .hero-blob-3 {
+  background: radial-gradient(circle at 50% 50%, rgba(110, 231, 183, 0.34), rgba(20, 184, 166, 0.12) 75%);
 }
 
 .hero-illustration {
@@ -2740,6 +2875,26 @@ html[dir="rtl"] .scroll-progress-fill {
     height: min(320px, 82vw);
     max-width: 320px;
   }
+
+  /* Hero photo (right column) on mobile: centered, smaller, photo below text */
+  .hero-media {
+    min-height: 0;
+  }
+
+  .hero-photo-wrap {
+    width: min(300px, 78vw);
+    border-width: 5px;
+  }
+
+  .hero-float-badge {
+    width: 2.6rem;
+    height: 2.6rem;
+    font-size: 1.2rem;
+  }
+
+  .hero-blob-1 { width: 260px; height: 250px; }
+  .hero-blob-2 { width: 220px; height: 220px; }
+  .hero-blob-3 { width: 140px; height: 140px; }
 
   .dashboard-layout {
     padding: 2rem 0;
