@@ -1712,11 +1712,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let lessonVideos = [];
     let currentVideoIdx = 0;
 
-    /** "75" seconds -> "1:15" for the player overlay. */
+    /** "75" seconds -> "1:15"; "3930" seconds -> "1:05:30" (hours omitted when 0). */
     const formatDuration = (totalSeconds) => {
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = Math.floor(totalSeconds % 60);
-      return `${minutes}:${String(seconds).padStart(2, "0")}`;
+      const total = Math.max(0, Math.floor(totalSeconds));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      const ss = String(seconds).padStart(2, "0");
+      if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${ss}`;
+      }
+      return `${minutes}:${ss}`;
     };
 
     /** Swaps the mock overlay for the Bunny embed player iframe. */
@@ -2973,28 +2979,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }))
         .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
 
-      // Parse time inputs like "mm:ss", "m:ss", or raw seconds to integer seconds
+      // Parse time inputs like "hh:mm:ss", "mm:ss", "m:ss", or raw seconds to
+      // integer total-seconds. Accepts any number of colon-separated parts
+      // (leftmost is the largest unit), so hour values work too.
       const parseTimeInput = (str) => {
         const cleaned = str.trim();
         if (!cleaned) return null;
 
         if (cleaned.includes(":")) {
           const parts = cleaned.split(":");
-          if (parts.length === 2) {
-            const m = parseInt(parts[0], 10);
-            const s = parseInt(parts[1], 10);
-            if (!isNaN(m) && !isNaN(s) && m >= 0 && s >= 0 && s < 60) {
-              return m * 60 + s;
-            }
+          if (parts.length === 0 || parts.length > 3) return null;
+          let secs = 0;
+          for (let i = 0; i < parts.length; i++) {
+            const piece = parts[i].trim();
+            if (!/^\d+$/.test(piece)) return null;
+            const val = parseInt(piece, 10);
+            secs = secs * 60 + val;
           }
-          return null;
+          return secs;
         }
 
-        const s = parseInt(cleaned, 10);
-        if (!isNaN(s) && s >= 0) {
-          return s;
-        }
-        return null;
+        if (!/^\d+$/.test(cleaned)) return null;
+        return parseInt(cleaned, 10);
       };
 
       const wrap = document.createElement("div");
@@ -3025,7 +3031,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `</div>` +
         `<div style="flex:1; min-width:110px; display:flex; flex-direction:column; gap:0.35rem;">` +
           `<label for="marker-time-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">الوقت (دقيقة:ثانية)</label>` +
-          `<input id="marker-time-input" type="text" placeholder="مثال: 3:20" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
+          `<input id="marker-time-input" type="text" placeholder="مثال: 3:20 أو 1:05:30" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
         `</div>` +
         `<div style="flex-shrink:0;">` +
           `<button type="button" id="marker-add-btn" class="btn btn-primary" style="font-size:0.85rem; padding:0.45rem 1.2rem; border-radius:var(--radius-sm); height:37px;">🚩 إضافة علامة</button>` +
@@ -3102,7 +3108,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   }
                   const secs = parseTimeInput(newTimeStr);
                   if (secs === null) {
-                    showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20).", "warning");
+                    showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30).", "warning");
                     return;
                   }
                   if (videoObj.lengthSeconds && secs > videoObj.lengthSeconds) {
@@ -3164,7 +3170,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const secs = parseTimeInput(timeStr);
         if (secs === null) {
-          showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ثواني فقط.", "warning");
+          showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30) أو ثواني فقط.", "warning");
           timeInput.focus();
           return;
         }
