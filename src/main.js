@@ -2925,40 +2925,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const videosListBox = document.querySelector("#manage-videos-list");
     let loadedVideos = [];
 
-    // Loads Bunny's OFFICIAL playerjs client library (from Bunny's CDN) once.
-    // Bunny's Stream embed player is designed to be driven through this
-    // library, so we attach to it the moment it is available.
-    let playerJsLibPromise = null;
-    const ensurePlayerJs = () => {
-      if (playerJsLibPromise) return playerJsLibPromise;
-      playerJsLibPromise = new Promise((resolve) => {
-        if (window.playerjs) return resolve(true);
-        const script = document.createElement("script");
-        script.src =
-          "https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js";
-        script.async = true;
-        let settled = false;
-        const done = () => {
-          if (settled) return;
-          settled = true;
-          resolve(!!window.playerjs);
-        };
-        script.onload = done;
-        script.onerror = done;
-        setTimeout(done, 5000);
-        document.head.appendChild(script);
-      });
-      return playerJsLibPromise;
-    };
-
+    // Manual chapters management panel.
     const renderVideoChaptersPanel = (videoObj, panelEl) => {
       panelEl.innerHTML = "";
-      // Stop any previous time-ticker still bound to this panel (each open
-      // rebuilds the player and starts a fresh one).
-      if (panelEl.__stopTimeTicker) {
-        panelEl.__stopTimeTicker();
-        panelEl.__stopTimeTicker = null;
-      }
 
       // Local temporary running list (seeded from already-saved chapters).
       // Nothing is written to the DB until "حفظ التقسيم" is clicked.
@@ -2969,15 +2938,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }))
         .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
 
+      // Parse time inputs like "mm:ss", "m:ss", or raw seconds to integer seconds
+      const parseTimeInput = (str) => {
+        const cleaned = str.trim();
+        if (!cleaned) return null;
+
+        if (cleaned.includes(":")) {
+          const parts = cleaned.split(":");
+          if (parts.length === 2) {
+            const m = parseInt(parts[0], 10);
+            const s = parseInt(parts[1], 10);
+            if (!isNaN(m) && !isNaN(s) && m >= 0 && s >= 0 && s < 60) {
+              return m * 60 + s;
+            }
+          }
+          return null;
+        }
+
+        const s = parseInt(cleaned, 10);
+        if (!isNaN(s) && s >= 0) {
+          return s;
+        }
+        return null;
+      };
+
       const wrap = document.createElement("div");
       wrap.style.cssText = "display:flex; flex-direction:column; gap:0.85rem;";
 
-      // --- 1) Video player for this specific video ---
+      // --- 1) Video preview player for reference ---
       const playerBox = document.createElement("div");
       playerBox.style.cssText =
         "position:relative; aspect-ratio:16/9; background:#000; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--color-border);";
-      // player.js needs a unique iframe src per player instance, otherwise
-      // reopening the same video's panel can collide with the previous one.
       const playerSrcNonce = `${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 10)}`;
@@ -2987,172 +2978,28 @@ document.addEventListener("DOMContentLoaded", () => {
       playerBox.innerHTML = `<iframe id="chapters-preview-player" src="${playerSrc}" style="width:100%; height:100%; border:0; position:absolute; inset:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
       wrap.appendChild(playerBox);
 
-      // --- Helper: read the player's CURRENT time via the Bunny player API ---
-      // Bunny's embedded player speaks the player.js protocol (its timeupdate
-      // data is a JSON string: "{\"seconds\":12.4,\"duration\":60}"). We drive
-      // it with Bunny's OFFICIAL playerjs library (window.playerjs) — the
-      // documented, reliable path — and keep a raw postMessage listener/poller
-      // as a fallback. However the time arrives, `lastKnownTime` stays fresh so
-      // clicking "add marker" captures the exact current (or paused) position
-      // instantly — the teacher never types a time.
-      let lastKnownTime = null;
-      let playerObj = null;
-      const videoIframe = playerBox.querySelector("iframe");
+      // --- 2) Add manual marker form ---
+      const formRow = document.createElement("div");
+      formRow.style.cssText =
+        "display:flex; align-items:flex-end; gap:0.6rem; flex-wrap:wrap; background:var(--color-surface); border:1px solid var(--color-border); padding:0.8rem 1rem; border-radius:var(--radius-md);";
+      
+      formRow.innerHTML =
+        `<div style="flex:2; min-width:160px; display:flex; flex-direction:column; gap:0.35rem;">` +
+          `<label for="marker-title-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">عنوان العلامة</label>` +
+          `<input id="marker-title-input" type="text" placeholder="مثال: سؤال 1" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
+        `</div>` +
+        `<div style="flex:1; min-width:110px; display:flex; flex-direction:column; gap:0.35rem;">` +
+          `<label for="marker-time-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">الوقت (دقيقة:ثانية)</label>` +
+          `<input id="marker-time-input" type="text" placeholder="مثال: 3:20" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
+        `</div>` +
+        `<div style="flex-shrink:0;">` +
+          `<button type="button" id="marker-add-btn" class="btn btn-primary" style="font-size:0.85rem; padding:0.45rem 1.2rem; border-radius:var(--radius-sm); height:37px;">🚩 إضافة علامة</button>` +
+        `</div>`;
+      wrap.appendChild(formRow);
 
-      // Shared update point for every capture path (library + raw messages).
-      const rememberTime = (rawSeconds) => {
-        const numeric = extractSeconds(rawSeconds);
-        if (numeric === null || !Number.isFinite(numeric)) return;
-        lastKnownTime = Math.max(0, Math.floor(numeric));
-        if (liveTimeLabel) {
-          liveTimeLabel.textContent = formatDuration(lastKnownTime);
-        }
-      };
-
-      // Pulls a seconds value out of the many shapes the player can send
-      // (a number, a numeric string, or a JSON string / object with `seconds`).
-      const extractSeconds = (payload) => {
-        if (payload === null || payload === undefined) return null;
-        if (typeof payload === "number") {
-          return Number.isFinite(payload) ? payload : null;
-        }
-        if (typeof payload === "string") {
-          const trimmed = payload.trim();
-          if (trimmed === "") return null;
-          if (Number.isFinite(Number(trimmed))) return Number(trimmed);
-          try {
-            return extractSeconds(JSON.parse(trimmed));
-          } catch (e) {
-            return null;
-          }
-        }
-        if (typeof payload === "object") {
-          if (payload.seconds !== undefined)
-            return extractSeconds(payload.seconds);
-          if (payload.currentTime !== undefined)
-            return extractSeconds(payload.currentTime);
-          if (payload.time !== undefined) return extractSeconds(payload.time);
-          if (payload.properties !== undefined)
-            return extractSeconds(payload.properties);
-          if (payload.data !== undefined) return extractSeconds(payload.data);
-          if (payload.value !== undefined) return extractSeconds(payload.value);
-        }
-        return null;
-      };
-
-      // Official flow: once the library is present, wrap this video's iframe
-      // and subscribe to ready + timeupdate; the ticker also polls via the API.
-      const attachOfficialPlayer = () => {
-        if (playerObj || !videoIframe || !window.playerjs) return;
-        try {
-          playerObj = new window.playerjs.Player(videoIframe);
-          playerObj.on("ready", () => {
-            if (captureStatus) {
-              captureStatus.textContent = "✓ متصل بالفيديو";
-              captureStatus.title = "جهاز التوقيت متصل بمشغل Bunny.";
-            }
-            askCurrentTime();
-          });
-          playerObj.on("timeupdate", (payload) => rememberTime(payload));
-          playerObj.on("error", (error) => {
-            console.error("[chapters] playerjs error:", error);
-          });
-        } catch (error) {
-          console.error("[chapters] playerjs init failed:", error);
-          playerObj = null;
-        }
-      };
-      // Wait for the library to load (async) and attach as soon as it exists.
-      ensurePlayerJs().then(attachOfficialPlayer);
-      // Safety net: if the script finishes loading after the wait resolved,
-      // attach on a later tick too.
-      setTimeout(() => {
-        if (window.playerjs && !playerObj) attachOfficialPlayer();
-      }, 6000);
-
-      // Raw fallback listener: captures time from THIS iframe's messages even
-      // if the official library never loads.
-      const onPlayerMessage = (event) => {
-        try {
-          if (
-            !videoIframe ||
-            !videoIframe.contentWindow ||
-            !event.source ||
-            event.source !== videoIframe.contentWindow
-          ) {
-            return;
-          }
-          const data =
-            typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-          if (!data) return;
-          const context = String(data.context || "");
-          if (
-            context !== "player.js" &&
-            context !== "iframe.mediadelivery.net"
-          ) {
-            return;
-          }
-          rememberTime(data.value !== undefined ? data.value : data.data);
-        } catch (e) {}
-      };
-      window.addEventListener("message", onPlayerMessage);
-
-      // Ticker: keep asking the player for its current time every 400ms —
-      // through the official API when attached, raw postMessage otherwise.
-      const askCurrentTime = () => {
-        if (playerObj) {
-          try {
-            playerObj.getCurrentTime((value) => rememberTime(value));
-            return true;
-          } catch (e) {}
-        }
-        try {
-          if (videoIframe && videoIframe.contentWindow) {
-            videoIframe.contentWindow.postMessage(
-              JSON.stringify({
-                context: "player.js",
-                method: "getCurrentTime",
-              }),
-              "*",
-            );
-            return true;
-          }
-        } catch (e) {}
-        return false;
-      };
-
-      const timeTicker = setInterval(() => {
-        if (document.visibilityState === "visible") askCurrentTime();
-      }, 400);
-
-      // Cleanup on panel close / re-open so listeners never accumulate.
-      panelEl.__stopTimeTicker = () => {
-        window.removeEventListener("message", onPlayerMessage);
-        clearInterval(timeTicker);
-        playerObj = null;
-      };
-
-      // --- 2) "Add marker here" bar (captures current paused timestamp) ---
-      const markerBar = document.createElement("div");
-      markerBar.style.cssText =
-        "display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; background:var(--color-bg); padding:0.6rem 0.8rem; border-radius:var(--radius-md); border:1px dashed var(--color-accent-blue);";
-      markerBar.innerHTML =
-        `<button type="button" id="add-marker-btn" class="btn btn-primary" style="font-size:0.85rem; border-radius:50px;">🚩 ＋ إضافة علامة هنا</button>` +
-        `<span style="font-size:0.78rem; flex:1; min-width:150px;">شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم اضغطي الزر لالتقاط التوقيت الحالي تلقائياً.</span>` +
-        `<span class="text-muted" style="font-size:0.78rem; white-space:nowrap; font-variant-numeric:tabular-nums;" title="الوقت الحالي المقروء من الفيديو">⏱ <span id="live-time-label" style="font-weight:700;">0:00</span></span>` +
-        `<span id="chapters-capture-status" class="text-muted" style="font-size:0.72rem; white-space:nowrap;" title="حالة اتصال المشغل">جاري الاتصال بالمشغل…</span>`;
-      wrap.appendChild(markerBar);
-
-      // Inline title-capture row (hidden until a marker is captured).
-      const titleRow = document.createElement("div");
-      titleRow.style.cssText =
-        "display:none; align-items:center; gap:0.5rem; flex-wrap:wrap; background:var(--color-surface); border:1px solid var(--color-border); padding:0.6rem 0.8rem; border-radius:var(--radius-md);";
-      titleRow.innerHTML =
-        `<span style="font-size:0.85rem; font-weight:700; white-space:nowrap;">⏱ <span id="captured-time-label">—</span></span>` +
-        `<input id="marker-title-input" type="text" placeholder="عنوان العلامة (مثال: سؤال 1)" autocomplete="off" style="flex:2; min-width:150px; padding:0.4rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
-        `<button type="button" id="marker-confirm-btn" class="btn btn-success" style="font-size:0.8rem; border-radius:var(--radius-sm);">إضافة</button>` +
-        `<button type="button" id="marker-cancel-btn" class="btn btn-light" style="font-size:0.8rem; border-radius:var(--radius-sm);">إلغاء</button>`;
-      wrap.appendChild(titleRow);
+      const titleInput = formRow.querySelector("#marker-title-input");
+      const timeInput = formRow.querySelector("#marker-time-input");
+      const addBtn = formRow.querySelector("#marker-add-btn");
 
       // --- 3) Running (temporary) list ---
       const listTitle = document.createElement("h5");
@@ -3177,9 +3024,11 @@ document.addEventListener("DOMContentLoaded", () => {
           const row = document.createElement("div");
           row.style.cssText =
             "display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem; gap:0.5rem;";
+          
           const textSpan = document.createElement("span");
           textSpan.style.cssText = "font-weight:600; flex:1; min-width:0;";
           textSpan.textContent = `${m.title} — ${formatDuration(m.startTimeSeconds)}`;
+          
           const itemActions = document.createElement("div");
           itemActions.style.cssText =
             "display:flex; gap:0.25rem; flex-shrink:0;";
@@ -3199,23 +3048,56 @@ document.addEventListener("DOMContentLoaded", () => {
             .querySelector(".js-mk-edit")
             .addEventListener("click", () => {
               textSpan.innerHTML =
-                `<input type="text" class="mk-edit-input" value="${m.title}" autocomplete="off" style="flex:1; min-width:120px; padding:0.3rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem;">` +
+                `<input type="text" class="mk-edit-title-input" value="${m.title}" autocomplete="off" style="width:50%; min-width:100px; padding:0.3rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem;">` +
+                `<input type="text" class="mk-edit-time-input" value="${formatDuration(m.startTimeSeconds)}" autocomplete="off" style="width:25%; min-width:70px; margin-inline-start:0.25rem; padding:0.3rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem;">` +
                 `<button class="btn btn-success mk-edit-save" style="font-size:0.7rem; padding:0.2rem 0.5rem; margin-inline-start:0.3rem;">حفظ</button>` +
                 `<button class="btn btn-light mk-edit-cancel" style="font-size:0.7rem; padding:0.2rem 0.5rem;">إلغاء</button>`;
-              const input = textSpan.querySelector(".mk-edit-input");
-              input.focus();
+              
+              const editTitleInput = textSpan.querySelector(".mk-edit-title-input");
+              const editTimeInput = textSpan.querySelector(".mk-edit-time-input");
+              editTitleInput.focus();
+
               const done = (save) => {
-                if (save && !input.value.trim()) return;
-                if (save) m.title = input.value.trim();
+                if (save) {
+                  const newTitle = editTitleInput.value.trim();
+                  const newTimeStr = editTimeInput.value.trim();
+                  if (!newTitle) {
+                    showToast("يرجى إدخال عنوان الفصل.", "warning");
+                    return;
+                  }
+                  const secs = parseTimeInput(newTimeStr);
+                  if (secs === null) {
+                    showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20).", "warning");
+                    return;
+                  }
+                  if (videoObj.lengthSeconds && secs > videoObj.lengthSeconds) {
+                    showToast(`التوقيت يتجاوز طول الفيديو (${formatDuration(videoObj.lengthSeconds)}).`, "danger");
+                    return;
+                  }
+                  m.title = newTitle;
+                  m.startTimeSeconds = secs;
+                  markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+                }
                 renderList();
               };
+
               textSpan
                 .querySelector(".mk-edit-save")
                 .addEventListener("click", () => done(true));
               textSpan
                 .querySelector(".mk-edit-cancel")
                 .addEventListener("click", () => done(false));
-              input.addEventListener("keydown", (e) => {
+              
+              editTitleInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  done(true);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  done(false);
+                }
+              });
+              editTimeInput.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   done(true);
@@ -3230,92 +3112,62 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       };
 
-      // --- 4) Marker capture + inline title commit ---
-      // Timestamp is captured AUTOMATICALLY from the background ticker's last
-      // known playback position, so the teacher only types a title.
-      let capturedTime = null;
-      const addMarkerBtn = wrap.querySelector("#add-marker-btn");
-      const titleInput = wrap.querySelector("#marker-title-input");
-      const confirmBtn = wrap.querySelector("#marker-confirm-btn");
-      const cancelBtn = wrap.querySelector("#marker-cancel-btn");
-      const capturedLabel = wrap.querySelector("#captured-time-label");
-      const liveTimeLabel = wrap.querySelector("#live-time-label");
-      const captureStatus = wrap.querySelector("#chapters-capture-status");
-
-      addMarkerBtn.addEventListener("click", async () => {
-        addMarkerBtn.disabled = true;
-        addMarkerBtn.textContent = "⏳ جاري التقاط التوقيت...";
-        let secs = lastKnownTime;
-        if (secs === null || !Number.isFinite(secs)) {
-          // Ask the player once and give the listeners a moment to answer.
-          askCurrentTime();
-          await new Promise((resolve) => setTimeout(resolve, 700));
-          secs = lastKnownTime;
-        }
-        addMarkerBtn.disabled = false;
-        addMarkerBtn.textContent = "🚩 ＋ إضافة علامة هنا";
-        capturedTime = secs;
-        if (secs === null) {
-          showToast(
-            "تعذّر قراءة توقيت الفيديو. شغّلي الفيديو وأوقفي عند اللحظة المطلوبة ثم اضغطي الزر مرة أخرى.",
-            "warning",
-          );
-          return;
-        }
-        capturedLabel.textContent = formatDuration(secs);
-        titleRow.style.display = "flex";
-        titleInput.value = "";
-        titleInput.placeholder = `عنوان العلامة (مثال: سؤال 1) — عند ${formatDuration(secs)}`;
-        titleInput.focus();
-      });
-
       const commitMarker = () => {
         const title = titleInput.value.trim();
+        const timeStr = timeInput.value.trim();
+
         if (!title) {
           showToast("اكتب عنواناً للعلامة قبل الإضافة.", "warning");
           titleInput.focus();
           return;
         }
-        if (capturedTime === null || !Number.isFinite(capturedTime)) {
-          showToast(
-            "لم يُلتقط توقيت الفيديو بعد. أوقفي الفيديو عند اللحظة المطلوبة ثم اضغطي «إضافة علامة هنا» مرة أخرى.",
-            "warning",
-          );
-          titleRow.style.display = "none";
+        if (!timeStr) {
+          showToast("اكتب وقتاً للعلامة قبل الإضافة.", "warning");
+          timeInput.focus();
           return;
         }
-        if (videoObj.lengthSeconds && capturedTime > videoObj.lengthSeconds) {
-          showToast(
-            `التوقيت (${formatDuration(
-              capturedTime,
-            )}) يتجاوز طول الفيديو (${formatDuration(
-              videoObj.lengthSeconds,
-            )}).`,
-            "danger",
-          );
+
+        const secs = parseTimeInput(timeStr);
+        if (secs === null) {
+          showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ثواني فقط.", "warning");
+          timeInput.focus();
           return;
         }
-        markers.push({ title, startTimeSeconds: capturedTime });
+
+        if (videoObj.lengthSeconds && secs > videoObj.lengthSeconds) {
+          showToast(
+            `التوقيت (${formatDuration(secs)}) يتجاوز طول الفيديو (${formatDuration(videoObj.lengthSeconds)}).`,
+            "danger"
+          );
+          timeInput.focus();
+          return;
+        }
+
+        markers.push({ title, startTimeSeconds: secs });
         markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
-        titleRow.style.display = "none";
+        
+        titleInput.value = "";
+        timeInput.value = "";
+        titleInput.focus();
+
         renderList();
       };
 
-      confirmBtn.addEventListener("click", commitMarker);
+      addBtn.addEventListener("click", commitMarker);
       titleInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          commitMarker();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          titleRow.style.display = "none";
+          timeInput.focus();
         }
       });
-      cancelBtn.addEventListener("click", () => {
-        titleRow.style.display = "none";
+      timeInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commitMarker();
+        }
       });
 
-      // --- 5) Final save (single API call for the whole set) ---
+      // --- 4) Final save (single API call for the whole set) ---
       const saveBar = document.createElement("div");
       saveBar.style.cssText =
         "display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem;";
@@ -3391,9 +3243,6 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           );
 
-          // The PUT response is authoritative: it returns the freshly-sorted,
-          // fully-synced chapter list. Use it as the source of truth even if
-          // the follow-up refresh below misbehaves.
           const setChapters = (chapters) => {
             videoObj.chapters = (chapters || []).map((c) => ({
               title: c.title,
@@ -3411,9 +3260,6 @@ document.addEventListener("DOMContentLoaded", () => {
           };
           setChapters(result.chapters);
 
-          // Follow-up refresh is best-effort ONLY. It must never surface an
-          // error after a genuine save — the running list already shows the
-          // authoritative chapters. Any failure here is logged, not toasted.
           try {
             const updated = await fetchJson(
               `/api/lessons/${manageLesson.value}/videos`,
@@ -3432,10 +3278,6 @@ document.addEventListener("DOMContentLoaded", () => {
             );
           }
 
-          // Success is confirmed only after the save completed WITHOUT leaving
-          // any pending work behind. A refresh problem can change the message
-          // or log details, but can never produce a false success or an error
-          // toast after it.
           showToast("تم حفظ التقسيم بنجاح.", "success");
         } catch (err) {
           console.error("[chapters] فشل حفظ التقسيم:", err);
@@ -3498,10 +3340,6 @@ document.addEventListener("DOMContentLoaded", () => {
               .querySelectorAll(".chapters-manage-panel")
               .forEach((panel) => {
                 panel.style.display = "none";
-                if (panel.__stopTimeTicker) {
-                  panel.__stopTimeTicker();
-                  panel.__stopTimeTicker = null;
-                }
               });
 
             if (isHidden) {
