@@ -11,6 +11,22 @@ const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 const isStrongPassword = (value) =>
   /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
 
+// Temporary, opt-in authentication diagnostics. This intentionally excludes
+// credentials, hashes, tokens, connection strings, and all other secrets.
+// It is disabled unless AUTH_DIAGNOSTICS is exactly "true" in the runtime
+// environment, and it does not alter any authentication outcome.
+const logLoginDiagnostic = (normalizedStudentCode, user, passwordComparison) => {
+  if (process.env.AUTH_DIAGNOSTICS !== 'true') return;
+
+  console.info('[auth.login.diagnostic]', {
+    normalizedStudentCode,
+    userFound: Boolean(user),
+    passwordHashExists: Boolean(user && user.password),
+    userRole: user ? user.role : null,
+    bcryptComparison: passwordComparison,
+  });
+};
+
 /**
  * Student Registration (Public)
  * @route   POST /api/v1/auth/signup
@@ -197,11 +213,13 @@ const login = catchAsync(async (req, res, next) => {
   });
 
   if (!user) {
+    logLoginDiagnostic(trimmedCode, null, null);
     return next(new AppError('Invalid credentials.', 401));
   }
 
   // 3. Verify password
   const isPasswordCorrect = await comparePassword(password, user.password);
+  logLoginDiagnostic(trimmedCode, user, isPasswordCorrect);
   if (!isPasswordCorrect) {
     return next(new AppError('Invalid credentials.', 401));
   }
