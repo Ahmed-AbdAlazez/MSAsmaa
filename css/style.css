@@ -2441,6 +2441,25 @@ html[dir="rtl"] .scroll-progress-fill {
   border-inline-start-color: var(--color-danger);
 }
 
+/* Dark mode: the light heading color becomes mint-white, so the toast would
+   be white-on-white. Re-theme it as a dark card (distinguishable from the
+   page background) with tinted success/danger backgrounds for the accent. */
+[data-theme="dark"] .toast {
+  background-color: var(--surface-solid);
+  color: #E6EDF5;
+  border-inline-start-color: var(--color-accent-dark);
+}
+[data-theme="dark"] .toast-success {
+  background-color: rgba(16, 185, 129, 0.16);
+  border-inline-start-color: #34D399;
+  color: #A7F3D0;
+}
+[data-theme="dark"] .toast-danger {
+  background-color: rgba(239, 68, 68, 0.16);
+  border-inline-start-color: #F87171;
+  color: #FECACA;
+}
+
 /* NOTE: The old interactive welcome/login modal styles
    (.welcome-modal-backdrop / .welcome-modal*) were removed — login and
    signup now live on the dedicated auth page (login.html, css/login.css). */
@@ -2991,6 +3010,14 @@ html[dir="rtl"] .scroll-progress-fill {
 .profile-menu-toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Dark mode: --color-primary-dark stays a dark green and --color-surface
+   turns dark navy, which would hide the light text. Use a dark card + light
+   text instead, so the mini toast is legible on the dark background. */
+[data-theme="dark"] .profile-menu-toast {
+  background-color: #16273A;
+  color: #E6EDF5;
 }
 
 @media (max-width: 480px) {

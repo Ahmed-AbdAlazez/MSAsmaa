@@ -126,7 +126,7 @@
       }
       .custom-modal-panel {
         background: var(--surface-solid, #ffffff);
-        color: var(--color-text, #1f2937);
+        color: var(--color-text-main, #1f2937);
         border-radius: var(--radius-lg, 16px);
         width: min(440px, 100%);
         padding: 1.75rem;
@@ -147,7 +147,7 @@
         line-height: 1.6;
         margin: 0;
         font-weight: 500;
-        color: var(--color-text, #1f2937);
+        color: var(--color-text-main, #1f2937);
       }
       .custom-modal-input {
         width: 100%;
@@ -156,7 +156,7 @@
         border: 1px solid var(--color-border, #d1d5db);
         border-radius: var(--radius-md, 8px);
         background: var(--input-bg, #ffffff);
-        color: var(--color-text, #1f2937);
+        color: var(--color-text-main, #1f2937);
         font-size: 1rem;
         outline: none;
         box-sizing: border-box;
@@ -203,6 +203,33 @@
       }
       .custom-modal-btn-cancel:hover {
         background-color: #e5e7eb;
+      }
+      /* Dark mode: the panel already uses --surface-solid (dark navy) so the
+         adapting text token keeps it readable. The cancel/confirm buttons get
+         explicit dark-theme colors so they stay legible on the dark panel. */
+      [data-theme="dark"] .custom-modal-panel,
+      [data-theme="dark"] .custom-modal-message {
+        color: var(--color-text-main);
+      }
+      [data-theme="dark"] .custom-modal-input {
+        color: var(--color-text-main);
+      }
+      [data-theme="dark"] .custom-modal-btn-confirm {
+        color: #ffffff;
+      }
+      [data-theme="dark"] .custom-modal-btn-confirm.btn-danger {
+        background-color: #7f1d1d;
+        color: #ffffff;
+      }
+      [data-theme="dark"] .custom-modal-btn-confirm.btn-danger:hover {
+        background-color: #991b1b;
+      }
+      [data-theme="dark"] .custom-modal-btn-cancel {
+        background-color: var(--surface-solid);
+        color: var(--color-text-main);
+      }
+      [data-theme="dark"] .custom-modal-btn-cancel:hover {
+        background-color: var(--row-hover);
       }
     `,document.head.appendChild(e)};window.showConfirmModal=(e,t={})=>(r(),new Promise(n=>{let r=document.createElement(`div`);r.className=`custom-modal-overlay`;let i=t.isDestructive||/حذف|الغاء|خروج/i.test(e)?`custom-modal-btn custom-modal-btn-confirm btn-danger`:`custom-modal-btn custom-modal-btn-confirm`,a=t.confirmText||`تأكيد`;r.innerHTML=`
         <div class="custom-modal-panel">

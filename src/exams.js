@@ -242,13 +242,13 @@ function renderExams(exams, tab) {
     if (activeExamsToSolve.length > 0) {
       solveNowContainer.style.display = "block";
       solveNowContainer.innerHTML = `
-        <h2 class="exam-group-title" style="color: var(--color-primary-dark); font-size: 1.25rem; margin-bottom: 0.75rem;">⚡ اختبارات جاهزة للحل الآن</h2>
+        <h2 class="exam-group-title" style="color: var(--color-heading); font-size: 1.25rem; margin-bottom: 0.75rem;">⚡ اختبارات جاهزة للحل الآن</h2>
         <div class="exam-grid">${activeExamsToSolve.map(examCardHtml).join("")}</div>
       `;
     } else {
       solveNowContainer.style.display = "block";
       solveNowContainer.innerHTML = `
-        <h2 class="exam-group-title" style="color: var(--color-primary-dark); font-size: 1.25rem; margin-bottom: 0.75rem;">⚡ اختبارات جاهزة للحل الآن</h2>
+        <h2 class="exam-group-title" style="color: var(--color-heading); font-size: 1.25rem; margin-bottom: 0.75rem;">⚡ اختبارات جاهزة للحل الآن</h2>
         <p class="text-muted" style="background: var(--color-primary-ghost); padding: 1rem; border-radius: var(--radius-md); font-size: 0.9rem; margin: 0;">لا توجد اختبارات متاحة للحل حالياً.</p>
       `;
     }

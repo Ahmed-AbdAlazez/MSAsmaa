@@ -498,6 +498,27 @@
 .toast.danger  { background: var(--color-danger); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
+/* Dark mode: the base/info toast uses --color-text-main as its background,
+   which becomes very light on dark — white text would vanish. Swap to a dark,
+   tinted card per kind so the message stays readable and the green/red remain
+   clearly distinguishable against the dark background. */
+[data-theme="dark"] .toast {
+  background: #16273A;
+  color: #E6EDF5;
+}
+[data-theme="dark"] .toast.success {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34D399;
+}
+[data-theme="dark"] .toast.warning {
+  background: rgba(251, 191, 36, 0.16);
+  color: #FBBF24;
+}
+[data-theme="dark"] .toast.danger {
+  background: rgba(239, 68, 68, 0.18);
+  color: #F87171;
+}
+
 .choice-edit {
   display: flex;
   align-items: center;
