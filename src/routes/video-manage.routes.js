@@ -94,7 +94,7 @@ async function reorderChapters(videoId) {
 function requireTeacher(req, res, next) {
   if (req.user.role !== "teacher") {
     return res.status(403).json({
-      error: "Only teachers can manage lesson videos.",
+      error: "المعلمات فقط يمكنهن إدارة فيديوهات الدروس.",
     });
   }
   next();
@@ -127,7 +127,7 @@ router.patch("/:videoId", requireAuth, requireTeacher, async (req, res) => {
         : current.description;
 
     if (!lessonId.startsWith("lesson-")) {
-      return res.status(400).json({ error: "Invalid lesson ID." });
+      return res.status(400).json({ error: "معرف الدرس غير صالح." });
     }
 
     const newTitle = buildTitle(lessonId, name, attachmentUrl, description);

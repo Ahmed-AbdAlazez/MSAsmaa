@@ -29,7 +29,7 @@ router.get("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
     );
     if (!studentIsEnrolled) {
       return res.status(403).json({
-        error: "You are not enrolled in the course this lesson belongs to.",
+        error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
       });
     }
 
@@ -41,7 +41,7 @@ router.get("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
     res.json({ notes });
   } catch (error) {
     console.error("[notes] list error:", error);
-    res.status(500).json({ error: "Failed to fetch lesson notes." });
+    res.status(500).json({ error: "فشل تحميل ملاحظات الدرس." });
   }
 });
 
@@ -49,14 +49,14 @@ router.get("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
 router.post("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
-      return res.status(403).json({ error: "Only the teacher can add notes." });
+      return res.status(403).json({ error: "المعلمة فقط يمكنها إضافة ملاحظات." });
     }
 
     const { lessonId } = req.params;
     const { content } = req.body || {};
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: "Note content is required." });
+      return res.status(400).json({ error: "محتوى الملاحظة مطلوب." });
     }
 
     const note = await prisma.lessonNote.create({
@@ -69,7 +69,7 @@ router.post("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
     res.status(201).json({ note });
   } catch (error) {
     console.error("[notes] create error:", error);
-    res.status(500).json({ error: "Failed to create note." });
+    res.status(500).json({ error: "فشل إنشاء الملاحظة." });
   }
 });
 
@@ -77,14 +77,14 @@ router.post("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
 router.patch("/notes/:noteId", requireAuth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
-      return res.status(403).json({ error: "Only the teacher can edit notes." });
+      return res.status(403).json({ error: "المعلمة فقط يمكنها تعديل الملاحظات." });
     }
 
     const { noteId } = req.params;
     const { content } = req.body || {};
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: "Note content is required." });
+      return res.status(400).json({ error: "محتوى الملاحظة مطلوب." });
     }
 
     const note = await prisma.lessonNote.update({
@@ -95,7 +95,7 @@ router.patch("/notes/:noteId", requireAuth, async (req, res) => {
     res.json({ note });
   } catch (error) {
     console.error("[notes] update error:", error);
-    res.status(500).json({ error: "Failed to update note." });
+    res.status(500).json({ error: "فشل تعديل الملاحظة." });
   }
 });
 
@@ -103,7 +103,7 @@ router.patch("/notes/:noteId", requireAuth, async (req, res) => {
 router.delete("/notes/:noteId", requireAuth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
-      return res.status(403).json({ error: "Only the teacher can delete notes." });
+      return res.status(403).json({ error: "المعلمة فقط يمكنها حذف الملاحظات." });
     }
 
     const { noteId } = req.params;
@@ -115,7 +115,7 @@ router.delete("/notes/:noteId", requireAuth, async (req, res) => {
     res.json({ message: "Note deleted successfully." });
   } catch (error) {
     console.error("[notes] delete error:", error);
-    res.status(500).json({ error: "Failed to delete note." });
+    res.status(500).json({ error: "فشل حذف الملاحظة." });
   }
 });
 

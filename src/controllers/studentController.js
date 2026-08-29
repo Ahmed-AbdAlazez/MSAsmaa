@@ -78,10 +78,10 @@ const deleteStudent = catchAsync(async (req, res, next) => {
   });
 
   if (!student) {
-    return next(new AppError('No student found with the provided ID.', 404));
+    return next(new AppError('لا يوجد طالب بالمعرّف المحدد.', 404));
   }
   if (student.role !== 'STUDENT') {
-    return next(new AppError('Only STUDENT accounts can be deleted through this endpoint.', 400));
+    return next(new AppError('يمكن حذف حسابات الطلاب فقط من خلال هذه النقطة.', 400));
   }
 
   // Quiz attempts store studentId as a plain string, but mistakes are a
@@ -93,7 +93,7 @@ const deleteStudent = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Student deleted successfully',
+    message: 'تم حذف الطالب بنجاح.',
   });
 });
 

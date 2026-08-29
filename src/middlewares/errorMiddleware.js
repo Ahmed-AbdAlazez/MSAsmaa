@@ -2,7 +2,7 @@
  * 404 Not Found Middleware
  */
 const notFound = (req, res, next) => {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
+  const error = new Error(`الصفحة غير موجودة - ${req.originalUrl}`);
   res.status(404);
   next(error);
 };
@@ -12,7 +12,7 @@ const notFound = (req, res, next) => {
  */
 const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
-  let message = err.message || 'Something went wrong!';
+  let message = err.message || 'حدث خطأ ما!';
   let status = err.status || (statusCode >= 400 && statusCode < 500 ? 'fail' : 'error');
 
   // Handle Prisma Unique Constraint Error (e.g. duplicate studentCode)
@@ -22,28 +22,28 @@ const errorHandler = (err, req, res, next) => {
     const fields = err.meta && err.meta.target ? err.meta.target.join(', ') : 'field';
     message = String(fields).includes('email')
       ? 'هذا البريد الإلكتروني مستخدم بالفعل.'
-      : `A record with this ${fields} already exists.`;
+      : 'يوجد سجل بنفس هذه البيانات بالفعل.';
   }
 
   // Handle Prisma Record Not Found
   if (err.code === 'P2025') {
     statusCode = 404;
     status = 'fail';
-    message = 'Requested record not found.';
+    message = 'السجل المطلوب غير موجود.';
   }
 
   // Handle JWT Error
   if (err.name === 'JsonWebTokenError') {
     statusCode = 401;
     status = 'fail';
-    message = 'Invalid token. Please log in again.';
+    message = 'رمز غير صالح. يرجى تسجيل الدخول مرة أخرى.';
   }
 
   // Handle JWT Expired Error
   if (err.name === 'TokenExpiredError') {
     statusCode = 401;
     status = 'fail';
-    message = 'Your session has expired. Please log in again.';
+    message = 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.';
   }
 
   res.status(statusCode).json({

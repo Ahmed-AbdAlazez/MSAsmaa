@@ -168,7 +168,7 @@
             </div>
             <div style="flex:2; min-width:200px;">
               <label for="edit-move-lesson" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">نقل إلى درس (اختياري)</label>
-              <select id="edit-move-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"><option value="">â€” إبقاء الدرس الحالي â€”</option></select>
+              <select id="edit-move-lesson" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit; background:white;"><option value="">— إبقاء الدرس الحالي —</option></select>
             </div>
           </div>
           <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
@@ -254,7 +254,7 @@
 
         <!-- Question builder -->
         <h3 style="margin-bottom:.75rem;">إضافة سؤال</h3>
-        <div style="display:grid; grid-template-columns:180px 1fr; gap:1rem;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem;">
           <label style="font-weight:700;">نوع السؤال
             <select id="question-type" class="form-input" style="width:100%; margin-top:.3rem;">
               <option value="mcq">اختيار من متعدد</option>
@@ -276,7 +276,7 @@
         </div>
 
         <div id="written-fields" style="margin-top:1rem; display:none;">
-          <label style="font-weight:700;">الإجابة النموذجية (تُعرض للطالبات بعد انتهاء الوقت â€” لا تُصحح آلياً)
+          <label style="font-weight:700;">الإجابة النموذجية (تُعرض للطلاب بعد انتهاء الوقت — لا تُصحح آلياً)
             <textarea id="model-answer" rows="2" class="form-input" style="width:100%; margin-top:.3rem;"></textarea>
           </label>
         </div>

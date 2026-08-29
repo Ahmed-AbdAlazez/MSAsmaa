@@ -11,22 +11,6 @@ const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 const isStrongPassword = (value) =>
   /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
 
-// Temporary, opt-in authentication diagnostics. This intentionally excludes
-// credentials, hashes, tokens, connection strings, and all other secrets.
-// It is disabled unless AUTH_DIAGNOSTICS is exactly "true" in the runtime
-// environment, and it does not alter any authentication outcome.
-const logLoginDiagnostic = (normalizedStudentCode, user, passwordComparison) => {
-  if (process.env.AUTH_DIAGNOSTICS !== 'true') return;
-
-  console.info('[auth.login.diagnostic]', {
-    normalizedStudentCode,
-    userFound: Boolean(user),
-    passwordHashExists: Boolean(user && user.password),
-    userRole: user ? user.role : null,
-    bcryptComparison: passwordComparison,
-  });
-};
-
 /**
  * Student Registration (Public)
  * @route   POST /api/v1/auth/signup
@@ -50,7 +34,7 @@ const signup = catchAsync(async (req, res, next) => {
 
   if (!trimmedCode || !trimmedName || !normalizedEmail || !password) {
     return next(
-      new AppError('Fields cannot be empty.', 400)
+      new AppError('لا يمكن ترك الحقول فارغة.', 400)
     );
   }
 
@@ -78,7 +62,7 @@ const signup = catchAsync(async (req, res, next) => {
 
   if (existingUser) {
     return next(
-      new AppError('A student with this code is already registered.', 409)
+      new AppError('يوجد طالب مسجّل بالفعل بهذا الكود.', 409)
     );
   }
 
@@ -107,7 +91,7 @@ const signup = catchAsync(async (req, res, next) => {
   // 5. Respond with waiting message (no JWT issued, no sensitive data returned)
   res.status(201).json({
     status: 'success',
-    message: 'Registration request submitted. Waiting for teacher approval.',
+    message: 'تم إرسال طلب التسجيل. بانتظار موافقة المعلمة.',
   });
 });
 
@@ -201,7 +185,7 @@ const login = catchAsync(async (req, res, next) => {
   // 1. Validate input
   if (!studentCode || !password) {
     return next(
-      new AppError('Please provide both studentCode and password.', 400)
+      new AppError('يرجى إدخال كود الطالب وكلمة المرور.', 400)
     );
   }
 
@@ -213,22 +197,20 @@ const login = catchAsync(async (req, res, next) => {
   });
 
   if (!user) {
-    logLoginDiagnostic(trimmedCode, null, null);
-    return next(new AppError('Invalid credentials.', 401));
+    return next(new AppError('بيانات الدخول غير صحيحة.', 401));
   }
 
   // 3. Verify password
   const isPasswordCorrect = await comparePassword(password, user.password);
-  logLoginDiagnostic(trimmedCode, user, isPasswordCorrect);
   if (!isPasswordCorrect) {
-    return next(new AppError('Invalid credentials.', 401));
+    return next(new AppError('بيانات الدخول غير صحيحة.', 401));
   }
 
   // 4. Check account status
   if (user.status === 'PENDING') {
     return next(
       new AppError(
-        'Your registration request is pending. Waiting for teacher approval.',
+        'طلب تسجيلك ما زال قيد المراجعة. انتظري موافقة المعلمة.',
         403
       )
     );
@@ -237,7 +219,7 @@ const login = catchAsync(async (req, res, next) => {
   if (user.status === 'REJECTED') {
     return next(
       new AppError(
-        'Your registration request was rejected. Please contact the teacher.',
+        'تم رفض طلب تسجيلك. يرجى التواصل مع المعلمة.',
         403
       )
     );

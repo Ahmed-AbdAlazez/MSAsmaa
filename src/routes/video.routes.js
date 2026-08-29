@@ -83,7 +83,7 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
   // are ALLOWED to upload. Students must never reach the code below.
   if (req.user.role !== "teacher") {
     return res.status(403).json({
-      error: "Only teachers can upload lesson videos.",
+      error: "المعلمات فقط يمكنهن رفع فيديوهات الدروس.",
     });
   }
 
@@ -143,7 +143,7 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       error,
     );
     return res.status(500).json({
-      error: "Failed to prepare the video upload. Please try again later.",
+      error: "فشل تجهيز رفع الفيديو. يرجى المحاولة لاحقاً.",
     });
   }
 });
@@ -180,7 +180,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
 
   if (!studentIsEnrolled) {
     return res.status(403).json({
-      error: "You are not enrolled in the course this lesson belongs to.",
+      error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
     });
   }
 
@@ -199,7 +199,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
       // 404, not 403: the user IS allowed to watch, there just isn't a video
       // uploaded yet.
       return res.status(404).json({
-        error: "No video has been uploaded for this lesson yet.",
+        error: "لم يتم رفع فيديو لهذا الدرس بعد.",
       });
     }
 
@@ -222,7 +222,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
       error,
     );
     return res.status(500).json({
-      error: "Failed to create the playback URL. Please try again later.",
+      error: "فشل إنشاء رابط التشغيل. يرجى المحاولة لاحقاً.",
     });
   }
 });
@@ -265,7 +265,7 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
       error,
     );
     return res.status(500).json({
-      error: "Failed to check the video status. Please try again later.",
+      error: "فشل التحقق من حالة الفيديو. يرجى المحاولة لاحقاً.",
     });
   }
 });
@@ -284,7 +284,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   );
   if (!studentIsEnrolled) {
     return res.status(403).json({
-      error: "You are not enrolled in the course this lesson belongs to.",
+      error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
     });
   }
 
@@ -332,7 +332,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
       error,
     );
     return res.status(500).json({
-      error: "Failed to load the lesson videos. Please try again later.",
+      error: "فشل تحميل فيديوهات الدرس. يرجى المحاولة لاحقاً.",
     });
   }
 });

@@ -20,7 +20,7 @@ const protect = catchAsync(async (req, res, next) => {
 
   if (!token) {
     return next(
-      new AppError('You are not logged in. Please log in to gain access.', 401)
+      new AppError('أنت غير مسجّل الدخول. يرجى تسجيل الدخول للوصول.', 401)
     );
   }
 
@@ -30,14 +30,14 @@ const protect = catchAsync(async (req, res, next) => {
     decoded = await verifyToken(token);
   } catch (err) {
     if (err.name === 'JsonWebTokenError') {
-      return next(new AppError('Invalid token. Please log in again.', 401));
+      return next(new AppError('رمز غير صالح. يرجى تسجيل الدخول مرة أخرى.', 401));
     }
     if (err.name === 'TokenExpiredError') {
       return next(
-        new AppError('Your session has expired. Please log in again.', 401)
+        new AppError('انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.', 401)
       );
     }
-    return next(new AppError('Authentication failed.', 401));
+    return next(new AppError('فشل التحقق من الهوية.', 401));
   }
 
   // 3. Check if user still exists
@@ -56,7 +56,7 @@ const protect = catchAsync(async (req, res, next) => {
 
   if (!currentUser) {
     return next(
-      new AppError('The user belonging to this token no longer exists.', 401)
+      new AppError('المستخدم المرتبط بهذا الرمز لم يعد موجوداً.', 401)
     );
   }
 
@@ -73,7 +73,7 @@ const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
       return next(
-        new AppError('You do not have permission to perform this action.', 403)
+        new AppError('ليس لديك صلاحية للقيام بهذا الإجراء.', 403)
       );
     }
     next();
