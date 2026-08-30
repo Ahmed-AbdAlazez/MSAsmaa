@@ -8,6 +8,6 @@ const router = express.Router();
 router.use(protect, restrictTo('TEACHER'));
 router.get('/count', studentController.getApprovedStudentCount);
 router.get('/', studentController.getApprovedStudents);
-router.delete('/:id', studentController.deleteStudent);
+router.patch('/:id/status', studentController.updateStudentStatus);
 
 module.exports = router;

@@ -30,14 +30,14 @@ const getApprovedStudentCount = catchAsync(async (req, res) => {
   res.status(200).json({ status: 'success', data: { count } });
 });
 
-/** GET /api/v1/students?search=&page=&limit= */
+/** GET /api/v1/students?search=&page=&limit= - active and deactivated students. */
 const getApprovedStudents = catchAsync(async (req, res) => {
   const search = String(req.query.search || '').trim().slice(0, 100);
   const page = parsePositiveInt(req.query.page, 1, Number.MAX_SAFE_INTEGER);
   const limit = parsePositiveInt(req.query.limit, 50, 100);
   const where = {
     role: 'STUDENT',
-    status: 'APPROVED',
+    status: { in: ['APPROVED', 'REJECTED'] },
     ...(search
       ? {
           OR: [
@@ -70,7 +70,46 @@ const getApprovedStudents = catchAsync(async (req, res) => {
   });
 });
 
-/** DELETE /api/v1/students/:id - teachers can delete students, never teachers. */
+/**
+ * PATCH /api/v1/students/:id/status
+ * Only permits APPROVED -> REJECTED and REJECTED -> APPROVED for students.
+ * It changes no other field and deletes no related data.
+ */
+const updateStudentStatus = catchAsync(async (req, res, next) => {
+  const targetStatus = String(req.body?.status || '').trim().toUpperCase();
+  if (!['APPROVED', 'REJECTED'].includes(targetStatus)) {
+    return next(new AppError('Invalid student status transition.', 400));
+  }
+
+  const student = await prisma.user.findUnique({
+    where: { id: req.params.id },
+    select: safeStudentSelect,
+  });
+
+  if (!student) {
+    return next(new AppError('Student not found.', 404));
+  }
+  if (student.role !== 'STUDENT') {
+    return next(new AppError('Only student accounts can be updated here.', 400));
+  }
+
+  const isValidTransition =
+    (student.status === 'APPROVED' && targetStatus === 'REJECTED') ||
+    (student.status === 'REJECTED' && targetStatus === 'APPROVED');
+  if (!isValidTransition) {
+    return next(new AppError('This student status transition is not allowed.', 400));
+  }
+
+  const updatedStudent = await prisma.user.update({
+    where: { id: student.id },
+    data: { status: targetStatus },
+    select: safeStudentSelect,
+  });
+
+  res.status(200).json({ status: 'success', data: { student: updatedStudent } });
+});
+
+/** DELETE /api/v1/students/:id - legacy handler; no dashboard route exposes it. */
 const deleteStudent = catchAsync(async (req, res, next) => {
   const student = await prisma.user.findUnique({
     where: { id: req.params.id },
@@ -97,4 +136,4 @@ const deleteStudent = catchAsync(async (req, res, next) => {
   });
 });
 
-module.exports = { getApprovedStudentCount, getApprovedStudents, deleteStudent };
+module.exports = { getApprovedStudentCount, getApprovedStudents, updateStudentStatus };

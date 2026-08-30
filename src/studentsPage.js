@@ -1,11 +1,6 @@
 import { skeletonLines, skeletonError } from "./components/skeleton.js";
 
-export function initStudentsPage({
-  API_BASE,
-  authHeaders,
-  fetchJson,
-  showToast,
-}) {
+export function initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast }) {
   const list = document.querySelector("#approved-students-list");
   const count = document.querySelector("#approved-students-count");
   const searchInput = document.querySelector("#approved-students-search");
@@ -14,14 +9,12 @@ export function initStudentsPage({
   let page = 1;
   let pageInfo = { page: 1, totalPages: 0, total: 0 };
   let searchTimer;
-  let deletingId = "";  const formatDate = (value) => {
+  let updatingId = "";
+
+  const formatDate = (value) => {
     const date = value ? new Date(value) : null;
     return date && !Number.isNaN(date.getTime())
-      ? new Intl.DateTimeFormat("ar-EG", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        }).format(date)
+      ? new Intl.DateTimeFormat("ar-EG", { year: "numeric", month: "short", day: "numeric" }).format(date)
       : "—";
   };
 
@@ -31,45 +24,41 @@ export function initStudentsPage({
     if (!students.length) {
       const empty = document.createElement("p");
       empty.className = "text-muted";
-      empty.textContent = "لا يوجد طلاب مقبولون حاليًا.";
+      empty.textContent = "لا يوجد طلاب مقبولون أو غير نشطين حاليًا.";
       list.appendChild(empty);
       return;
     }
 
     const table = document.createElement("table");
     table.className = "table";
-    table.innerHTML =
-      "<thead><tr><th>الطالب</th><th>كود الطالب</th><th>Gmail</th><th>تاريخ الانضمام</th><th>الحالة</th><th>الإجراءات</th></tr></thead>";
+    table.innerHTML = "<thead><tr><th>الطالب</th><th>كود الطالب</th><th>Gmail</th><th>تاريخ الانضمام</th><th>الحالة</th><th>الإجراءات</th></tr></thead>";
     const body = document.createElement("tbody");
     students.forEach((student) => {
       const row = document.createElement("tr");
-      [
-        student.name || "—",
-        student.studentCode || "—",
-        student.email || "—",
-        formatDate(student.createdAt),
-      ].forEach((value) => {
+      [student.name || "—", student.studentCode || "—", student.email || "—", formatDate(student.createdAt)].forEach((value) => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.appendChild(cell);
       });
       const statusCell = document.createElement("td");
       const status = document.createElement("span");
-      status.className = "badge badge-success";
+      status.className = student.status === "REJECTED" ? "badge badge-danger" : "badge badge-success";
       status.textContent = student.status || "APPROVED";
       statusCell.appendChild(status);
       row.appendChild(statusCell);
 
       const actions = document.createElement("td");
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "btn btn-danger";
-      remove.style.cssText = "font-size:.8rem; padding:.35rem .75rem;";
-      remove.textContent =
-        deletingId === student.id ? "جارٍ الحذف..." : "حذف الطالب";
-      remove.disabled = Boolean(deletingId);
-      remove.addEventListener("click", () => deleteStudent(student));
-      actions.appendChild(remove);
+      const targetStatus = student.status === "APPROVED" ? "REJECTED" : student.status === "REJECTED" ? "APPROVED" : null;
+      if (targetStatus) {
+        const statusButton = document.createElement("button");
+        statusButton.type = "button";
+        statusButton.className = targetStatus === "REJECTED" ? "btn btn-danger" : "btn btn-primary";
+        statusButton.style.cssText = "font-size:.8rem; padding:.35rem .75rem;";
+        statusButton.textContent = updatingId === student.id ? "Updating..." : targetStatus === "REJECTED" ? "Disactive" : "Active";
+        statusButton.disabled = Boolean(updatingId);
+        statusButton.addEventListener("click", () => updateStudentStatus(student, targetStatus));
+        actions.appendChild(statusButton);
+      }
       row.appendChild(actions);
       body.appendChild(row);
     });
@@ -100,67 +89,57 @@ export function initStudentsPage({
   };
 
   const loadCount = async () => {
-    const data = await fetchJson(`${API_BASE}/students/count`, {
-      headers: authHeaders(),
-    });
+    const data = await fetchJson(`${API_BASE}/students/count`, { headers: authHeaders() });
     count.textContent = String(data?.data?.count ?? 0);
   };
 
   const loadStudents = async (requestedPage = 1) => {
     list.innerHTML = skeletonLines(5);
     try {
-      const params = new URLSearchParams({
-        page: String(requestedPage),
-        limit: "50",
-      });
+      const params = new URLSearchParams({ page: String(requestedPage), limit: "50" });
       const query = String(searchInput.value || "").trim();
       if (query) params.set("search", query);
-      const data = await fetchJson(
-        `${API_BASE}/students?${params.toString()}`,
-        { headers: authHeaders() },
-      );
+      const data = await fetchJson(`${API_BASE}/students?${params.toString()}`, { headers: authHeaders() });
       students = Array.isArray(data?.data?.students) ? data.data.students : [];
       pageInfo = data?.data?.pagination || pageInfo;
       page = pageInfo.page || requestedPage;
-      if (!students.length && page > 1 && pageInfo.total > 0)
-        return loadStudents(page - 1);
+      if (!students.length && page > 1 && pageInfo.total > 0) return loadStudents(page - 1);
       renderStudents();
     } catch (error) {
       students = [];
-      list.innerHTML = skeletonError(
-        "تعذر تحميل الطلاب المقبولين، حاولي مرة أخرى.",
-        "إعادة المحاولة",
-      );
-      list
-        .querySelector(".skeleton-retry-btn")
-        ?.addEventListener("click", () => loadStudents());
+      list.innerHTML = skeletonError("تعذر تحميل الطلاب، حاولي مرة أخرى.", "إعادة المحاولة");
+      list.querySelector(".skeleton-retry-btn")?.addEventListener("click", () => loadStudents());
       pagination.replaceChildren();
       showToast(error.message, "danger");
     }
   };
 
-  const deleteStudent = async (student) => {
-    if (deletingId) return;
+  const updateStudentStatus = async (student, targetStatus) => {
+    if (updatingId) return;
+    const isDeactivating = targetStatus === "REJECTED";
     const confirmed = await window.showConfirmModal?.(
-      "هل أنت متأكد من حذف هذا الطالب؟",
-      { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+      isDeactivating ? "Are you sure you want to deactivate this student?" : "Are you sure you want to activate this student?",
+      { isDestructive: isDeactivating, confirmText: isDeactivating ? "Disactive" : "Active", cancelText: "Cancel" },
     );
     if (!confirmed) return;
-    deletingId = student.id;
+    updatingId = student.id;
     renderStudents();
     try {
-      await fetchJson(
-        `${API_BASE}/students/${encodeURIComponent(student.id)}`,
-        {
-          method: "DELETE",
-          headers: authHeaders(),
-        },
-      );
-      showToast("تم حذف الطالب بنجاح.", "success");
-      deletingId = "";
-      await Promise.all([loadCount(), loadStudents(page)]);
+      const data = await fetchJson(`${API_BASE}/students/${encodeURIComponent(student.id)}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+      const updatedStudent = data?.data?.student;
+      if (updatedStudent?.id === student.id) {
+        students = students.map((current) => current.id === student.id ? updatedStudent : current);
+      }
+      updatingId = "";
+      renderStudents();
+      loadCount().catch(() => {});
+      showToast(isDeactivating ? "Student deactivated successfully." : "Student activated successfully.", "success");
     } catch (error) {
-      deletingId = "";
+      updatingId = "";
       renderStudents();
       showToast(error.message, "danger");
     }
