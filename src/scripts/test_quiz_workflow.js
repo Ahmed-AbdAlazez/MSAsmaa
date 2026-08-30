@@ -39,6 +39,16 @@ storageService.uploadQuizImage = async (buffer, mimeType, quizId) =>
 storageService.getQuizImageSignedUrl = async (filePath) =>
   `https://signed.test/${filePath}?token=fake`;
 
+// Quiz publication normally notifies every approved student. This suite
+// replaces that publisher before app.js is loaded so QA never sends dummy
+// notifications to real users.
+const notificationService = require("../services/notifications.service.js");
+const testNotifications = [];
+notificationService.createNotificationForApprovedStudents = async (notice) => {
+  testNotifications.push(notice);
+  return { count: 0 };
+};
+
 /* Seed fake display names + course roster (test-only overlay helpers).
    COURSE is unique per run: quiz rows now PERSIST in Neon, so a fixed
    courseId would let previous runs' released quizzes inflate the exact
@@ -48,9 +58,14 @@ const {
   setStudentNameForTesting,
   setCourseRosterForTesting,
 } = require("../services/quiz.stub.service.js");
-setStudentNameForTesting("student-a", "سارة أحمد");
-setStudentNameForTesting("student-c", "منى خالد");
-setCourseRosterForTesting(COURSE, ["student-a", "student-c", "student-z"]);
+const { prisma } = require("../config/db.js");
+const crypto = require("crypto");
+const QA_USERS = {
+  studentA: crypto.randomUUID(),
+  studentB: crypto.randomUUID(),
+  studentC: crypto.randomUUID(),
+  studentZ: crypto.randomUUID(),
+};
 
 // NOTE: the REAL Express app lives in the project ROOT (app.js) — that is
 // what server.js and api/index.js run. There is an older duplicate copy at
@@ -158,10 +173,25 @@ async function runTests() {
     });
   });
 
+  // The enrollment service checks real user rows. Create isolated, approved
+  // fixtures for this run and delete them in finally; the pending user is the
+  // explicit “not enrolled” case.
+  await prisma.user.createMany({
+    data: [
+      { id: QA_USERS.studentA, studentCode: `B${Date.now()}1`, name: "QA Student A", password: "qa-only", role: "STUDENT", status: "APPROVED" },
+      { id: QA_USERS.studentB, studentCode: `B${Date.now()}2`, name: "QA Student B", password: "qa-only", role: "STUDENT", status: "PENDING" },
+      { id: QA_USERS.studentC, studentCode: `B${Date.now()}3`, name: "QA Student C", password: "qa-only", role: "STUDENT", status: "APPROVED" },
+      { id: QA_USERS.studentZ, studentCode: `B${Date.now()}4`, name: "QA Student Z", password: "qa-only", role: "STUDENT", status: "APPROVED" },
+    ],
+  });
+  setStudentNameForTesting(QA_USERS.studentA, "سارة أحمد");
+  setStudentNameForTesting(QA_USERS.studentC, "منى خالد");
+  setCourseRosterForTesting(COURSE, [QA_USERS.studentA, QA_USERS.studentC, QA_USERS.studentZ]);
+
   const teacher = tokenFor("teacher-t1", "TEACHER");
-  const studentA = tokenFor("student-a", "STUDENT");
-  const studentB = tokenFor("student-2", "STUDENT"); // enrollment stub DENIES this id
-  const studentC = tokenFor("student-c", "STUDENT");
+  const studentA = tokenFor(QA_USERS.studentA, "STUDENT");
+  const studentB = tokenFor(QA_USERS.studentB, "STUDENT");
+  const studentC = tokenFor(QA_USERS.studentC, "STUDENT");
 
   // Fresh timestamp on EVERY call — quiz windows are relative to when each
   // quiz is created, not to when the script started.
@@ -281,7 +311,11 @@ async function runTests() {
     const start1 = await req("POST", `/api/quizzes/${quiz1}/start`, {
       token: studentA,
     });
-    check("enrolled student starts -> 201/started", start1.status === 201 && start1.data.status === "started");
+    check(
+      "enrolled student starts -> 201/started",
+      start1.status === 201 && start1.data.status === "started",
+      JSON.stringify(start1.data),
+    );
     check(
       "server recorded start + personal deadline",
       Boolean(start1.data.startedAt && start1.data.personalDeadline)
@@ -407,7 +441,7 @@ async function runTests() {
       { token: teacher }
     );
     const earlyRowA = courseLbEarly.data.rankings.find(
-      (row) => row.studentId === "student-a"
+      (row) => row.studentId === QA_USERS.studentA
     );
     check(
       "course board shows student-a with ZERO until quiz releases (score hidden, not excluded)",
@@ -463,7 +497,7 @@ async function runTests() {
 
     const granted = await req(
       "POST",
-      `/api/quizzes/${quiz6}/students/student-c/grant-retry`,
+      `/api/quizzes/${quiz6}/students/${QA_USERS.studentC}/grant-retry`,
       { token: teacher }
     );
     check("teacher grants retry -> allowance 2", granted.data.allowedAttempts === 2);
@@ -479,7 +513,7 @@ async function runTests() {
       token: teacher,
     });
     const student6Row = results6.data.students.find(
-      (row) => row.studentId === "student-c"
+      (row) => row.studentId === QA_USERS.studentC
     );
     check(
       "BOTH attempts stored & visible to teacher (0 then 1)",
@@ -832,13 +866,13 @@ async function runTests() {
     check(
       "released:true and best score (1) ranked, worst (0) ignored",
       lb6.data.released === true &&
-        lb6.data.rankings.find((r) => r.studentId === "student-c").bestScore === 1,
+        lb6.data.rankings.find((r) => r.studentId === QA_USERS.studentC).bestScore === 1,
       JSON.stringify(lb6.data.rankings)
     );
     const lb3 = await req("GET", `/api/quizzes/${quiz3}/leaderboard`, {
       token: studentA,
     });
-    const row3 = lb3.data.rankings.find((r) => r.studentId === "student-a");
+    const row3 = lb3.data.rankings.find((r) => r.studentId === QA_USERS.studentA);
     check(
       "real names shown; rank computed",
       lb3.data.released === true && row3.bestScore === 1 && row3.studentName === "سارة أحمد" && row3.rank === 1
@@ -858,8 +892,8 @@ async function runTests() {
     const courseLb = await req("GET", `/api/courses/${COURSE}/leaderboard`, {
       token: teacher,
     });
-    const rowA = courseLb.data.rankings.find((r) => r.studentId === "student-a");
-    const rowC = courseLb.data.rankings.find((r) => r.studentId === "student-c");
+    const rowA = courseLb.data.rankings.find((r) => r.studentId === QA_USERS.studentA);
+    const rowC = courseLb.data.rankings.find((r) => r.studentId === QA_USERS.studentC);
     // Released by now: quiz1(1) + quiz3(1) + quiz6(0 for A, never took it)
     // = 2. quiz2/quiz5 windows are still open -> excluded as pending.
     check(
@@ -932,18 +966,10 @@ async function runTests() {
       body: { type: "written", text: "سؤال", modelAnswer: "نموذج" },
     });
 
-    // The notifications stub's biology roster contains "student-1" - check
-    // THAT student's bell (same shared helper the video feature uses).
-    const student1 = tokenFor("student-1", "STUDENT");
-    const notifList = await req("GET", "/api/notifications", {
-      token: student1,
-    });
     check(
-      "enrolled student's bell shows the new-quiz notification",
-      notifList.status === 200 &&
-        notifList.data.notifications.some((n) =>
-          n.message.includes("اختبار الإشعارات")),
-      JSON.stringify(notifList.data.notifications)
+      "publishing a quiz requests a notification for approved students",
+      testNotifications.some((notice) => notice.message.includes("اختبار الإشعارات")),
+      JSON.stringify(testNotifications)
     );
 
     /* ================================================================
@@ -1042,18 +1068,13 @@ async function runTests() {
   } finally {
     server.close();
 
-    // Self-cleanup: TEST 12 publishes a quiz into the REAL "biology" course
-    // (required by the notifications stub's hardcoded roster). Delete it so
-    // repeated runs never leave residue in the live exams feed.
+    // Self-cleanup: all quizzes use this run's unique course and all fixture
+    // accounts use generated UUIDs. Cascades remove answers/mistakes first.
     try {
-      const { PrismaClient } = require("@prisma/client");
-      const prisma = new PrismaClient();
-      if (typeof notifQuiz === "string" && notifQuiz) {
-        const removed = await prisma.quiz
-          .deleteMany({ where: { id: notifQuiz, courseId: "biology", title: "اختبار الإشعارات" } })
-          .catch(() => ({ count: 0 }));
-        if (removed.count) console.log("[cleanup] removed TEST 12 quiz from biology course");
-      }
+      await prisma.quiz.deleteMany({ where: { courseId: COURSE } });
+      await prisma.user.deleteMany({
+        where: { id: { in: Object.values(QA_USERS) } },
+      });
       await prisma.$disconnect();
     } catch (_) {
       /* cleanup is best-effort; never mask test results */

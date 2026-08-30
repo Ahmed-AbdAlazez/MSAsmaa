@@ -324,8 +324,15 @@ async function runTests() {
       },
     });
     console.log('POST /api/v1/auth/login (REJECTED):', rejectedLoginRes.status, rejectedLoginRes.body);
-    if (rejectedLoginRes.status !== 403) {
-      throw new Error('Rejected student should be forbidden from logging in (403 expected)');
+    // Rejection deletes the pending registration record so the same student
+    // can correct their details and submit a fresh request.  A subsequent
+    // login must therefore be rejected as an unknown account, with the same
+    // safe Arabic message used for all invalid credentials.
+    if (
+      rejectedLoginRes.status !== 401 ||
+      rejectedLoginRes.body.message !== 'بيانات الدخول غير صحيحة.'
+    ) {
+      throw new Error('Rejected registration should no longer be able to log in safely');
     }
 
     console.log('\n==============================================');
