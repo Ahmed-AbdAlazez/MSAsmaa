@@ -15,8 +15,21 @@
   <title>إدارة الطلاب | منصة المرسال</title>
   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-BiZckyoG.ico?v=2">
   <link rel="icon" type="image/png" href="/assets/favicon-NYif2_Ic.png?v=2">
-  <script type="module" crossorigin src="/assets/main-Dn5YO32J.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/main-DaY3wVYw.css">
+  <script>
+    // Auth bootstrap: runs before first paint so logged-in users never catch
+    // even one frame of the logged-out CTA buttons. Mirrors the token check
+    // the navbar uses (the stored JWT is the single source of truth).
+    (function () {
+      try {
+        var a = !!localStorage.getItem("token");
+        document.documentElement.setAttribute("data-auth", a ? "in" : "out");
+      } catch (e) {
+        document.documentElement.setAttribute("data-auth", "out");
+      }
+    })();
+  </script>
+  <script type="module" crossorigin src="/assets/main-OKJYbDzk.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/main-DqtRPu6A.css">
 </head>
 <body>
   <nav class="navbar"></nav>

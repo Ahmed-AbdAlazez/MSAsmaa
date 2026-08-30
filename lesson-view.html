@@ -24,6 +24,19 @@
   <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/exams.css">
+  <script>
+    // Auth bootstrap: runs before first paint so logged-in users never catch
+    // even one frame of the logged-out CTA buttons. Mirrors the token check
+    // the navbar uses (the stored JWT is the single source of truth).
+    (function () {
+      try {
+        var a = !!localStorage.getItem("token");
+        document.documentElement.setAttribute("data-auth", a ? "in" : "out");
+      } catch (e) {
+        document.documentElement.setAttribute("data-auth", "out");
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -72,18 +85,6 @@
           <div id="lesson-video-chapters-list" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
         </div>
 
-
-        <!-- Inline PDF Viewer: same-origin backend proxy + native browser
-             PDF renderer, identical behaviour on desktop and mobile. -->
-        <div class="lesson-pdf-viewer" id="lesson-pdf-viewer" hidden>
-          <div class="lesson-pdf-viewer-header">
-            <span class="lesson-pdf-viewer-title" id="lesson-pdf-viewer-title"></span>
-            <button type="button" class="btn btn-secondary lesson-pdf-viewer-close" id="lesson-pdf-viewer-close">إغلاق ✕</button>
-          </div>
-          <div class="lesson-pdf-canvas-wrap">
-            <iframe id="lesson-pdf-frame" title="عرض الملف PDF" src="about:blank"></iframe>
-          </div>
-        </div>
 
         <!-- Lesson Tabs Switcher -->
         <div class="lesson-tabs">
@@ -156,6 +157,7 @@
       <div class="footer-bottom">
         <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
         <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+        <p class="footer-credit">صُنع بواسطة <button type="button" class="footer-credit-link js-footer-credit">فريق العمل</button></p>
       </div>
     </div>
   </footer>
