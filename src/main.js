@@ -3132,6 +3132,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       };
 
+      // Render the seeded markers immediately so the running list matches the
+      // counter on first open (previously only updated after add/edit/delete).
+      renderList();
+
       const commitMarker = () => {
         const title = titleInput.value.trim();
         const timeStr = timeInput.value.trim();

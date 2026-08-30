@@ -1073,9 +1073,14 @@ html[dir="rtl"] .scroll-progress-fill {
     gap: 3rem;
   }
 
-  .hero-content,
+  .hero-content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .hero-media {
     grid-column: 1;
+    grid-row: 2;
   }
 
   .hero-actions {
@@ -3221,6 +3226,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   /* Hero photo (right column) on mobile: centered, smaller, photo below text */
   .hero-media {
     min-height: 0;
+    margin-top: 0.5rem;
   }
 
   .hero-photo-wrap {
@@ -3343,6 +3349,34 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 
   .hero-title {
     font-size: 1.8rem;
+  }
+
+  /* Small phones: photo fills the width nicely and clutter is trimmed so the
+     hero stays a clean single column (badge → headline → photo → description → buttons). */
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .hero-photo-wrap {
+    width: min(280px, 74vw);
+  }
+
+  .hero-blob-1 {
+    width: 210px;
+    height: 200px;
+  }
+
+  .hero-blob-2,
+  .hero-blob-3 {
+    display: none;
+  }
+
+  .hero-float-badge {
+    width: 2.3rem;
+    height: 2.3rem;
+    font-size: 1rem;
   }
 
   .stat-card {
