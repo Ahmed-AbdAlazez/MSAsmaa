@@ -1376,6 +1376,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const userRole = localStorage.getItem("userRole");
     const username = localStorage.getItem("username") || "";
 
+    // Standalone Login/Sign-up CTAs (homepage hero, bottom CTA banner, exams
+    // gate — any element wearing .js-login-trigger outside the footer) must
+    // disappear as soon as the user is authenticated. initNavbar() (called
+    // above) swaps the navbar itself; this handles the separate page-level
+    // buttons so a logged-in visitor never sees login/signup buttons.
+    const isAuthed = Boolean(userRole && localStorage.getItem("token"));
+    document.querySelectorAll(".js-login-trigger").forEach((el) => {
+      const isFooterNav = el.classList.contains("footer-link");
+      el.style.display = isAuthed && !isFooterNav ? "none" : "";
+    });
+
     // Update any username greeting placeholders on dashboard
     const namePlaceholders = document.querySelectorAll(
       ".student-name-placeholder",

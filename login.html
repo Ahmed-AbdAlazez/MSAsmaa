@@ -23,6 +23,7 @@
   <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
   <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/mascot.css">
   <link rel="stylesheet" href="css/login.css">
 </head>
 <body data-page="login">
@@ -33,11 +34,14 @@
   <main class="auth-page">
       <div class="auth-split">
 
-        <!-- ===== LEFT VISUAL PANEL: Full-bleed photo with overlay scrim and text ===== -->
+        <!-- ===== LEFT VISUAL PANEL: Sama mascot on brand green ===== -->
         <section class="auth-visual" aria-hidden="false">
-          <img src="ms.login.png" alt="منصة المرسال" class="auth-visual-bg">
-          <div class="auth-visual-scrim"></div>
           <div class="auth-visual-inner">
+            <div class="auth-mascot-wrap">
+              <!-- "Sama" mascot (js/components/samaMascot.js renders the SVG here),
+                   the same component that lives in the homepage hero. -->
+              <div data-sama-mascot></div>
+            </div>
             <h2 class="auth-visual-title" id="auth-welcome-title">أهلاً بيك تاني! 👋</h2>
             <p class="auth-visual-sub" id="auth-welcome-sub">سجّل الدخول وكمّل رحلتك في عالم الأحياء.</p>
             <div class="auth-visual-brand">
@@ -126,6 +130,10 @@
   </footer>
 
 
+
+  <!-- Sama mascot + eye tracking (mascot must load before its effects) -->
+  <script src="/js/components/samaMascot.js"></script>
+  <script src="/js/components/mascotEyeTracking.js"></script>
 
   <script src="/js/profile-menu.js"></script>
   <script type="module" src="/src/main.js"></script>
