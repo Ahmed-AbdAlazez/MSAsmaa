@@ -1490,6 +1490,41 @@ html[dir="rtl"] .scroll-progress-fill {
 .sc-badge.active { color: #04131f; background: var(--sc-accent); border: 1px solid var(--sc-accent); }
 .sc-badge.soon { color: #b7c4d6; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); }
 
+/* leaderboard mini-rows */
+.sc-lb-rank {
+  flex-shrink: 0;
+  width: 1.55rem;
+  height: 1.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #04131f;
+}
+.sc-lb-rank.gold   { background: linear-gradient(135deg, #fde68a, #f59e0b); }
+.sc-lb-rank.silver { background: linear-gradient(135deg, #e5e7eb, #94a3b8); }
+.sc-lb-rank.bronze { background: linear-gradient(135deg, #fcd9b6, #d97706); }
+.sc-lb-rank.num {
+  background: rgba(255, 255, 255, 0.08);
+  color: #b7c4d6;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+/* live rows: highlight the logged-in student's position */
+.sc-row.lb-me {
+  border-color: var(--sc-accent);
+  background: rgba(16, 185, 129, 0.1);
+}
+.sc-lb-more {
+  text-decoration: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.sc-lb-more:hover {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.16);
+}
+
 /* video player mini */
 .sc-player { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
 .sc-play { width: 22px; height: 22px; border-radius: 50%; background: var(--sc-accent); color: #04131f; font-size: 0.55rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
