@@ -91,6 +91,73 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "login.html";
   });
 
+  // --- Team credits modal (footer "فريق العمل" link) ----------------------
+  // Uses the same custom-modal pattern as confirmations so it is visually
+  // consistent, respects light/dark via CSS variables, and stacks on mobile.
+  const openTeamModal = () => {
+    window.ensureModalStyles?.();
+
+    const githubIcon =
+      '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
+    const linkedInIcon =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/></svg>';
+
+    const socials = (name) => `
+      <div class="team-socials">
+        <!-- TODO: استبدال # بالرابط الحقيقي لحساب GitHub -->
+        <a href="#" class="team-social team-social-github" target="_blank" rel="noopener noreferrer" aria-label="GitHub · ${name}" title="GitHub">${githubIcon}</a>
+        <!-- TODO: استبدال # بالرابط الحقيقي لحساب LinkedIn -->
+        <a href="#" class="team-social team-social-linkedin" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn · ${name}" title="LinkedIn">${linkedInIcon}</a>
+      </div>`;
+
+    const card = (name) => `
+      <article class="team-card">
+        <span class="team-avatar" aria-hidden="true">🧬</span>
+        <h4>${name}</h4>
+        ${socials(name)}
+      </article>`;
+
+    const overlay = document.createElement("div");
+    overlay.className = "custom-modal-overlay";
+    overlay.innerHTML = `
+      <div class="custom-modal-panel team-modal" role="dialog" aria-modal="true" aria-labelledby="team-modal-title">
+        <button type="button" class="team-modal-close" aria-label="إغلاق" title="إغلاق">✕</button>
+        <div class="team-modal-head">
+          <h3 id="team-modal-title">فريق العمل</h3>
+          <p>من صمّم وبنى منصة المرسال</p>
+        </div>
+        <div class="team-modal-grid">
+          ${card("Ahmed Abdelaziz")}
+          ${card("Adham Zakzok")}
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    const dismiss = () => {
+      overlay.classList.remove("show");
+      setTimeout(() => overlay.remove(), 200);
+    };
+    overlay.querySelector(".team-modal-close").addEventListener("click", dismiss);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) dismiss();
+    });
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        document.removeEventListener("keydown", onKey);
+        dismiss();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+  };
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest(".js-footer-credit");
+    if (!trigger) return;
+    event.preventDefault();
+    openTeamModal();
+  });
+
   // --- Dynamic Toast System ---
   window.showToast = (message, type = "success") => {
     // Remove existing toast if visible
@@ -406,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * Prevents cryptic "Unexpected token '<' in JSON" crashes when the
    * backend is down or the request lands on a static page instead.
    * The error now names the exact URL + status so misrouted requests
-   * (Live Server / GitHub Pages hitting a non-API origin) are obvious.
+   * (static hosting / a wrong origin hitting a non-API path) are obvious.
    */
   // ------------------------------------------------------------------
   // Floating upload status card. Uploads must never lock the page: the
@@ -1678,12 +1745,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     renderSidebarLessons();
 
-    // Inline PDF viewer (markup lives in lesson-view.html).
-    const viewerPanel = document.querySelector("#lesson-pdf-viewer");
-    const viewerTitle = document.querySelector("#lesson-pdf-viewer-title");
-    const viewerFrame = document.querySelector("#lesson-pdf-frame");
-    const viewerClose = document.querySelector("#lesson-pdf-viewer-close");
-
     // Auth headers come from the shared JWT helper (authHeaders() above).
 
     // Lesson videos state (filled by applyVideosData below).
@@ -1865,83 +1926,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    // Manages a single "loading / error" placeholder node that lives inside
-    // the PDF viewer panel next to the iframe.
-    const setViewerPlaceholder = (html) => {
-      if (!viewerFrame) return;
-      let box = viewerFrame.previousElementSibling;
-      if (box && box.classList.contains("lesson-material-loading")) {
-        box.remove();
-      }
-      if (!html) return;
-      box = document.createElement("div");
-      box.className = "lesson-material-loading";
-      box.innerHTML = html;
-      viewerFrame.insertAdjacentElement("beforebegin", box);
-      return box;
-    };
-
-    /** Shows the inline PDF viewer panel with a short-lived signed URL. */
-    const openMaterialInViewer = async (material, triggerButton) => {
-      // OPEN THE PANEL INSTANTLY with the title; the frame shows a loading
-      // skeleton until the signed URL arrives. Never block appearance on
-      // the network call.
-      if (viewerTitle) viewerTitle.textContent = material.title || "ملف PDF";
-      if (viewerPanel) {
-        viewerPanel.hidden = false;
-        viewerPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-      if (viewerFrame) {
-        viewerFrame.hidden = true;
-        viewerFrame.src = "about:blank";
-      }
-      setViewerPlaceholder(skeletonRows(3));
-      try {
-        if (triggerButton) triggerButton.disabled = true;
-        const data = await fetchJson(
-          `/api/materials/${encodeURIComponent(material.id)}/download?mode=inline`,
-          { headers: authHeaders() },
-        );
-        if (!viewerPanel || !viewerFrame) {
-          window.open(data.downloadUrl, "_blank", "noopener");
-          return;
-        }
-        setViewerPlaceholder(null);
-        viewerFrame.hidden = false;
-        viewerFrame.src = data.downloadUrl;
-      } catch (error) {
-        if (viewerFrame) {
-          const box = setViewerPlaceholder(
-            skeletonError(
-              "تعذر تحميل الملف، حاولي مرة أخرى.",
-              "إعادة المحاولة",
-            ),
-          );
-          box
-            ?.querySelector(".skeleton-retry-btn")
-            ?.addEventListener("click", () =>
-              openMaterialInViewer(material, null),
-            );
-        }
-        showToast(error.message, "danger");
-      } finally {
-        if (triggerButton) triggerButton.disabled = false;
-      }
-    };
-
-    const closePdfViewer = () => {
-      if (!viewerPanel) return;
-      const box = viewerFrame && viewerFrame.previousElementSibling;
-      if (box && box.classList.contains("lesson-material-loading"))
-        box.remove();
-      viewerPanel.hidden = true;
-      if (viewerFrame) viewerFrame.src = "about:blank";
-    };
-
-    if (viewerClose && viewerPanel) {
-      viewerClose.addEventListener("click", closePdfViewer);
-    }
-
     /** Renders the PDF materials list in the sidebar. */
     const renderLessonMaterials = (materialsList) => {
       if (!materialsBox) return;
@@ -1964,15 +1948,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const actionsBox = document.createElement("div");
         actionsBox.className = "lesson-material-actions";
 
-        // عرض: renders the PDF inline beside/below the video player.
-        const viewButton = document.createElement("button");
-        viewButton.className = "btn btn-secondary lesson-material-download";
-        viewButton.type = "button";
-        viewButton.textContent = "عرض";
-        viewButton.addEventListener("click", () =>
-          openMaterialInViewer(material, viewButton),
-        );
-
         const downloadButton = document.createElement("button");
         downloadButton.className = "btn btn-secondary lesson-material-download";
         downloadButton.type = "button";
@@ -1994,7 +1969,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
 
-        actionsBox.append(viewButton, downloadButton);
+        actionsBox.append(downloadButton);
         row.append(title, actionsBox);
         materialsBox.appendChild(row);
       });

@@ -2491,56 +2491,160 @@ html[dir="rtl"] .scroll-progress-fill {
   flex: 0 0 auto;
 }
 
-/* Inline PDF Viewer panel that opens under the lesson video */
-.lesson-pdf-viewer {
-  margin-top: 1.25rem;
+/* ============================================================
+   Auth-bootstrap CTA hiding
+   The tiny inline head script stamps data-auth on <html> before
+   first paint; these rules make the logged-out-only buttons (hero,
+   banner, exams gate) invisible for authenticated users from frame
+   #1 — no flash while the main bundle boots. The "بوابة الدخول"
+   footer link intentionally stays for everyone.
+   ============================================================ */
+html[data-auth="in"] .js-login-trigger:not(.footer-link) {
+  display: none !important;
+}
+
+/* ============================================================
+   Footer team-credit link + team modal (populated by src/main.js)
+   ============================================================ */
+.footer-credit {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.footer-credit-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-inline-start: 0.15rem;
+  font: inherit;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.footer-credit-link:hover {
+  color: var(--color-primary-ink);
+}
+
+.team-modal {
+  position: relative;
+  text-align: center;
+}
+
+.team-modal-close {
+  position: absolute;
+  top: 1rem;
+  inset-inline-end: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 50%;
+}
+
+.team-modal-close:hover {
+  color: var(--color-heading);
+  background: var(--color-primary-ghost);
+}
+
+.team-modal-head h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+  color: var(--color-heading);
+}
+
+.team-modal-head p {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.team-modal-grid {
+  display: flex;
+  gap: 1rem;
+}
+
+.team-card {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.3rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  background: var(--color-surface);
 }
 
-.lesson-pdf-viewer-header {
+.team-avatar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background-color: var(--color-primary-ghost);
-  border-bottom: 1px solid var(--color-border);
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.4rem;
+  border-radius: 50%;
+  background: var(--color-primary-ghost);
 }
 
-.lesson-pdf-viewer-title {
+.team-card h4 {
+  margin: 0;
+  font-size: 1rem;
   font-weight: 700;
-  font-size: 0.9rem;
   color: var(--color-heading);
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
-.lesson-pdf-viewer-close {
-  padding: 0.3rem 0.7rem;
-  font-size: 0.8rem;
-  flex: 0 0 auto;
+.team-socials {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
 }
 
-/* Native inline PDF viewer: a plain <iframe> fed by the same-origin backend
-   proxy, so the browser/OS PDF renderer displays it on desktop AND mobile
-   without ever navigating to the storage domain. */
-.lesson-pdf-canvas-wrap {
-  min-height: 280px;
-  max-height: min(80vh, 900px);
-  padding: 0;
-  background-color: var(--color-bg);
+.team-social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.lesson-pdf-canvas-wrap iframe {
-  display: block;
-  width: 100%;
-  height: min(80vh, 900px);
-  border: 0;
-  background-color: var(--color-surface);
+.team-social svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.team-social:hover {
+  transform: translateY(-2px);
+}
+
+.team-social-github:hover {
+  color: #ffffff;
+  background: #181717;
+  border-color: #181717;
+}
+
+.team-social-linkedin:hover {
+  color: #ffffff;
+  background: #0a66c2;
+  border-color: #0a66c2;
+}
+
+@media (max-width: 500px) {
+  .team-modal-grid {
+    flex-direction: column;
+  }
 }
 
 /* Teacher Notes */

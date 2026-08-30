@@ -24,6 +24,19 @@
   <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/mascot.css">
+  <script>
+    // Auth bootstrap: runs before first paint so logged-in users never catch
+    // even one frame of the logged-out CTA buttons. Mirrors the token check
+    // the navbar uses (the stored JWT is the single source of truth).
+    (function () {
+      try {
+        var a = !!localStorage.getItem("token");
+        document.documentElement.setAttribute("data-auth", a ? "in" : "out");
+      } catch (e) {
+        document.documentElement.setAttribute("data-auth", "out");
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -283,6 +296,7 @@
       <div class="footer-bottom">
         <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
         <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+        <p class="footer-credit">صُنع بواسطة <button type="button" class="footer-credit-link js-footer-credit">فريق العمل</button></p>
       </div>
     </div>
   </footer>
