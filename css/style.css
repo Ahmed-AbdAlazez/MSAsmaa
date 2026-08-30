@@ -1339,6 +1339,96 @@ html[dir="rtl"] .scroll-progress-fill {
   font-size: 1.2rem;
 }
 
+/* Feature cards (link-styled cards with a lift-on-hover effect) */
+.features-section .feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-decoration: none;
+  color: inherit;
+  will-change: transform;
+}
+
+.features-section .feature-card:hover {
+  transform: scale(1.04) translateY(-4px);
+  box-shadow: 0 26px 50px rgba(15, 76, 58, 0.18);
+  border-color: rgba(16, 185, 129, 0.38);
+}
+
+.feature-card-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 150px;
+  margin-bottom: 1.25rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 58%, var(--color-accent-blue) 100%);
+  color: #fff;
+  font-size: 3.2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card-media::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 60%);
+  transform: rotate(30deg);
+}
+
+[data-theme="dark"] .feature-card-media {
+  background: linear-gradient(135deg, #166a51 0%, #34d399 58%, #22d3ee 100%);
+}
+
+/* Floating WhatsApp support button (site-wide persistent widget) */
+.whatsapp-float {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #25d366;
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.38);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  text-decoration: none;
+}
+
+.whatsapp-float svg {
+  width: 30px;
+  height: 30px;
+  fill: #fff;
+}
+
+.whatsapp-float:hover {
+  transform: scale(1.1);
+  box-shadow: 0 14px 30px rgba(37, 211, 102, 0.55);
+}
+
+[data-theme="dark"] .whatsapp-float {
+  box-shadow: 0 10px 24px rgba(37, 211, 102, 0.5);
+}
+
+@media (max-width: 480px) {
+  .whatsapp-float {
+    width: 52px;
+    height: 52px;
+  }
+  .whatsapp-float svg {
+    width: 27px;
+    height: 27px;
+  }
+}
+
 .progress-bar-container {
   width: 100%;
   height: 8px;

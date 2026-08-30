@@ -1371,7 +1371,42 @@ document.addEventListener("DOMContentLoaded", () => {
   // Populate auth placeholders dynamically
   const updateAuthUI = () => {
     // Reinitialize the entire navbar (switches between minimal and full navbar)
-    reinitializeNavbarUI();
+  reinitializeNavbarUI();
+
+  // --- Floating WhatsApp support button (site-wide persistent widget) ---
+  // Injected here so it appears on every page that loads main.js without
+  // duplicating markup in each HTML file.
+  const injectWhatsAppButton = () => {
+    if (document.querySelector(".whatsapp-float")) return;
+    const a = document.createElement("a");
+    a.className = "whatsapp-float";
+    a.href = "https://wa.me/201009537600";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.setAttribute("aria-label", "تواصل معنا عبر واتساب");
+    a.title = "تواصل معنا عبر واتساب";
+    a.innerHTML =
+      '<svg viewBox="0 0 448 512" aria-hidden="true">' +
+      '<path d="' +
+      'M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 ' +
+      '0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 ' +
+      '27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 ' +
+      '341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5' +
+      '-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 ' +
+      '19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6' +
+      '-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8' +
+      '-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3' +
+      '-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4' +
+      '-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2' +
+      '-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 ' +
+      '19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 ' +
+      '66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3' +
+      '-2.5-5-3.9-10.5-6.6z"' +
+      '/></svg>';
+    document.body.appendChild(a);
+  };
+  injectWhatsAppButton();
+
 
     const userRole = localStorage.getItem("userRole");
     const username = localStorage.getItem("username") || "";
@@ -1677,11 +1712,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let lessonVideos = [];
     let currentVideoIdx = 0;
 
-    /** "75" seconds -> "1:15" for the player overlay. */
+    /** "75" seconds -> "1:15"; "3930" seconds -> "1:05:30" (hours omitted when 0). */
     const formatDuration = (totalSeconds) => {
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = Math.floor(totalSeconds % 60);
-      return `${minutes}:${String(seconds).padStart(2, "0")}`;
+      const total = Math.max(0, Math.floor(totalSeconds));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      const ss = String(seconds).padStart(2, "0");
+      if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${ss}`;
+      }
+      return `${minutes}:${ss}`;
     };
 
     /** Swaps the mock overlay for the Bunny embed player iframe. */
@@ -2938,28 +2979,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }))
         .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
 
-      // Parse time inputs like "mm:ss", "m:ss", or raw seconds to integer seconds
+      // Parse time inputs like "hh:mm:ss", "mm:ss", "m:ss", or raw seconds to
+      // integer total-seconds. Accepts any number of colon-separated parts
+      // (leftmost is the largest unit), so hour values work too.
       const parseTimeInput = (str) => {
         const cleaned = str.trim();
         if (!cleaned) return null;
 
         if (cleaned.includes(":")) {
           const parts = cleaned.split(":");
-          if (parts.length === 2) {
-            const m = parseInt(parts[0], 10);
-            const s = parseInt(parts[1], 10);
-            if (!isNaN(m) && !isNaN(s) && m >= 0 && s >= 0 && s < 60) {
-              return m * 60 + s;
-            }
+          if (parts.length === 0 || parts.length > 3) return null;
+          let secs = 0;
+          for (let i = 0; i < parts.length; i++) {
+            const piece = parts[i].trim();
+            if (!/^\d+$/.test(piece)) return null;
+            const val = parseInt(piece, 10);
+            secs = secs * 60 + val;
           }
-          return null;
+          return secs;
         }
 
-        const s = parseInt(cleaned, 10);
-        if (!isNaN(s) && s >= 0) {
-          return s;
-        }
-        return null;
+        if (!/^\d+$/.test(cleaned)) return null;
+        return parseInt(cleaned, 10);
       };
 
       const wrap = document.createElement("div");
@@ -2990,7 +3031,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `</div>` +
         `<div style="flex:1; min-width:110px; display:flex; flex-direction:column; gap:0.35rem;">` +
           `<label for="marker-time-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">الوقت (دقيقة:ثانية)</label>` +
-          `<input id="marker-time-input" type="text" placeholder="مثال: 3:20" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
+          `<input id="marker-time-input" type="text" placeholder="مثال: 3:20 أو 1:05:30" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
         `</div>` +
         `<div style="flex-shrink:0;">` +
           `<button type="button" id="marker-add-btn" class="btn btn-primary" style="font-size:0.85rem; padding:0.45rem 1.2rem; border-radius:var(--radius-sm); height:37px;">🚩 إضافة علامة</button>` +
@@ -3067,7 +3108,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   }
                   const secs = parseTimeInput(newTimeStr);
                   if (secs === null) {
-                    showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20).", "warning");
+                    showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30).", "warning");
                     return;
                   }
                   if (videoObj.lengthSeconds && secs > videoObj.lengthSeconds) {
@@ -3129,7 +3170,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const secs = parseTimeInput(timeStr);
         if (secs === null) {
-          showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ثواني فقط.", "warning");
+          showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30) أو ثواني فقط.", "warning");
           timeInput.focus();
           return;
         }
