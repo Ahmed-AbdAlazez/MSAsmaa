@@ -194,6 +194,9 @@ body {
   flex-direction: column;
   position: relative;
   isolation: isolate;
+  /* Safety net: no document-level horizontal scrollbar from stray absolute
+     dropdowns/fixed panels; data tables scroll inside their own wrappers. */
+  overflow-x: clip;
 }
 
 body::before,
@@ -1986,7 +1989,7 @@ html[dir="rtl"] .scroll-progress-fill {
 .mistake-card { padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--surface-glass); box-shadow: 0 8px 20px rgba(15, 23, 42, .04); }
 .mistake-card h2 { font-size: 1.05rem; line-height: 1.7; margin: .45rem 0 1rem; color: var(--color-heading); }
 .mistake-exam { color: var(--color-text-muted); margin: 0; }
-.mistake-answer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .85rem; margin-top: .55rem; border-radius: var(--radius-md); }
+.mistake-answer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .85rem; margin-top: .55rem; border-radius: var(--radius-md); flex-wrap: wrap; }
 .mistake-answer.wrong { background: rgba(239, 68, 68, .09); color: #b91c1c; }
 .mistake-answer.correct { background: rgba(16, 185, 129, .1); color: var(--color-primary-ink); }
 .mistake-card time { display: block; margin-top: .85rem; color: var(--color-text-muted); font-size: .85rem; }
@@ -3187,8 +3190,8 @@ html[dir="rtl"] .scroll-progress-fill {
   }
 
   .notification-menu {
-    left: auto;
-    right: -4rem;
+    right: auto;
+    left: 0;
   }
 
   .grid-2 > .card[style*="grid-column: span 2"] {
@@ -3220,7 +3223,8 @@ html[dir="rtl"] .scroll-progress-fill {
   }
 
   .notification-menu {
-    right: -5.5rem;
+    left: 0;
+    right: auto;
     width: min(19rem, calc(100vw - 1.5rem));
   }
 
@@ -3324,8 +3328,12 @@ html[dir="rtl"] .scroll-progress-fill {
 .profile-dropdown {
   position: absolute;
   top: calc(100% + 0.6rem);
-  inset-inline-start: 0;
-  width: 13.5rem;
+  /* RTL-safe: the avatar chip sits at the inline-end (left edge) of the
+     nav bar, so anchor the dropdown there and let it open toward the
+     screen centre — never off-viewport. */
+  inset-inline-end: 0;
+  inset-inline-start: auto;
+  width: min(13.5rem, calc(100vw - 2rem));
   padding: 0.5rem;
   background: var(--surface-solid);
   border: 1px solid var(--color-border);

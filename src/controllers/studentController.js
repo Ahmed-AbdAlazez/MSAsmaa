@@ -1,6 +1,7 @@
 const { prisma } = require('../config/db');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
+const quizService = require('../services/quiz.stub.service.js');
 
 // This is deliberately an allow-list. Authentication fields must never leave
 // the API when a teacher views students.
@@ -136,4 +137,97 @@ const deleteStudent = catchAsync(async (req, res, next) => {
   });
 });
 
-module.exports = { getApprovedStudentCount, getApprovedStudents, updateStudentStatus };
+/**
+ * GET /api/v1/students/:id/performance - teacher-only student record view.
+ *
+ * Returns every exam grade + recorded mistake for ONE student, but ONLY for
+ * quizzes created by the requesting teacher (ownership is enforced by scoping
+ * on createdByTeacherId). Ungated by exam end_time on purpose — a teacher may
+ * inspect a student's results & mistakes at any moment.
+ */
+const getStudentPerformance = catchAsync(async (req, res, next) => {
+  const studentId = String(req.params.id || '').trim();
+
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: safeStudentSelect,
+  });
+  if (!student || student.role !== 'STUDENT') {
+    return next(new AppError('لا يوجد طالب بالمعرّف المحدد.', 404));
+  }
+
+  // Ownership scope: only quizzes this teacher created may be reported.
+  const teacherQuizzes = await quizService.getTeacherQuizzes(req.user.id);
+  const ownedQuizIds = new Set(teacherQuizzes.map((q) => q.id));
+
+  // Grades come from the attempt rows for quizzes owned by the teacher.
+  const ownedAttempts = (await quizService.listAttemptsForStudent(studentId))
+    .filter((a) => ownedQuizIds.has(a.quizId))
+    .sort(
+      (a, b) =>
+        Date.parse(b.submittedAt || b.startedAt) -
+        Date.parse(a.submittedAt || a.startedAt),
+    );
+
+  const quizById = new Map(teacherQuizzes.map((q) => [q.id, q]));
+  const grades = ownedAttempts.map((attempt) => {
+    const quiz = quizById.get(attempt.quizId) || {};
+    const totalMcq = attempt.totalMcq || 0;
+    return {
+      resultId: attempt.id,
+      quizId: attempt.quizId,
+      quizTitle: quiz.title || 'اختبار',
+      lessonId: quiz.lessonId || null,
+      isMixed: Boolean(quiz.isMixed),
+      attemptNumber: attempt.attemptNumber,
+      status: attempt.status,
+      score: attempt.score,
+      totalMcq,
+      percent: totalMcq > 0 ? Math.round(((attempt.score || 0) / totalMcq) * 100) : null,
+      startedAt: attempt.startedAt,
+      submittedAt: attempt.submittedAt,
+      submissionReason: attempt.submissionReason,
+    };
+  });
+
+  // Mistakes, scoped to the teacher's own quizzes (same ownership rule).
+  const mistakes = await prisma.studentMistake.findMany({
+    where: { studentId, quizId: { in: [...ownedQuizIds] } },
+    orderBy: { createdAt: 'desc' },
+    take: 300,
+    include: { quiz: { select: { title: true } }, question: { select: { text: true } } },
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      student: {
+        id: student.id,
+        name: student.name,
+        studentCode: student.studentCode,
+        email: student.email,
+        status: student.status,
+        createdAt: student.createdAt,
+      },
+      ownedQuizCount: teacherQuizzes.length,
+      grades,
+      mistakes: mistakes.map((mistake) => ({
+        id: mistake.id,
+        quizId: mistake.quizId,
+        quizTitle: mistake.quiz.title,
+        questionId: mistake.questionId,
+        questionText: mistake.question.text,
+        studentAnswer: mistake.studentAnswer,
+        correctAnswer: mistake.correctAnswer,
+        createdAt: mistake.createdAt,
+      })),
+    },
+  });
+});
+
+module.exports = {
+  getApprovedStudentCount,
+  getApprovedStudents,
+  updateStudentStatus,
+  getStudentPerformance,
+};

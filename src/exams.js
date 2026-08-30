@@ -550,7 +550,7 @@ function openRun(payload, quizTitle, quizId) {
     runOverlay?.requestFullscreen || runOverlay?.webkitRequestFullscreen;
   if (runOverlay && requestFullscreen) {
     Promise.resolve(requestFullscreen.call(runOverlay)).catch((err) => {
-      console.log("Fullscreen request failed:", err);
+      console.warn("Fullscreen request failed:", err);
       showToast("تعذّر فتح وضع ملء الشاشة. يمكنك المتابعة عادياً.", "info");
       runOverlay.classList.add("exam-fullscreen");
     });
@@ -878,7 +878,7 @@ async function openResult(quizId, resultId, summaryData = null) {
 function leaderboardTable(rankings) {
   const medals = ["🥇", "🥈", "🥉"];
   const me = String(localStorage.getItem("userId") || "");
-  return `<table class="lb-table">
+  const html = `<table class="lb-table">
     <thead><tr><th>#</th><th>الطالبة</th><th>الدرجة</th></tr></thead>
     <tbody>
       ${rankings
@@ -896,6 +896,7 @@ function leaderboardTable(rankings) {
         .join("")}
     </tbody>
   </table>`;
+  return `<div class="table-responsive">${html}</div>`;
 }
 
 /**

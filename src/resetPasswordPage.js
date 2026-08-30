@@ -3,7 +3,6 @@ const strongPassword = (value) => /[A-Z]/.test(value) && /[a-z]/.test(value) && 
 
 function showToast(message, type = 'success') {
   if (typeof window.showToast === 'function') return window.showToast(message, type);
-  console.log(`[toast:${type}] ${message}`);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

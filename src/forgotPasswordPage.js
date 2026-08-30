@@ -2,7 +2,6 @@ const API_BASE = import.meta.env.VITE_API_URL;
 
 function showToast(message, type = 'success') {
   if (typeof window.showToast === 'function') return window.showToast(message, type);
-  console.log(`[toast:${type}] ${message}`);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -35,7 +35,7 @@ async function fetchJson(url, options = {}) {
     // Non-JSON response: usually HTML from a static host or an error page.
     const preview = raw.replace(/<[^>]*>/g, ' ').trim().slice(0, 80);
     throw new Error(
-      `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ''}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`
+      `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ''}. حاول مرة أخرى بعد دقائق، أو تواصل مع مسؤولة المنصة إن استمرت المشكلة.`
     );
   }
 
@@ -50,9 +50,7 @@ async function fetchJson(url, options = {}) {
 function showToast(message, type = 'success') {
   if (typeof window.showToast === 'function') {
     window.showToast(message, type);
-    return;
   }
-  console.log(`[toast:${type}] ${message}`);
 }
 
 /**

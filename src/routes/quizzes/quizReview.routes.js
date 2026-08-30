@@ -26,6 +26,7 @@ const { attachImageUrls } = require("./quiz.helpers.js");
 const {
   getAttemptById,
   getQuizById,
+  getTeacherQuiz,
   getQuestionsForQuiz,
   getStudentNameById,
 } = require("../../services/quiz.stub.service.js");
@@ -47,12 +48,15 @@ router.get("/quiz-results/:resultId/review", requireAuth, async (req, res) => {
   }
 
   // Ownership: students may only review THEIR OWN attempt. Teachers can
-  // review anyone's (useful when a parent/student asks about a score).
+  // review anyone's, but ONLY for quizzes they created (same rule as the
+  // management routes).
   if (req.user.role !== "teacher" && attempt.studentId !== req.user.id) {
     return res.status(403).json({ error: "هذه نتيجة لطالب آخر." });
   }
 
-  const quiz = await getQuizById(attempt.quizId);
+  const quiz = req.user.role === "teacher"
+    ? await getTeacherQuiz(attempt.quizId, req.user.id)
+    : await getQuizById(attempt.quizId);
   if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
   /* ---- THE TIME GATE --------------------------------------------- */

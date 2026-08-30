@@ -46,6 +46,17 @@ const errorHandler = (err, req, res, next) => {
     message = 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.';
   }
 
+  // Any OTHER Prisma/database error (P1001 connection, P2003, etc.) must
+  // never leak raw engine details (hostnames, connection strings, Prisma
+  // wording) to the client — log the real error server-side, tell the user
+  // only a generic Arabic message.
+  const isPrismaError =
+    (err.name && String(err.name).includes('Prisma')) ||
+    (typeof err.code === 'string' && /^P\d{4}$/.test(err.code));
+  if (statusCode >= 500 && isPrismaError) {
+    message = 'حدث خطأ في قاعدة البيانات. حاول مرة أخرى لاحقاً.';
+  }
+
   res.status(statusCode).json({
     success: false,
     status,

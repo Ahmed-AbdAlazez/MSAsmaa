@@ -14,7 +14,7 @@ const express = require("express");
 const { requireAuth } = require("../../middleware/auth.middleware.js");
 const { requireTeacher } = require("./quiz.helpers.js");
 const {
-  getQuizById,
+  getTeacherQuiz,
   getAttemptsForStudent,
   getAllAttemptsForQuiz,
   getStudentNameById,
@@ -34,7 +34,8 @@ const router = express.Router();
  * old result and the upcoming second attempt stay visible in /results.
  */
 router.post("/quizzes/:quizId/students/:studentId/grant-retry", requireAuth, requireTeacher, async (req, res) => {
-  const quiz = await getQuizById(req.params.quizId);
+  // Ownership: teachers may only manage quizzes they created.
+  const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
   if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
   const studentId = String(req.params.studentId || "").trim();
@@ -59,7 +60,8 @@ router.post("/quizzes/:quizId/students/:studentId/grant-retry", requireAuth, req
  * who currently has a quiz open (score null until submitted).
  */
 router.get("/quizzes/:quizId/results", requireAuth, requireTeacher, async (req, res) => {
-  const quiz = await getQuizById(req.params.quizId);
+  // Ownership: teachers may only view results of quizzes they created.
+  const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
   if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
   // Every attempt row (submitted AND in-progress) so the teacher also sees

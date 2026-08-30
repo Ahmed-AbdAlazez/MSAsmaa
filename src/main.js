@@ -256,6 +256,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.head.appendChild(style);
   };
 
+  window.ensureModalStyles = ensureModalStyles;
+
   window.showConfirmModal = (message, options = {}) => {
     ensureModalStyles();
     return new Promise((resolve) => {
@@ -374,8 +376,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Backend API helpers -------------------------------------------------
   // --- Backend API configuration -------------------------------------------
-  // AUTH API: real backend (source of truth). Set in .env / Vercel:
-  //   VITE_API_URL=https://ms-asmaa.vercel.app/api/v1
+  // AUTH API: real backend (source of truth). Set at build time via env:
+  //   VITE_API_URL
   // Auth calls are therefore ${API_BASE}/auth/login and ${API_BASE}/auth/signup.
   const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -747,7 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .trim()
         .slice(0, 80);
       throw new Error(
-        `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ""}. إن كنت تستخدم Live Server أو GitHub Pages فشغّل node server.js محلياً أو انشر على Vercel مع متغيرات BUNNY.`,
+        `السيرفر في ${url} أعاد رداً غير JSON (كود ${response.status})${preview ? `: ${preview}` : ""}. حاول مرة أخرى بعد دقائق، أو تواصل مع مسؤولة المنصة إن استمرت المشكلة.`,
       );
     }
 
@@ -810,12 +812,12 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
         if ([5, 6].includes(status.status)) {
-          update(pct, "فشلت معالجة الفيديو على Bunny.");
+          update(pct, "فشلت معالجة الفيديو.");
           UploadFloat.fail("فشلت معالجة الفيديو.");
           removeWorkflowLater(workflow.jobId);
           return;
         }
-        update(pct, "جاري معالجة الفيديو على Bunny...");
+        update(pct, "جارٍ معالجة الفيديو...");
       } catch (_) {
         failures += 1;
         update(
@@ -1834,7 +1836,7 @@ document.addEventListener("DOMContentLoaded", () => {
               showToast(`جاري تشغيل: ${partBtn.textContent}`, "success");
               loadIframe(video);
             } else {
-              showToast("هذا الجزء ما زال قيد المعالجة على Bunny.", "warning");
+              showToast("هذا الجزء ما زال قيد المعالجة.", "warning");
             }
           }
         });
@@ -2166,7 +2168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const videoEntry = lessonVideos[currentVideoIdx];
         if (!videoEntry.ready) {
           showToast(
-            "الفيديو ما زال قيد المعالجة على Bunny، حاولي بعد قليل.",
+            "الفيديو ما زال قيد المعالجة، حاولي بعد قليل.",
             "warning",
           );
           return;
@@ -2534,10 +2536,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auth: JWT Bearer token from the shared helper (no client-trusted role
     // headers — the backend decides who may upload).
     // ------------------------------------------------------------------
-    // DIRECT UPLOAD (3 phases). Vercel caps function request bodies at
-    // ~4.5MB, so the PDF bytes must never pass through our API:
-    //   1. ask our API for a short-lived signed Supabase upload URL
-    //   2. PUT the file straight to Supabase (progress reported here)
+    // DIRECT UPLOAD (3 phases). The platform caps function request bodies,
+    // so the PDF bytes must never pass through our API:
+    //   1. ask our API for a short-lived signed storage upload URL
+    //   2. PUT the file straight to storage (progress reported here)
     //   3. tell our API to register the material (+ normalize server-side)
     // ------------------------------------------------------------------
     const prepared = await fetchJson(
@@ -2832,7 +2834,7 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
 
-        statusText.textContent = "تم الرفع! جاري معالجة الفيديو على Bunny...";
+        statusText.textContent = "تم الرفع! جارٍ معالجة الفيديو...";
 
         // Step 3: poll encoding status until the video is watchable.
         // A single failed poll (network blip, radio handoff, laptop sleep)
@@ -2851,7 +2853,7 @@ document.addEventListener("DOMContentLoaded", () => {
             progressBar.style.width = Math.max(st.encodeProgress || 0, 5) + "%";
             UploadFloat.update(
               Math.max(st.encodeProgress || 0, 5),
-              "جاري معالجة الفيديو على Bunny...",
+              "جارٍ معالجة الفيديو...",
             );
 
             if (st.ready) {
@@ -2866,7 +2868,7 @@ document.addEventListener("DOMContentLoaded", () => {
               uploadBtn.disabled = false;
             } else if ([5, 6].includes(st.status)) {
               clearInterval(poll);
-              statusText.textContent = "فشلت معالجة الفيديو على Bunny.";
+              statusText.textContent = "فشلت معالجة الفيديو.";
               showToast("فشلت معالجة الفيديو، حاولي رفعه مرة أخرى.", "danger");
               UploadFloat.fail("فشلت معالجة الفيديو.");
               uploadBtn.disabled = false;
@@ -2878,7 +2880,7 @@ document.addEventListener("DOMContentLoaded", () => {
               statusText.textContent =
                 "انقطعت المراقبة أثناء معالجة الفيديو، لكن الملف مرفوع. حدّثي صفحة الدرس بعد قليل للتحقق.";
               showToast(
-                "فقدنا الاتصال بمراقبة المعالجة. الملف مرفوع على Bunny وسيظهر في الدرس عند جهوزه.",
+                "فقدنا الاتصال بمراقبة المعالجة. الملف مرفوع وسيظهر في الدرس عند جاهزيته.",
                 "warning",
               );
               UploadFloat.fail("انقطعت مراقبة المعالجة.");
@@ -2947,9 +2949,12 @@ document.addEventListener("DOMContentLoaded", () => {
       panelEl.innerHTML = "";
 
       // Local temporary running list (seeded from already-saved chapters).
-      // Nothing is written to the DB until "حفظ التقسيم" is clicked.
+      // Nothing is written to the DB until "حفظ التقسيم" is clicked. Markers
+      // that already exist keep their DB id so deleting them can call the
+      // real DELETE /api/videos/chapters/:chapterId endpoint directly.
       const markers = (videoObj.chapters || [])
         .map((ch) => ({
+          id: ch.id,
           title: ch.title,
           startTimeSeconds: ch.startTimeSeconds,
         }))
@@ -3056,9 +3061,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
           itemActions
             .querySelector(".js-mk-del")
-            .addEventListener("click", () => {
+            .addEventListener("click", async () => {
+              const isSaved = Boolean(m.id);
+              if (isSaved) {
+                const confirmed = await showConfirmModal(
+                  `حذف الفصل "${m.title}" (${formatDuration(
+                    m.startTimeSeconds,
+                  )}) نهائياً؟ لا يمكن التراجع.`,
+                  { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
+                );
+                if (!confirmed) return;
+                try {
+                  await fetchJson(`/api/videos/chapters/${m.id}`, {
+                    method: "DELETE",
+                    headers: authHeaders(),
+                  });
+                } catch (deleteError) {
+                  showToast(deleteError.message, "danger");
+                  return;
+                }
+                videoObj.chapters = (videoObj.chapters || []).filter(
+                  (c) => c.id !== m.id,
+                );
+              }
               markers.splice(idx, 1);
               renderList();
+              if (isSaved) showToast("تم حذف الفصل بنجاح.", "success");
             });
 
           itemActions
@@ -3262,12 +3290,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const setChapters = (chapters) => {
             videoObj.chapters = (chapters || []).map((c) => ({
+              id: c.id,
               title: c.title,
               startTimeSeconds: c.startTimeSeconds,
             }));
             markers.length = 0;
             videoObj.chapters.forEach((c) =>
               markers.push({
+                id: c.id,
                 title: c.title,
                 startTimeSeconds: c.startTimeSeconds,
               }),
@@ -3379,7 +3409,7 @@ document.addEventListener("DOMContentLoaded", () => {
           .querySelector(".js-delete-video")
           .addEventListener("click", async () => {
             const confirmed = await showConfirmModal(
-              `حذف الفيديو "${v.name || idx + 1}" نهائياً من Bunny؟ لا يمكن التراجع.`,
+              `حذف الفيديو "${v.name || idx + 1}" نهائياً من المنصة؟ لا يمكن التراجع.`,
               { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
             );
             if (!confirmed) return;
