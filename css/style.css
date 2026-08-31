@@ -1468,6 +1468,16 @@ html[dir="rtl"] .scroll-progress-fill {
   border-color: color-mix(in srgb, var(--sc-accent) 50%, transparent);
   background: color-mix(in srgb, var(--sc-accent) 16%, transparent);
 }
+/* empty-state row: shown until the first real leaderboard result exists */
+.sc-row.lb-empty {
+  justify-content: center;
+  border-style: dashed;
+}
+.sc-row.lb-empty .sc-row-label {
+  text-align: center;
+  color: var(--color-text-muted);
+  white-space: normal;
+}
 
 /* Video marks review modal ("عرض كل الفواصل") */
 .mk-rv-list {

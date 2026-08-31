@@ -24,7 +24,14 @@
 (function () {
   var marquee = document.getElementById("top-students-marquee");
   var data = window.TOP_STUDENTS;
-  if (!marquee || !Array.isArray(data) || data.length === 0) return;
+  if (!marquee || !Array.isArray(data) || data.length === 0) {
+    // No students yet — hide the whole section so it does not render as a
+    // heading with an empty gap. Real entries in topStudentsData.js bring
+    // it back automatically; no other code changes needed.
+    var section = document.querySelector(".top-students-section");
+    if (section) section.style.display = "none";
+    return;
+  }
 
   function buildCard(student) {
     var card = document.createElement("div");
