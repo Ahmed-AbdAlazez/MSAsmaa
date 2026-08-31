@@ -198,25 +198,56 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3000);
   };
 
-  // Course discovery and curriculum pages require the existing JWT session.
-  // Keep the rest of the public site available to visitors.
-  const isCoursePage = /\/(?:courses|course-biology|lessons|lesson-view)\.html$/.test(
-    window.location.pathname,
-  );
-  const hasAuthToken = (() => {
+  const COURSE_LOGIN_TOAST_KEY = "course-login-required";
+  const getAuthToken = () => {
     try {
-      return Boolean(localStorage.getItem("token"));
+      return localStorage.getItem("token") || "";
+    } catch (_) {
+      return "";
+    }
+  };
+
+  // A direct URL visit is redirected in the document head. Show the same
+  // existing toast after that redirect reaches the login page.
+  try {
+    if (sessionStorage.getItem(COURSE_LOGIN_TOAST_KEY) === "1") {
+      sessionStorage.removeItem(COURSE_LOGIN_TOAST_KEY);
+      window.showToast("يجب تسجيل الدخول أولاً للبحث عن الكورسات.", "warning");
+    }
+  } catch (_) {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
+
+  // Intercept protected links before the browser can load their destination.
+  // This applies to static links, the navbar, and curriculum links generated
+  // after this handler is registered.
+  const isProtectedCourseLink = (href) => {
+    try {
+      const destination = new URL(href, window.location.href);
+      return (
+        destination.origin === window.location.origin &&
+        /\/(?:courses|course-biology|lessons|lesson-view)\.html$/.test(
+          destination.pathname,
+        )
+      );
     } catch (_) {
       return false;
     }
-  })();
-  if (isCoursePage && !hasAuthToken) {
+  };
+  document.addEventListener(
+    "click",
+    (event) => {
+      const link = event.target.closest?.("a[href]");
+      if (!link || getAuthToken() || !isProtectedCourseLink(link.href)) return;
+
+      event.preventDefault();
     window.showToast("يجب تسجيل الدخول أولاً للبحث عن الكورسات.", "warning");
     window.setTimeout(() => {
       window.location.href = "login.html";
     }, 1500);
-    return;
-  }
+    },
+    true,
+  );
 
   const ensureModalStyles = () => {
     if (document.getElementById("custom-modal-styles")) return;
@@ -485,14 +516,6 @@ document.addEventListener("DOMContentLoaded", () => {
    * localStorage keeps ONLY the token + non-sensitive UI state (role/name/id);
    * passwords are never stored anywhere.
    */
-  const getAuthToken = () => {
-    try {
-      return localStorage.getItem("token") || "";
-    } catch (_) {
-      return "";
-    }
-  };
-
   /** Headers for protected requests (fresh read on every call). */
   const authHeaders = () => {
     const token = getAuthToken();
