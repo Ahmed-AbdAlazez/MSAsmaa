@@ -3007,6 +3007,12 @@ document.addEventListener("DOMContentLoaded", () => {
           startTimeSeconds: ch.startTimeSeconds,
         }))
         .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+      console.log(
+        "[فواصل] فتح لوحة التقسيم — videoObj.chapters source =",
+        (videoObj.chapters || []).length,
+        "| markers seeded =",
+        markers.length,
+      );
 
       // Parse time inputs like "hh:mm:ss", "mm:ss", "m:ss", or raw seconds to
       // integer total-seconds. Accepts any number of colon-separated parts
@@ -3107,11 +3113,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const renderRows = () => {
           listEl.innerHTML = "";
+          console.log(
+            "[فواصل] renderRows fired — markers.length =",
+            markers.length,
+            "| sample =",
+            markers.slice(0, 5).map((m) => ({ title: m.title, sec: m.startTimeSeconds, id: m.id })),
+          );
           if (!markers.length) {
             listEl.innerHTML =
               '<p class="custom-modal-message" style="margin:0;">لا توجد فواصل بعد. أضيفي علامات من الصيغة أعلاه ثم افتحي اللوحة لمراجعة العلامات أو حذف أي منها.</p>';
             return;
           }
+          try {
           markers.forEach((m, idx) => {
             const row = document.createElement("div");
             row.style.cssText =
@@ -3177,6 +3190,13 @@ document.addEventListener("DOMContentLoaded", () => {
             row.append(info, delBtn);
             listEl.appendChild(row);
           });
+          } catch (renderError) {
+            console.error("[فواصل] فشل أثناء عرض العلامات:", renderError);
+            listEl.innerHTML =
+              '<p class="custom-modal-message" style="margin:0;">تعذر عرض الفواصل: ' +
+              String((renderError && renderError.message) || renderError) +
+              "</p>";
+          }
         };
 
         overlay.addEventListener("click", (e) => {
@@ -3184,6 +3204,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         overlay.querySelector(".mk-rv-close").addEventListener("click", close);
 
+        console.log(
+          "[فواصل] فتح اللوحة — markers.length =",
+          markers.length,
+          "| videoObj.chapters.length =",
+          (videoObj.chapters || []).length,
+          "| متطابقة؟",
+          markers.length === (videoObj.chapters || []).length,
+        );
         renderRows();
       };
 
