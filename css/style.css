@@ -916,7 +916,7 @@ html[dir="rtl"] .scroll-progress-fill {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 3rem;
   margin-bottom: 3rem;
 }
@@ -2474,8 +2474,7 @@ html[dir="rtl"] .scroll-progress-fill {
    The tiny inline head script stamps data-auth on <html> before
    first paint; these rules make the logged-out-only buttons (hero,
    banner, exams gate) invisible for authenticated users from frame
-   #1 — no flash while the main bundle boots. The "بوابة الدخول"
-   footer link intentionally stays for everyone.
+   #1 — no flash while the main bundle boots.
    ============================================================ */
 html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   display: none !important;
