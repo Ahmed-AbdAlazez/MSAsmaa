@@ -632,18 +632,30 @@ async function exitExamFullscreen() {
   return !getFullscreenElement();
 }
 
-function closeRun({ exitFullscreen = true } = {}) {
+async function closeRun({ exitFullscreen = true } = {}) {
   stopTimer();
-  // Exit fullscreen when closing the quiz (after submission)
+
   if (exitFullscreen) {
-    exitExamFullscreen().catch(() => {
+    // Mark this as an intentional, user-triggered exit BEFORE asking the
+    // browser to leave fullscreen, so the fullscreenchange integrity handler
+    // doesn't treat it as a violation and try to re-enter fullscreen on an
+    // element we are about to hide (this fight was the "stuck" bug).
+    runState.intentionalFullscreenExit = true;
+    try {
+      // AWAIT the fullscreen exit to fully complete before touching the DOM.
+      // Hiding (display:none) or detaching the overlay while the Fullscreen
+      // API is still operating on it leaves the browser stuck in fullscreen.
+      await exitExamFullscreen();
+    } catch (_) {
       // Ignore browser-specific fullscreen cleanup failures.
-    });
+    }
   }
-  // Clean up fullscreen layout class
+
+  // Only now — after fullscreen has actually exited — clean up the layout
+  // class and hide the overlay.
   const runOverlay = document.getElementById("quiz-run-overlay");
   if (runOverlay) runOverlay.classList.remove("exam-fullscreen");
-  document.getElementById("quiz-run-overlay").style.display = "none";
+  runOverlay.style.display = "none";
 }
 
 async function beginQuiz(quizId, quizTitle) {
