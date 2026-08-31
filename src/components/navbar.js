@@ -146,10 +146,10 @@ export function initNavbar() {
       : "";
 
     const mistakesLink = isStudent
-      ? `<li><a href="student-mistakes.html" class="nav-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A; / My Mistakes</a></li>`
+      ? `<li><a href="student-mistakes.html" class="nav-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
       : "";
     const mobileMistakesLink = isStudent
-      ? `<li><a href="student-mistakes.html" class="mobile-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A; / My Mistakes</a></li>`
+      ? `<li><a href="student-mistakes.html" class="mobile-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
       : "";
 
     // Generate navbar inner HTML

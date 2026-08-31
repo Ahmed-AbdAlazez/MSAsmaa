@@ -22,7 +22,7 @@
 const express = require("express");
 
 const { requireAuth } = require("../../middleware/auth.middleware.js");
-const { attachImageUrls } = require("./quiz.helpers.js");
+const { attachImageUrls, isQuizReleased } = require("./quiz.helpers.js");
 const {
   getAttemptById,
   getQuizById,
@@ -66,7 +66,7 @@ router.get("/quiz-results/:resultId/review", requireAuth, async (req, res) => {
     });
   }
 
-  if (Date.now() < Date.parse(quiz.endTime)) {
+  if (!isQuizReleased(quiz)) {
     // Rejected BEFORE release: no per-question data leaves the server.
     return res.status(403).json({
       error: "مراجعة الإجابات غير متاحة حالياً.",

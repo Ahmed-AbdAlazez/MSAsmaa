@@ -119,6 +119,24 @@ function isWithinQuizWindow(quiz) {
 }
 
 /**
+ * Whether the quiz's answer material may be released to students — i.e. its
+ * end_time has passed for everyone. THIS is the single source of truth for
+ * the post-deadline anti-cheating gate, shared by the per-quiz review
+ * endpoint AND any other place that surfaces answers/wrong-answers (e.g. the
+ * student's "أخطائي" mistakes feed).
+ *
+ * @param {object} quiz - The quiz (must expose endTime).
+ * @returns {boolean} True when now >= quiz.endTime (answers may be shown).
+ */
+function isQuizReleased(quiz) {
+  // NOTE: keep this comparison identical to the historical review gate
+  // (Date.now() < Date.parse(quiz.endTime) => NOT released). Reversing it:
+  //   now < endTime  -> not released
+  //   now >= endTime -> released
+  return Date.now() >= Date.parse(quiz.endTime);
+}
+
+/**
  * Why an attempt would be (or was) auto-cut-off — used for messages and for
  * the submissionReason stored on finalized attempts.
  *
@@ -293,6 +311,7 @@ module.exports = {
   remainingSeconds,
   isAttemptExpired,
   isWithinQuizWindow,
+  isQuizReleased,
   expiryReason,
   sanitizeQuestionForStudent,
   attachImageUrls,
