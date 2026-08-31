@@ -921,7 +921,7 @@
   font-weight: 800;
   padding: 0.55rem 1.5rem;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--color-primary-ghost), rgba(16, 185, 129, 0.1));
+  background: var(--soft-tint);
   color: var(--color-primary-ink);
   border: 2px solid rgba(15, 76, 58, 0.12);
   letter-spacing: 0.04em;
@@ -929,12 +929,12 @@
   flex-shrink: 0;
 }
 #quiz-run-overlay.exam-fullscreen .quiz-timer.timer-warning {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08));
+  background: rgba(245, 158, 11, 0.12);
   color: var(--color-warning);
   border-color: rgba(245, 158, 11, 0.3);
 }
 #quiz-run-overlay.exam-fullscreen .quiz-timer.timer-danger {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
+  background: rgba(239, 68, 68, 0.12);
   color: var(--color-danger);
   border-color: rgba(239, 68, 68, 0.3);
   animation: pulse 1s infinite;
@@ -986,7 +986,7 @@
   height: 2rem;
   min-width: 2rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary-ink), var(--color-accent));
+  background: var(--color-primary);
   color: #fff;
   font-weight: 800;
   font-size: 0.88rem;
@@ -1148,7 +1148,7 @@
 }
 
 #quiz-run-overlay.exam-fullscreen .quiz-run-actions .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary-ink), var(--color-accent-dark));
+  background: var(--color-primary-ink);
   box-shadow: 0 4px 14px rgba(15, 76, 58, 0.2);
 }
 

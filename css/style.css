@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Tajawal:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* Colors */
@@ -22,8 +22,11 @@
   --color-text-muted: #475569;
   --color-border: #E2E8F0;
   
-  /* Fonts & Shadows */
+  /* Fonts & Shadows
+     --font-heading: distinctive Arabic display face (Almarai) reserved for
+     headings/titles; body and UI text keep the neutral Tajawal. */
   --font-family: 'Tajawal', 'Inter', sans-serif;
+  --font-heading: 'Almarai', 'Tajawal', sans-serif;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(15, 76, 58, 0.06), 0 4px 6px -4px rgba(15, 76, 58, 0.04);
@@ -45,17 +48,20 @@
   --input-bg: rgba(255, 255, 255, 0.94);
   --row-hover: rgba(248, 250, 252, 0.8);
   --bubble-warm: #FFFAF0;              /* warm teacher-chat bubble */
-  --soft-tint: linear-gradient(135deg, rgba(15, 76, 58, 0.07), rgba(6, 182, 212, 0.07));
+  --soft-tint: rgba(15, 76, 58, 0.05);
   --progress-track: rgba(15, 76, 58, 0.15);
-  --bg-canvas:
-    radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.12) 0, transparent 28%),
-    radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.12) 0, transparent 26%),
-    radial-gradient(circle at 70% 85%, rgba(6, 182, 212, 0.1) 0, transparent 22%),
-    linear-gradient(180deg, #f4fffb 0%, #f8fafc 18%, #f7fbf7 100%);
+  /* Page canvas is a confident SOLID block; gradient depth is reserved for
+     the hero section (--hero-bg) instead of a wash over every page. */
+  --bg-canvas: #F3F9F6;
   --hero-bg: linear-gradient(135deg, var(--surface-glass) 0%, rgba(247, 255, 251, 0.96) 45%, rgba(241, 253, 250, 0.88) 100%);
-  --section-alt-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 252, 249, 0.96) 100%);
+  --section-alt-bg: #FFFFFF;
   --cell-art-bg: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.88) 0%, rgba(240, 255, 249, 0.8) 22%, rgba(255, 255, 255, 0.94) 58%, rgba(16, 185, 129, 0.03) 100%);
   --cell-art-border: rgba(15, 76, 58, 0.12);
+
+  /* Biology line-art used INSTEAD of generic organic blobs on page
+     backgrounds (site-wide body ::before / ::after decorations). */
+  --decor-cell: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230F4C3A' stroke-width='1.6' stroke-linecap='round'><path d='M12 3c6.2 0 9 3.4 9 9s-2.8 9-9 9S3 18 3 12 5.8 3 12 3z'/><circle cx='12' cy='12' r='3.4'/><path d='M7.2 16.2a3.4 3.4 0 0 1 3.4-3.4' opacity='.45'/></svg>");
+  --decor-dna: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 40' fill='none' stroke='%230F4C3A' stroke-width='1.8' stroke-linecap='round'><path d='M6 2c12 6 12 12 0 18s-12 12 0 18'/><path d='M18 2C6 8 6 14 18 20s12 12 0 18'/><path d='M8 7h8M8 33h8M9 14h6M9 26h6'/></svg>");
 
   --footer-bg: #093327;
 }
@@ -87,18 +93,16 @@
   --input-bg: rgba(9, 16, 25, 0.65);
   --row-hover: rgba(36, 54, 76, 0.55);
   --bubble-warm: #2E2718;
-  --soft-tint: linear-gradient(135deg, rgba(110, 231, 183, 0.1), rgba(6, 182, 212, 0.12));
+  --soft-tint: rgba(110, 231, 183, 0.08);
   --progress-track: rgba(110, 231, 183, 0.22);
 
-  --bg-canvas:
-    radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.14) 0, transparent 28%),
-    radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.1) 0, transparent 26%),
-    radial-gradient(circle at 70% 85%, rgba(6, 182, 212, 0.08) 0, transparent 22%),
-    linear-gradient(180deg, #0C1420 0%, #0D1622 55%, #0C141F 100%);
+  --bg-canvas: #0B1420;
   --hero-bg: linear-gradient(135deg, rgba(12, 20, 32, 0.72) 0%, rgba(13, 26, 34, 0.92) 45%, rgba(11, 25, 30, 0.88) 100%);
-  --section-alt-bg: linear-gradient(180deg, rgba(12, 20, 32, 0.55) 0%, rgba(14, 26, 36, 0.92) 100%);
+  --section-alt-bg: #0D1622;
   --cell-art-bg: radial-gradient(circle at 35% 35%, rgba(33, 51, 70, 0.95) 0%, rgba(21, 36, 52, 0.9) 30%, rgba(14, 25, 37, 0.96) 70%, rgba(16, 185, 129, 0.05) 100%);
   --cell-art-border: rgba(110, 231, 183, 0.28);
+  --decor-cell: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235EEAD4' stroke-width='1.6' stroke-linecap='round'><path d='M12 3c6.2 0 9 3.4 9 9s-2.8 9-9 9S3 18 3 12 5.8 3 12 3z'/><circle cx='12' cy='12' r='3.4'/><path d='M7.2 16.2a3.4 3.4 0 0 1 3.4-3.4' opacity='.45'/></svg>");
+  --decor-dna: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 40' fill='none' stroke='%235EEAD4' stroke-width='1.8' stroke-linecap='round'><path d='M6 2c12 6 12 12 0 18s-12 12 0 18'/><path d='M18 2C6 8 6 14 18 20s12 12 0 18'/><path d='M8 7h8M8 33h8M9 14h6M9 26h6'/></svg>");
 
   --footer-bg: #0C1420;
 
@@ -206,25 +210,28 @@ body::after {
   inset: auto;
   z-index: -1;
   pointer-events: none;
-  filter: blur(10px);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.5;
 }
 
+/* Site-wide biology line art (cell / DNA helix) instead of soft blur blobs */
 body::before {
-  top: 6rem;
-  right: -7rem;
-  width: 16rem;
-  height: 16rem;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.16) 0%, rgba(16, 185, 129, 0.02) 70%, transparent 100%);
-  border-radius: 48% 52% 41% 59% / 42% 52% 48% 58%;
+  top: 7rem;
+  right: -5rem;
+  width: 13rem;
+  height: 13rem;
+  background-image: var(--decor-cell);
 }
 
 body::after {
   bottom: 4rem;
-  left: -6rem;
-  width: 18rem;
-  height: 18rem;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(6, 182, 212, 0.02) 72%, transparent 100%);
-  border-radius: 53% 47% 62% 38% / 55% 39% 61% 45%;
+  left: -5rem;
+  width: 15rem;
+  height: 24rem;
+  background-image: var(--decor-dna);
+  transform: rotate(12deg);
 }
 
 a {
@@ -253,6 +260,7 @@ img {
 
 /* Typography Helpers */
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
   font-weight: 700;
   color: var(--color-heading);
   line-height: 1.3;
@@ -316,7 +324,7 @@ html[dir="rtl"] .scroll-progress-fill {
 .brand-icon {
   width: 2.25rem;
   height: 2.25rem;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent-blue) 100%);
+  background: var(--color-primary);
   color: white;
   border-radius: 0.9rem;
   display: flex;
@@ -730,7 +738,7 @@ html[dir="rtl"] .scroll-progress-fill {
   position: absolute;
   inset: 0 0 auto;
   height: 4px;
-  background: linear-gradient(90deg, var(--color-accent-blue) 0%, var(--color-accent) 50%, var(--color-primary) 100%);
+  background: var(--color-primary);
   opacity: 0.9;
 }
 
@@ -743,7 +751,7 @@ html[dir="rtl"] .scroll-progress-fill {
 .card-img-placeholder {
   width: 100%;
   height: 180px;
-  background: linear-gradient(135deg, #0f4c3a 0%, #10b981 100%);
+  background: var(--color-primary-dark);
   border-radius: var(--radius-md);
   margin-bottom: 1.25rem;
   display: flex;
@@ -753,17 +761,6 @@ html[dir="rtl"] .scroll-progress-fill {
   font-size: 3rem;
   position: relative;
   overflow: hidden;
-}
-
-.card-img-placeholder::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
-  transform: rotate(30deg);
 }
 
 /* Grid Utilities */
@@ -891,7 +888,7 @@ html[dir="rtl"] .scroll-progress-fill {
   font-weight: 800;
   font-size: 1.45rem;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent-blue));
+  background: var(--color-primary);
   box-shadow: 0 6px 16px rgba(24, 119, 242, 0.25);
   user-select: none;
 }
@@ -1034,10 +1031,9 @@ html[dir="rtl"] .scroll-progress-fill {
   top: -110px;
   right: -120px;
   width: 360px;
-  height: 360px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, rgba(6, 182, 212, 0.08) 42%, transparent 72%);
-  border-radius: 50%;
-  filter: blur(20px);
+  height: 340px;
+  background: var(--decor-dna) center/contain no-repeat;
+  opacity: 0.3;
 }
 
 .hero::after {
@@ -1046,12 +1042,8 @@ html[dir="rtl"] .scroll-progress-fill {
   inset: auto auto 2rem 2rem;
   width: 260px;
   height: 260px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(20, 184, 166, 0.1) 0 12%, transparent 13% 100%),
-    radial-gradient(circle at 70% 60%, rgba(15, 76, 58, 0.08) 0 14%, transparent 15% 100%);
-  border-radius: 55% 45% 63% 37% / 44% 55% 45% 56%;
-  transform: rotate(18deg);
-  opacity: 0.65;
+  background: var(--decor-cell) center/contain no-repeat;
+  opacity: 0.5;
 }
 
 .hero-grid {
@@ -1137,7 +1129,7 @@ html[dir="rtl"] .scroll-progress-fill {
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-accent-blue), var(--color-accent));
+  background: var(--color-accent);
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
 }
 
@@ -1192,13 +1184,17 @@ html[dir="rtl"] .scroll-progress-fill {
   display: block;
 }
 
-/* Organic blob shapes behind the photo (never covering the person) */
+/* Biology line-art behind the photo (never covering the person) */
 .hero-blob {
   position: absolute;
   z-index: 1;
   pointer-events: none;
-  border-radius: 55% 45% 62% 38% / 48% 55% 45% 52%;
-  filter: blur(2px);
+  color: rgba(15, 76, 58, 0.45);
+}
+.hero-blob svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .hero-blob-1 {
@@ -1206,7 +1202,6 @@ html[dir="rtl"] .scroll-progress-fill {
   height: 320px;
   top: 4%;
   inset-inline-start: 2%;
-  background: radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.34), rgba(6, 182, 212, 0.12) 70%);
   transform: rotate(-14deg);
 }
 
@@ -1215,7 +1210,6 @@ html[dir="rtl"] .scroll-progress-fill {
   height: 280px;
   bottom: 0;
   inset-inline-end: 0;
-  background: radial-gradient(circle at 60% 40%, rgba(245, 158, 11, 0.2), rgba(20, 184, 166, 0.1) 72%);
   transform: rotate(22deg);
 }
 
@@ -1224,7 +1218,6 @@ html[dir="rtl"] .scroll-progress-fill {
   height: 180px;
   top: 44%;
   inset-inline-end: 6%;
-  background: radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.3), rgba(6, 182, 212, 0.08) 75%);
   transform: rotate(8deg);
 }
 
@@ -1244,6 +1237,11 @@ html[dir="rtl"] .scroll-progress-fill {
   font-size: 1.4rem;
   animation: hero-float 5s ease-in-out infinite alternate;
 }
+.hero-float-badge svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-primary-ink);
+}
 
 .hero-float-dna {
   top: 8%;
@@ -1261,16 +1259,8 @@ html[dir="rtl"] .scroll-progress-fill {
   to   { transform: translateY(-10px); }
 }
 
-/* Dark mode: brighten blobs so they stay visible on the dark hero background */
-[data-theme="dark"] .hero-blob-1 {
-  background: radial-gradient(circle at 30% 30%, rgba(52, 211, 153, 0.38), rgba(20, 184, 166, 0.14) 72%);
-}
-[data-theme="dark"] .hero-blob-2 {
-  background: radial-gradient(circle at 60% 40%, rgba(251, 191, 36, 0.24), rgba(45, 212, 191, 0.14) 72%);
-}
-[data-theme="dark"] .hero-blob-3 {
-  background: radial-gradient(circle at 50% 50%, rgba(110, 231, 183, 0.34), rgba(20, 184, 166, 0.12) 75%);
-}
+/* Dark mode: brighten the biology line art on the dark hero background */
+[data-theme="dark"] .hero-blob { color: rgba(94, 234, 212, 0.55); }
 
 .hero-illustration {
   display: flex;
@@ -1412,6 +1402,11 @@ html[dir="rtl"] .scroll-progress-fill {
   background: color-mix(in srgb, var(--sc-accent) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--sc-accent) 45%, transparent);
 }
+.showcase-icon svg {
+  width: 28px;
+  height: 28px;
+  color: var(--sc-accent);
+}
 
 .showcase-title {
   font-size: 1.3rem;
@@ -1511,9 +1506,9 @@ html[dir="rtl"] .scroll-progress-fill {
   font-weight: 800;
   color: #04131f;
 }
-.sc-lb-rank.gold   { background: linear-gradient(135deg, #fde68a, #f59e0b); }
-.sc-lb-rank.silver { background: linear-gradient(135deg, #e5e7eb, #94a3b8); }
-.sc-lb-rank.bronze { background: linear-gradient(135deg, #fcd9b6, #d97706); }
+.sc-lb-rank.gold   { background: #E9A422; }
+.sc-lb-rank.silver { background: #9CA3AF; }
+.sc-lb-rank.bronze { background: #C2703D; }
 .sc-lb-rank.num {
   background: var(--row-hover);
   color: var(--color-text-muted);
@@ -1659,9 +1654,7 @@ html[dir="rtl"] .scroll-progress-fill {
 /* CTA Banner Section */
 .cta-banner {
   padding: 5rem 0;
-  background:
-    radial-gradient(circle at top right, rgba(34, 197, 94, 0.22) 0%, transparent 28%),
-    linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 56%, #0f766e 100%);
+  background: var(--color-primary-dark);
   color: white;
   text-align: center;
   position: relative;
@@ -1674,8 +1667,8 @@ html[dir="rtl"] .scroll-progress-fill {
   inset: 1rem auto auto -3rem;
   width: 16rem;
   height: 16rem;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, transparent 68%);
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'><path d='M12 3c6.2 0 9 3.4 9 9s-2.8 9-9 9S3 18 3 12 5.8 3 12 3z'/><circle cx='12' cy='12' r='3.4'/><path d='M7.2 16.2a3.4 3.4 0 0 1 3.4-3.4' opacity='.35'/></svg>") center/contain no-repeat;
+  opacity: 0.35;
 }
 
 .cta-banner::after {
@@ -1683,9 +1676,9 @@ html[dir="rtl"] .scroll-progress-fill {
   position: absolute;
   inset: auto -4rem -5rem auto;
   width: 18rem;
-  height: 18rem;
-  border-radius: 52% 48% 63% 37% / 46% 58% 42% 54%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 68%);
+  height: 26rem;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 40' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'><path d='M6 2c12 6 12 12 0 18s-12 12 0 18'/><path d='M18 2C6 8 6 14 18 20s12 12 0 18'/><path d='M8 7h8M8 33h8M9 14h6M9 26h6'/></svg>") center/contain no-repeat;
+  opacity: 0.35;
 }
 
 .cta-banner h2 {
@@ -2019,7 +2012,7 @@ html[dir="rtl"] .scroll-progress-fill {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent-blue));
+  background: var(--color-primary);
   color: white;
   font-size: 1.75rem;
   font-weight: 900;
@@ -2832,10 +2825,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 /* About & Contact Page */
 .about-hero {
   padding: 4rem 0;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.22) 0%, transparent 26%),
-    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.12) 0%, transparent 22%),
-    linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 55%, #0f766e 100%);
+  background: var(--color-primary-dark);
   color: white;
   text-align: center;
   position: relative;
@@ -2846,24 +2836,27 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 .about-hero::after {
   content: '';
   position: absolute;
-  border-radius: 50%;
   pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.3;
 }
 
 .about-hero::before {
-  width: 18rem;
-  height: 18rem;
-  top: -6rem;
-  right: -4rem;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  width: 12rem;
+  height: 14rem;
+  top: -2rem;
+  right: -3rem;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 40' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'><path d='M6 2c12 6 12 12 0 18s-12 12 0 18'/><path d='M18 2C6 8 6 14 18 20s12 12 0 18'/><path d='M8 7h8M8 33h8M9 14h6M9 26h6'/></svg>");
 }
 
 .about-hero::after {
-  width: 14rem;
-  height: 14rem;
-  left: -5rem;
-  bottom: -5rem;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, transparent 72%);
+  width: 12rem;
+  height: 12rem;
+  left: -3rem;
+  bottom: -3rem;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'><path d='M12 3c6.2 0 9 3.4 9 9s-2.8 9-9 9S3 18 3 12 5.8 3 12 3z'/><circle cx='12' cy='12' r='3.4'/><path d='M7.2 16.2a3.4 3.4 0 0 1 3.4-3.4' opacity='.35'/></svg>");
 }
 
 .about-hero h1 {
@@ -2905,7 +2898,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2943,7 +2936,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.14));
+  background: var(--soft-tint);
   color: var(--color-primary-ink);
   display: flex;
   align-items: center;
@@ -3874,22 +3867,22 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 }
 
 /* One gradient accent per unit, all inside the site's green/teal/cyan family. */
-.unit-card-header.accent-1 { background-image: linear-gradient(135deg, #0F4C3A, #166A51); }
-.unit-card-header.accent-2 { background-image: linear-gradient(135deg, #0E7490, #14B8A6); }
-.unit-card-header.accent-3 { background-image: linear-gradient(135deg, #059669, #10B981); }
-.unit-card-header.accent-4 { background-image: linear-gradient(135deg, #0F766E, #14B8A6); }
-.unit-card-header.accent-5 { background-image: linear-gradient(135deg, #0E7490, #06B6D4); }
-.unit-card-header.accent-6 { background-image: linear-gradient(135deg, #0F4C3A, #10B981); }
-.unit-card-header.accent-7 { background-image: linear-gradient(135deg, #065F46, #0F766E); }
+.unit-card-header.accent-1 { background: #0F4C3A; }
+.unit-card-header.accent-2 { background: #0E7490; }
+.unit-card-header.accent-3 { background: #059669; }
+.unit-card-header.accent-4 { background: #0F766E; }
+.unit-card-header.accent-5 { background: #0E7490; }
+.unit-card-header.accent-6 { background: #0F4C3A; }
+.unit-card-header.accent-7 { background: #065F46; }
 
 /* Slightly brighter gradients on dark surfaces so headers stay vivid. */
-[data-theme="dark"] .unit-card-header.accent-1 { background-image: linear-gradient(135deg, #166A51, #1E8A6B); }
-[data-theme="dark"] .unit-card-header.accent-2 { background-image: linear-gradient(135deg, #155E75, #2DD4BF); }
-[data-theme="dark"] .unit-card-header.accent-3 { background-image: linear-gradient(135deg, #047857, #34D399); }
-[data-theme="dark"] .unit-card-header.accent-4 { background-image: linear-gradient(135deg, #0F766E, #2DD4BF); }
-[data-theme="dark"] .unit-card-header.accent-5 { background-image: linear-gradient(135deg, #155E75, #22D3EE); }
-[data-theme="dark"] .unit-card-header.accent-6 { background-image: linear-gradient(135deg, #166A51, #34D399); }
-[data-theme="dark"] .unit-card-header.accent-7 { background-image: linear-gradient(135deg, #0B5E47, #2DD4BF); }
+[data-theme="dark"] .unit-card-header.accent-1 { background: #166A51; }
+[data-theme="dark"] .unit-card-header.accent-2 { background: #155E75; }
+[data-theme="dark"] .unit-card-header.accent-3 { background: #047857; }
+[data-theme="dark"] .unit-card-header.accent-4 { background: #0F766E; }
+[data-theme="dark"] .unit-card-header.accent-5 { background: #155E75; }
+[data-theme="dark"] .unit-card-header.accent-6 { background: #166A51; }
+[data-theme="dark"] .unit-card-header.accent-7 { background: #0B5E47; }
 
 .unit-card-body {
   display: flex;
@@ -3968,7 +3961,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image: linear-gradient(135deg, #0F4C3A, #14B8A6);
+  background: #0F4C3A;
   position: relative;
 }
 
