@@ -102,12 +102,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const linkedInIcon =
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/></svg>';
 
+    const accounts = {
+      "Ahmed Abdelaziz": {
+        github: "https://github.com/Ahmed-AbdAlazez",
+        linkedin: "https://www.linkedin.com/in/ahmed-abd-alazez-730048241/",
+      },
+      "Adham Zakzok": {
+        github: "https://github.com/adhamzakzok",
+        linkedin: "https://www.linkedin.com/in/adhem-zakzok-77a92034a",
+      },
+    };
+
     const socials = (name) => `
       <div class="team-socials">
-        <!-- TODO: استبدال # بالرابط الحقيقي لحساب GitHub -->
-        <a href="#" class="team-social team-social-github" target="_blank" rel="noopener noreferrer" aria-label="GitHub · ${name}" title="GitHub">${githubIcon}</a>
-        <!-- TODO: استبدال # بالرابط الحقيقي لحساب LinkedIn -->
-        <a href="#" class="team-social team-social-linkedin" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn · ${name}" title="LinkedIn">${linkedInIcon}</a>
+        <a href="${accounts[name].github}" class="team-social team-social-github" target="_blank" rel="noopener noreferrer" aria-label="GitHub · ${name}" title="GitHub">${githubIcon}</a>
+        <a href="${accounts[name].linkedin}" class="team-social team-social-linkedin" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn · ${name}" title="LinkedIn">${linkedInIcon}</a>
       </div>`;
 
     const card = (name) => `
@@ -2248,8 +2257,72 @@ document.addEventListener("DOMContentLoaded", () => {
                     loadNotes();
                   } catch (err) {
                     showToast(err.message, "danger");
-                  }
-                });
+}
+
+  // --- Homepage "لوحة المتصدرين" feature card -----------------------------
+  // Fills the leaderboard card with LIVE course rankings when a student or
+  // teacher is logged in. Guests simply keep the static preview rows shown in
+  // the markup (no API call, no auth required, card never looks broken).
+  const homeLeaderboardList = document.getElementById("home-leaderboard-list");
+  if (homeLeaderboardList) {
+    // Leaderboard routes live under /api (not /api/v1), same workaround as
+    // src/exams.js: build the API origin by stripping the v1 version suffix.
+    const leaderboardApiBase = String(API_BASE || "").replace(/\/api\/v1\/?$/, "");
+    const rankMedals = ["🥇", "🥈", "🥉"];
+    const lbStyleCls = ["gold", "silver", "bronze"];
+
+    const buildLeaderboardRow = (row) => {
+      const el = document.createElement("div");
+      el.className = "sc-row";
+      if (
+        String(row.studentId) === String(localStorage.getItem("userId") || "")
+      ) {
+        el.classList.add("lb-me");
+      }
+
+      const rank = document.createElement("span");
+      rank.className = "sc-lb-rank";
+      if (row.rank >= 1 && row.rank <= 3) {
+        rank.classList.add(lbStyleCls[row.rank - 1]);
+      } else {
+        rank.classList.add("num");
+      }
+      rank.textContent = row.rank;
+
+      const name = document.createElement("span");
+      name.className = "sc-row-label";
+      name.textContent = row.studentName || "";
+
+      const score = document.createElement("span");
+      score.className = "sc-row-tag";
+      score.textContent = row.bestScore;
+
+      el.append(rank, name, score);
+      return el;
+    };
+
+    (async () => {
+      if (!getAuthToken()) return; // guests keep the static preview rows
+      try {
+        const data = await fetchJson(
+          `${leaderboardApiBase}/api/courses/biology/leaderboard`,
+          { headers: authHeaders() },
+        );
+        const rankings = Array.isArray(data.rankings) ? data.rankings : [];
+        if (!rankings.length) return;
+        homeLeaderboardList.innerHTML = "";
+        rankings
+          .slice(0, 4)
+          .forEach((row) =>
+            homeLeaderboardList.appendChild(buildLeaderboardRow(row)),
+          );
+      } catch (leaderboardError) {
+        // Any failure (offline, DB down, nothing released yet) keeps the
+        // static preview rows, so the card renders the same as the others.
+      }
+    })();
+  }
+});
               contentEl
                 .querySelector(".note-cancel-btn")
                 .addEventListener("click", () => loadNotes());
@@ -2989,54 +3062,90 @@ document.addEventListener("DOMContentLoaded", () => {
           `<label for="marker-time-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">الوقت (دقيقة:ثانية)</label>` +
           `<input id="marker-time-input" type="text" placeholder="مثال: 3:20 أو 1:05:30" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
         `</div>` +
-        `<div style="flex-shrink:0;">` +
+        `<div style="flex-shrink:0; display:flex; gap:0.5rem; flex-wrap:wrap;">` +
           `<button type="button" id="marker-add-btn" class="btn btn-primary" style="font-size:0.85rem; padding:0.45rem 1.2rem; border-radius:var(--radius-sm); height:37px;">🚩 إضافة علامة</button>` +
+          `<button type="button" id="marker-view-btn" class="btn btn-light" style="font-size:0.85rem; padding:0.45rem 1rem; border-radius:var(--radius-sm); height:37px;">📋 عرض كل الفواصل (0)</button>` +
         `</div>`;
       wrap.appendChild(formRow);
 
       const titleInput = formRow.querySelector("#marker-title-input");
       const timeInput = formRow.querySelector("#marker-time-input");
       const addBtn = formRow.querySelector("#marker-add-btn");
+      const viewAllBtn = formRow.querySelector("#marker-view-btn");
+      const updateViewAllCount = () => {
+        viewAllBtn.textContent = `📋 عرض كل الفواصل (${markers.length})`;
+      };
 
-      // --- 3) Running (temporary) list ---
-      const listTitle = document.createElement("h5");
-      listTitle.style.cssText = "font-size:0.9rem; font-weight:700; margin:0;";
-      listTitle.textContent = `📋 علامات الفيديو الحالية (${markers.length})`;
-      wrap.appendChild(listTitle);
+      // --- 3) Marks review modal: an independent "عرض كل الفواصل" panel.
+      // Every render re-reads the live `markers` array (seeded from already-
+      // saved chapters plus anything added but not yet saved), so the real
+      // current marks data is what the teacher sees - never a stale copy.
+      const openMarksReview = () => {
+        ensureModalStyles();
+        document.querySelectorAll(".mk-rv-overlay").forEach((el) => el.remove());
+        const overlay = document.createElement("div");
+        overlay.className = "custom-modal-overlay mk-rv-overlay";
+        overlay.innerHTML = `
+          <div class="custom-modal-panel">
+            <div class="custom-modal-body">
+              <h4 class="mk-rv-title">📋 كل فواصل هذا الفيديو</h4>
+              <div class="mk-rv-list"></div>
+            </div>
+            <div class="custom-modal-actions">
+              <button type="button" class="custom-modal-btn custom-modal-btn-confirm mk-rv-close">تم</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add("show"));
 
-      const listBox = document.createElement("div");
-      listBox.style.cssText =
-        "display:flex; flex-direction:column; gap:0.4rem; max-height:260px; overflow-y:auto; padding-inline-end:0.25rem;";
-      wrap.appendChild(listBox);
+        const close = () => {
+          overlay.classList.remove("show");
+          setTimeout(() => overlay.remove(), 200);
+        };
 
-      const renderList = () => {
-        listTitle.textContent = `📋 علامات الفيديو الحالية (${markers.length})`;
-        listBox.innerHTML = "";
-        if (!markers.length) {
-          listBox.innerHTML =
-            '<p class="text-muted" style="font-size:0.8rem; margin:0;">لا توجد علامات مضافة بعد. أضف علاماتك ثم اضغط «حفظ التقسيم».</p>';
-          return;
-        }
-        markers.forEach((m, idx) => {
-          const row = document.createElement("div");
-          row.style.cssText =
-            "display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem; gap:0.5rem;";
-          
-          const textSpan = document.createElement("span");
-          textSpan.style.cssText = "font-weight:600; flex:1; min-width:0;";
-          textSpan.textContent = `${m.title} — ${formatDuration(m.startTimeSeconds)}`;
-          
-          const itemActions = document.createElement("div");
-          itemActions.style.cssText =
-            "display:flex; gap:0.25rem; flex-shrink:0;";
-          itemActions.innerHTML =
-            `<button class="btn btn-light js-mk-edit" style="font-size:0.7rem; padding:0.2rem 0.4rem;" title="تعديل">✏️</button>` +
-            `<button class="btn btn-light js-mk-del" style="font-size:0.7rem; padding:0.2rem 0.4rem; color:var(--color-danger);" title="حذف">🗑</button>`;
-          row.append(textSpan, itemActions);
+        const listEl = overlay.querySelector(".mk-rv-list");
 
-          itemActions
-            .querySelector(".js-mk-del")
-            .addEventListener("click", async () => {
+        const renderRows = () => {
+          listEl.innerHTML = "";
+          if (!markers.length) {
+            listEl.innerHTML =
+              '<p class="custom-modal-message" style="margin:0;">لا توجد فواصل بعد. أضيفي علامات من الصيغة أعلاه ثم افتحي اللوحة لمراجعة العلامات أو حذف أي منها.</p>';
+            return;
+          }
+          markers.forEach((m, idx) => {
+            const row = document.createElement("div");
+            row.style.cssText =
+              "display:flex; justify-content:space-between; align-items:center; gap:0.6rem; padding:0.5rem 0.65rem; background:var(--surface-glass-strong); border:1px solid var(--color-border); border-radius:var(--radius-sm);";
+
+            const info = document.createElement("div");
+            info.style.cssText =
+              "display:flex; align-items:center; gap:0.5rem; flex:1; min-width:0;";
+
+            const icon = document.createElement("span");
+            icon.textContent = "🔖";
+            icon.style.cssText = "flex-shrink:0;";
+
+            const text = document.createElement("span");
+            text.style.cssText =
+              "font-weight:600; flex:1; min-width:0; color:var(--color-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;";
+            text.textContent = m.title;
+
+            const time = document.createElement("span");
+            time.style.cssText =
+              "flex-shrink:0; font-size:0.68rem; font-variant-numeric:tabular-nums; color:var(--color-text-muted); background:var(--surface-glass-strong); border:1px solid var(--color-border); padding:0.14rem 0.5rem; border-radius:30px;";
+            time.textContent = formatDuration(m.startTimeSeconds);
+
+            info.append(icon, text, time);
+
+            const delBtn = document.createElement("button");
+            delBtn.type = "button";
+            delBtn.className = "btn btn-light";
+            delBtn.style.cssText =
+              "font-size:0.75rem; padding:0.2rem 0.45rem; color:var(--color-danger); flex-shrink:0;";
+            delBtn.title = "حذف العلامة";
+            delBtn.textContent = "🗑 حذف";
+
+            delBtn.addEventListener("click", async () => {
               const isSaved = Boolean(m.id);
               if (isSaved) {
                 const confirmed = await showConfirmModal(
@@ -3060,82 +3169,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
               }
               markers.splice(idx, 1);
-              renderList();
+              renderRows();
+              updateViewAllCount();
               if (isSaved) showToast("تم حذف الفصل بنجاح.", "success");
             });
 
-          itemActions
-            .querySelector(".js-mk-edit")
-            .addEventListener("click", () => {
-              textSpan.innerHTML =
-                `<input type="text" class="mk-edit-title-input" value="${m.title}" autocomplete="off" style="width:50%; min-width:100px; padding:0.3rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem;">` +
-                `<input type="text" class="mk-edit-time-input" value="${formatDuration(m.startTimeSeconds)}" autocomplete="off" style="width:25%; min-width:70px; margin-inline-start:0.25rem; padding:0.3rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.8rem;">` +
-                `<button class="btn btn-success mk-edit-save" style="font-size:0.7rem; padding:0.2rem 0.5rem; margin-inline-start:0.3rem;">حفظ</button>` +
-                `<button class="btn btn-light mk-edit-cancel" style="font-size:0.7rem; padding:0.2rem 0.5rem;">إلغاء</button>`;
-              
-              const editTitleInput = textSpan.querySelector(".mk-edit-title-input");
-              const editTimeInput = textSpan.querySelector(".mk-edit-time-input");
-              editTitleInput.focus();
+            row.append(info, delBtn);
+            listEl.appendChild(row);
+          });
+        };
 
-              const done = (save) => {
-                if (save) {
-                  const newTitle = editTitleInput.value.trim();
-                  const newTimeStr = editTimeInput.value.trim();
-                  if (!newTitle) {
-                    showToast("يرجى إدخال عنوان الفصل.", "warning");
-                    return;
-                  }
-                  const secs = parseTimeInput(newTimeStr);
-                  if (secs === null) {
-                    showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30).", "warning");
-                    return;
-                  }
-                  if (videoObj.lengthSeconds && secs > videoObj.lengthSeconds) {
-                    showToast(`التوقيت يتجاوز طول الفيديو (${formatDuration(videoObj.lengthSeconds)}).`, "danger");
-                    return;
-                  }
-                  m.title = newTitle;
-                  m.startTimeSeconds = secs;
-                  markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
-                }
-                renderList();
-              };
-
-              textSpan
-                .querySelector(".mk-edit-save")
-                .addEventListener("click", () => done(true));
-              textSpan
-                .querySelector(".mk-edit-cancel")
-                .addEventListener("click", () => done(false));
-              
-              editTitleInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  done(true);
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  done(false);
-                }
-              });
-              editTimeInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  done(true);
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  done(false);
-                }
-              });
-            });
-
-          listBox.appendChild(row);
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) close();
         });
+        overlay.querySelector(".mk-rv-close").addEventListener("click", close);
+
+        renderRows();
       };
 
-      // Render the seeded markers immediately so the running list matches the
-      // counter on first open (previously only updated after add/edit/delete).
-      renderList();
-
+      viewAllBtn.addEventListener("click", openMarksReview);
+      updateViewAllCount();
       const commitMarker = () => {
         const title = titleInput.value.trim();
         const timeStr = timeInput.value.trim();
@@ -3174,7 +3227,7 @@ document.addEventListener("DOMContentLoaded", () => {
         timeInput.value = "";
         titleInput.focus();
 
-        renderList();
+        updateViewAllCount();
       };
 
       addBtn.addEventListener("click", commitMarker);
@@ -3282,7 +3335,7 @@ document.addEventListener("DOMContentLoaded", () => {
               }),
             );
             markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
-            renderList();
+            updateViewAllCount();
           };
           setChapters(result.chapters);
 
@@ -3313,7 +3366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      renderList();
+      updateViewAllCount();
       panelEl.appendChild(wrap);
     };
     const renderManageList = () => {
