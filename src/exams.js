@@ -600,7 +600,7 @@ function getFullscreenElement() {
 }
 
 async function exitExamFullscreen() {
-  if (!getFullscreenElement()) return false;
+  if (!getFullscreenElement()) return true;
 
   const exit = document.exitFullscreen || document.webkitExitFullscreen;
   if (typeof exit !== "function") return false;
@@ -629,26 +629,50 @@ async function exitExamFullscreen() {
     }
   });
 
+  // Guarantee the browser actually finished leaving fullscreen before we
+  // touch the overlay. If (edge case) the exit hasn't fully propagated yet,
+  // wait briefly and retry so we never return still inside fullscreen.
+  if (getFullscreenElement()) {
+    await new Promise((r) => setTimeout(r, 250));
+    if (getFullscreenElement()) {
+      try {
+        await (exit.call(document) || Promise.resolve());
+      } catch (_) {
+        // Final fallback; nothing more we can do.
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+
   return !getFullscreenElement();
+}
+
+// Single source of truth for leaving the exam's browser fullscreen.
+// Marks the exit as intentional (so the fullscreenchange integrity handler
+// does NOT treat it as a violation and try to re-enter fullscreen on a
+// hidden element — that exit/re-enter fight was the "stuck at fullscreen"
+// bug), then awaits the browser's fullscreen exit to fully complete.
+// Both the manual exit button (closeRun) and the submit flow use this ONE
+// routine so the two paths can never behave inconsistently.
+async function leaveExamFullscreen() {
+  runState.intentionalFullscreenExit = true;
+  try {
+    await exitExamFullscreen();
+  } catch (_) {
+    // Ignore browser-specific fullscreen cleanup failures; the caller
+    // continues with its own cleanup regardless.
+  }
 }
 
 async function closeRun({ exitFullscreen = true } = {}) {
   stopTimer();
 
   if (exitFullscreen) {
-    // Mark this as an intentional, user-triggered exit BEFORE asking the
-    // browser to leave fullscreen, so the fullscreenchange integrity handler
-    // doesn't treat it as a violation and try to re-enter fullscreen on an
-    // element we are about to hide (this fight was the "stuck" bug).
-    runState.intentionalFullscreenExit = true;
-    try {
-      // AWAIT the fullscreen exit to fully complete before touching the DOM.
-      // Hiding (display:none) or detaching the overlay while the Fullscreen
-      // API is still operating on it leaves the browser stuck in fullscreen.
-      await exitExamFullscreen();
-    } catch (_) {
-      // Ignore browser-specific fullscreen cleanup failures.
-    }
+    // Actually ask the browser to exit fullscreen AND wait for it to finish
+    // BEFORE hiding the overlay. Hiding (display:none) or detaching the
+    // element the Fullscreen API is still operating on leaves the browser
+    // stuck in fullscreen mode.
+    await leaveExamFullscreen();
   }
 
   // Only now — after fullscreen has actually exited — clean up the layout
@@ -709,12 +733,8 @@ async function submitQuiz(auto = false) {
     }
 
     // Leave browser fullscreen only after the backend confirms submission.
-    runState.intentionalFullscreenExit = true;
-    try {
-      await exitExamFullscreen();
-    } catch (_) {
-      // A browser may reject the request; submission and result flow continue.
-    }
+    // Uses the SAME shared routine as the manual exit button.
+    await leaveExamFullscreen();
     closeRun({ exitFullscreen: false });
     if (!getFullscreenElement()) runState.intentionalFullscreenExit = false;
     if (document.getElementById("exams-by-lesson")) {
