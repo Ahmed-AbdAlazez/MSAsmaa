@@ -197,6 +197,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3000);
   };
 
+  // Course discovery and curriculum pages require the existing JWT session.
+  // Keep the rest of the public site available to visitors.
+  const isCoursePage = /\/(?:courses|course-biology|lessons|lesson-view)\.html$/.test(
+    window.location.pathname,
+  );
+  const hasAuthToken = (() => {
+    try {
+      return Boolean(localStorage.getItem("token"));
+    } catch (_) {
+      return false;
+    }
+  })();
+  if (isCoursePage && !hasAuthToken) {
+    window.showToast("يجب تسجيل الدخول أولاً للبحث عن الكورسات.", "warning");
+    window.setTimeout(() => {
+      window.location.href = "login.html";
+    }, 1500);
+    return;
+  }
+
   const ensureModalStyles = () => {
     if (document.getElementById("custom-modal-styles")) return;
     const style = document.createElement("style");
