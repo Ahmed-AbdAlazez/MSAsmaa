@@ -89,7 +89,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!loginTrigger) return;
 
     event.preventDefault();
-    window.location.href = "login.html";
+    const href = loginTrigger.getAttribute("href");
+    window.location.href = href || "login.html";
   });
 
   // --- Team credits modal (footer "فريق العمل" link) ----------------------
