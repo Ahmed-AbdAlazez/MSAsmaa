@@ -37,6 +37,19 @@
       }
     })();
   </script>
+  <script>
+    // Block direct visits before the protected page body can render.
+    (function () {
+      try {
+        if (!localStorage.getItem("token")) {
+          sessionStorage.setItem("course-login-required", "1");
+          window.location.replace("login.html");
+        }
+      } catch (e) {
+        window.location.replace("login.html");
+      }
+    })();
+  </script>
 </head>
 <body>
 
