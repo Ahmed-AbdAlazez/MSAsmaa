@@ -2,6 +2,7 @@ import { initNavbar } from "./components/navbar.js";
 import { initStudentsPage } from "./studentsPage.js";
 import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
+import { formatDuration } from "./utils.js";
 
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
 // 'storage' event fires only in other tabs/documents, so flipping dark
@@ -1759,19 +1760,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Lesson videos state (filled by applyVideosData below).
     let lessonVideos = [];
     let currentVideoIdx = 0;
-
-    /** "75" seconds -> "1:15"; "3930" seconds -> "1:05:30" (hours omitted when 0). */
-    const formatDuration = (totalSeconds) => {
-      const total = Math.max(0, Math.floor(totalSeconds));
-      const hours = Math.floor(total / 3600);
-      const minutes = Math.floor((total % 3600) / 60);
-      const seconds = total % 60;
-      const ss = String(seconds).padStart(2, "0");
-      if (hours > 0) {
-        return `${hours}:${String(minutes).padStart(2, "0")}:${ss}`;
-      }
-      return `${minutes}:${ss}`;
-    };
 
     /** Swaps the mock overlay for the Bunny embed player iframe. */
     const loadIframe = (videoEntry) => {
