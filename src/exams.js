@@ -515,7 +515,80 @@ function questionBlockHtml(question, savedValue, qIndex) {
           </div>`;
 }
 
-function openRun(payload, quizTitle, quizId) {
+// Show the exam overlay with an immediate loading spinner (a brief spinning
+// circle) while the fullscreen view is being entered and the exam's
+// questions are being fetched — consistent with the site's
+// "open instantly, load inside" pattern used elsewhere.
+function showRunLoading(quizTitle) {
+  const overlay = document.getElementById("quiz-run-overlay");
+  if (!overlay) return;
+  document.getElementById("run-title").textContent =
+    quizTitle || "جاري تجهيز الاختبار…";
+  document.getElementById("run-meta").textContent = "";
+  const questions = document.getElementById("run-questions");
+  if (questions) {
+    questions.innerHTML = `
+      <div class="exam-run-loading">
+        <div class="exam-run-spinner"></div>
+        <p>جاري تجهيز الاختبار…</p>
+      </div>
+    `;
+  }
+  // Start as a plain (non-fullscreen) overlay; the fullscreenchange handler
+  // / openRun will add the .exam-fullscreen layout once fullscreen engages.
+  overlay.classList.remove("exam-fullscreen");
+  overlay.style.display = "flex";
+}
+
+// Hide the run loading spinner and smoothly fade the real content in.
+function revealRunContent() {
+  const overlay = document.getElementById("quiz-run-overlay");
+  if (!overlay) return;
+  overlay.classList.add("skeleton-reveal");
+  // Remove the one-shot fade class so a later showRunLoading can re-fade.
+  setTimeout(() => overlay.classList.remove("skeleton-reveal"), 400);
+}
+
+// Hide the run overlay entirely (used on the auto-submitted / error paths so
+// a loading spinner is never left stuck on screen).
+function hideRunOverlay() {
+  const overlay = document.getElementById("quiz-run-overlay");
+  if (!overlay) return;
+  overlay.classList.remove("exam-fullscreen");
+  overlay.style.display = "none";
+  const questions = document.getElementById("run-questions");
+  if (questions) questions.innerHTML = "";
+}
+
+// Request browser fullscreen on the run overlay. Always resolves (bounded),
+// so the caller can safely await it before revealing the exam content
+// without ever getting stuck when fullscreen is blocked or unavailable.
+function requestRunFullscreen(runOverlay) {
+  const requestFullscreen =
+    runOverlay?.requestFullscreen || runOverlay?.webkitRequestFullscreen;
+
+  if (!runOverlay) return Promise.resolve(false);
+  if (!requestFullscreen) {
+    runOverlay.classList.add("exam-fullscreen");
+    return Promise.resolve(false);
+  }
+
+  return Promise.resolve(requestFullscreen.call(runOverlay))
+    .then(() => true)
+    .catch((err) => {
+      console.warn("Fullscreen request failed:", err);
+      showToast("تعذّر فتح وضع ملء الشاشة. يمكنك المتابعة عادياً.", "info");
+      runOverlay.classList.add("exam-fullscreen");
+      return false;
+    })
+    .then((entered) =>
+      // Give the fullscreenchange handler a tick to sync the layout class,
+      // then let the content reveal.
+      new Promise((resolve) => setTimeout(() => resolve(entered), 120)),
+    );
+}
+
+async function openRun(payload, quizTitle, quizId) {
   runState.quizId = quizId;
   runState.attemptId = payload.attemptId;
   runState.answers = { ...(payload.savedAnswers || {}) };
@@ -528,6 +601,17 @@ function openRun(payload, quizTitle, quizId) {
       ? `أكملتي محاولتك السابقة — الوقت المتبقي ${Math.ceil(payload.remainingSeconds / 60)} دقيقة`
       : `المدة ${payload.durationMinutes} دقيقة — بالتوفيق!`;
 
+  // Keep the loading spinner visible while we enter fullscreen, THEN
+  // populate the questions and reveal them together in one smooth step so
+  // the user never sees a half-built or empty exam screen.
+  const runOverlay = document.getElementById("quiz-run-overlay");
+  runOverlay.style.display = "flex";
+  await requestRunFullscreen(runOverlay);
+
+  // If the student exited the exam while it was still loading, don't bring
+  // the overlay (or its content) back — just stop here.
+  if (runOverlay.style.display === "none") return;
+
   document.getElementById("run-questions").innerHTML = payload.questions
     .map((question, qi) =>
       questionBlockHtml(
@@ -537,26 +621,8 @@ function openRun(payload, quizTitle, quizId) {
       ),
     )
     .join("");
-
-  document.getElementById("quiz-run-overlay").style.display = "flex";
   startTimer(payload.remainingSeconds);
-
-  // Request fullscreen mode for focused exam taking.
-  // When fullscreen succeeds the fullscreenchange handler adds the
-  // .exam-fullscreen class. When it fails (or the API is absent) we
-  // add it immediately so the enhanced layout still applies.
-  const runOverlay = document.getElementById("quiz-run-overlay");
-  const requestFullscreen =
-    runOverlay?.requestFullscreen || runOverlay?.webkitRequestFullscreen;
-  if (runOverlay && requestFullscreen) {
-    Promise.resolve(requestFullscreen.call(runOverlay)).catch((err) => {
-      console.warn("Fullscreen request failed:", err);
-      showToast("تعذّر فتح وضع ملء الشاشة. يمكنك المتابعة عادياً.", "info");
-      runOverlay.classList.add("exam-fullscreen");
-    });
-  } else if (runOverlay) {
-    runOverlay.classList.add("exam-fullscreen");
-  }
+  revealRunContent();
 
   // Autosave on EVERY change so an interrupted session resumes pre-filled.
   document.getElementById("run-questions").onchange = async (event) => {
@@ -685,6 +751,9 @@ async function closeRun({ exitFullscreen = true } = {}) {
 async function beginQuiz(quizId, quizTitle) {
   if (runState.starting) return; // ignore rapid double-clicks
   runState.starting = true;
+  // Show the loading spinner immediately (before the network round-trip) so
+  // the user gets instant feedback while fullscreen + questions are fetched.
+  showRunLoading(quizTitle);
   try {
     const { ok, status, data } = await api(
       "POST",
@@ -692,6 +761,7 @@ async function beginQuiz(quizId, quizTitle) {
     );
 
     if (!ok) {
+      hideRunOverlay();
       showToast(
         data && data.error
           ? data.error
@@ -705,13 +775,18 @@ async function beginQuiz(quizId, quizTitle) {
 
     if (data.status === "auto_submitted") {
       // Their personal countdown expired while away.
+      hideRunOverlay();
       showToast("انتهى وقت المحاولة وتم التسليم التلقائي.", "warning");
       openResult(quizId, data.result.resultId, data.result);
       return;
     }
 
     runState.quizIdForLookup = quizId;
-    openRun({ ...data }, quizTitle, quizId);
+    await openRun({ ...data }, quizTitle, quizId);
+  } catch (error) {
+    console.error("[exams] failed to start quiz:", error);
+    hideRunOverlay();
+    showToast("تعذر بدء الاختبار. تأكدي من الاتصال ثم أعيدي المحاولة.", "danger");
   } finally {
     runState.starting = false;
   }
