@@ -85,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const passwordInput = document.getElementById('login-password');
   const confirmPasswordGroup = document.getElementById('confirm-password-group');
   const confirmPasswordInput = document.getElementById('login-confirm-password');
-  const studentCodeHelp = document.getElementById('student-code-help');
   const passwordRequirements = document.getElementById('password-requirements');
   const submitButton = document.getElementById('auth-submit-btn');
   const titleEl = document.getElementById('auth-title');
@@ -115,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     titleEl.textContent = isSignUp ? 'إنشاء حساب' : 'تسجيل الدخول';
     descEl.textContent = isSignUp
-      ? 'أنشئ حساباً باختيار كود خاص بك (4 أحرف على الأقل) مع كلمة مرور آمنة.'
+      ? 'أنشئ حساباً باختيار كود خاص بك مع كلمة مرور آمنة.'
       : 'استخدم كود الدخول المخصص من المعلمة مع كلمة المرور للوصول إلى حسابك.';
     submitButton.innerHTML = isSignUp
       ? '<span aria-hidden="true">✚</span> إنشاء حساب'
@@ -127,7 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (emailInput) emailInput.required = isSignUp;
     if (confirmPasswordGroup) confirmPasswordGroup.hidden = !isSignUp;
     if (confirmPasswordInput) confirmPasswordInput.required = isSignUp;
-    if (studentCodeHelp) studentCodeHelp.hidden = !isSignUp;
     if (passwordRequirements) passwordRequirements.hidden = !isSignUp;
     passwordInput.autocomplete = isSignUp ? 'new-password' : 'current-password';
 
@@ -180,8 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const code = normalizeCode(codeInput.value);
     const password = passwordInput.value;
 
-    if (!code || (authMode === 'signup' && !/^[BS][0-9]+$/.test(code))) {
-      showToast('كود الطالب يجب أن يبدأ بحرف B أو S متبوعًا بأرقام. B للأحياء و S للعلوم المتكاملة. مثال: B12345 أو S12345.', 'warning');
+    if (!code) {
+      showToast('يرجى إدخال كود الدخول.', 'warning');
       codeInput.focus();
       return;
     }

@@ -38,12 +38,6 @@ const signup = catchAsync(async (req, res, next) => {
     );
   }
 
-  if (!STUDENT_CODE_PATTERN.test(trimmedCode)) {
-    return next(
-      new AppError('كود الطالب غير صحيح. يجب أن يبدأ بـ B أو S متبوعًا بأرقام.', 400)
-    );
-  }
-
   if (!EMAIL_PATTERN.test(normalizedEmail)) {
     return next(new AppError('يرجى إدخال Gmail صحيح.', 400));
   }

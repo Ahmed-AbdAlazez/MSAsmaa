@@ -67,7 +67,7 @@ async function runTests() {
     // Cleanup any existing test students
     await prisma.user.deleteMany({
       where: {
-        studentCode: { in: ['B900001', 'S900002'] },
+        studentCode: { in: ['B900001', 'S900002', 'XY12', '12', 'abc', 'b1', 'B'] },
       },
     });
 
@@ -103,14 +103,15 @@ async function runTests() {
     });
     if (secondSignupRes.status !== 201) throw new Error('Second student signup failed');
 
-    // Student-code validation must be enforced by the backend, not only the UI.
-    console.log('\n--- TEST 2B: Invalid Student Codes ---');
-    for (const studentCode of ['A12345', '12345', 'BS12345', 'BABC', 'SABC', 'B', 'S']) {
-      const invalidRes = await request('/api/v1/auth/signup', {
+    // Student-code format is no longer restricted by the backend: any
+    // non-empty code (short or without a B/S prefix) is accepted.
+    console.log('\n--- TEST 2B: Flexible Student Codes Accepted ---');
+    for (const studentCode of ['XY12', '12', 'b1', 'B']) {
+      const acceptedRes = await request('/api/v1/auth/signup', {
         method: 'POST',
-        body: { studentCode, name: 'Invalid Code', email: `invalid-${studentCode}@example.invalid`, password: 'Password123!', confirmPassword: 'Password123!' },
+        body: { studentCode, name: 'Flexible Code', email: `flexible-${studentCode}@example.invalid`, password: 'Password123!', confirmPassword: 'Password123!' },
       });
-      if (invalidRes.status !== 400) throw new Error(`Invalid code ${studentCode} was accepted`);
+      if (acceptedRes.status !== 201) throw new Error(`Valid code ${studentCode} was rejected`);
     }
 
     console.log('\n--- TEST 2C: Duplicate Gmail Prevention ---');
@@ -342,7 +343,7 @@ async function runTests() {
     // Cleanup test records
     await prisma.user.deleteMany({
       where: {
-        studentCode: { in: ['B900001', 'S900002'] },
+        studentCode: { in: ['B900001', 'S900002', 'XY12', '12', 'abc', 'b1', 'B'] },
       },
     });
     server.close();

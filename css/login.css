@@ -167,13 +167,6 @@
   color: var(--color-primary-ink);
 }
 
-.student-code-help {
-  margin: -0.75rem 0 1rem;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  line-height: 1.7;
-}
-
 .forgot-password-link {
   display: block;
   margin: 0.75rem 0 1rem;
