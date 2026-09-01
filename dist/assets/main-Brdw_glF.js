@@ -324,7 +324,7 @@
           <p>${K(e.message)}</p>
         </div>
       </div>
-    `).join(``)+`</div>`,t.querySelectorAll(`.notification-item`).forEach(e=>{e.addEventListener(`click`,async()=>{let t=e.dataset.id,n=e.dataset.link;try{await j(`${d}/notifications/${t}/read`,{method:`PATCH`,headers:m()}),await W(),n&&(window.location.href=n)}catch(e){console.error(`[notifications] Failed to mark read:`,e),n&&(window.location.href=n)}})})},ne=async(e=!1)=>{if(document.querySelector(`#notification-menu`)){if(!e&&B.length){await G(`data`);return}G(`loading`);try{await U(),await G(`data`)}catch{G(`error`)}}},K=(e=``)=>String(e).replaceAll(`&`,`&amp;`).replaceAll(`<`,`&lt;`).replaceAll(`>`,`&gt;`).replaceAll(`"`,`&quot;`).replaceAll(`'`,`&#039;`),re=()=>{U().catch(()=>{}),W()},ie=()=>localStorage.getItem(`userRole`)===`student`?`
+    `).join(``)+`</div>`,t.querySelectorAll(`.notification-item`).forEach(e=>{e.addEventListener(`click`,async()=>{let t=e.dataset.id,n=e.dataset.link;try{await j(`${d}/notifications/${t}/read`,{method:`PATCH`,headers:m()}),await W(),n&&(window.location.href=n)}catch(e){console.error(`[notifications] Failed to mark read:`,e),n&&(window.location.href=n)}})})},ne=async(e=!1)=>{if(document.querySelector(`#notification-menu`)){if(!e&&B.length){await G(`data`);return}G(`loading`);try{await U(),await G(`data`)}catch{G(`error`)}}},K=(e=``)=>String(e).replaceAll(`&`,`&amp;`).replaceAll(`<`,`&lt;`).replaceAll(`>`,`&gt;`).replaceAll(`"`,`&quot;`).replaceAll(`'`,`&#039;`),re=()=>{U().catch(()=>{}),W()},ie=()=>{let e=localStorage.getItem(`userRole`);return e!==`student`&&e!==`teacher`?``:`
     <div class="notification-center">
       <button class="notification-btn" id="notification-btn" type="button" title="الإشعارات" aria-label="الإشعارات">
         <span class="notification-symbol">!</span>
@@ -338,7 +338,7 @@
         <div id="notification-list"></div>
       </div>
     </div>
-  `:``,ae=()=>{n();let e=localStorage.getItem(`userRole`),t=localStorage.getItem(`username`)||``,r=!!(e&&localStorage.getItem(`token`));document.querySelectorAll(`.js-login-trigger`).forEach(e=>{let t=e.classList.contains(`footer-link`);e.style.display=r&&!t?`none`:``}),document.querySelectorAll(`.student-name-placeholder`).forEach(e=>{e.textContent=t||`طالب زائر`});let i=document.querySelector(`.nav-auth-container`),a=document.querySelector(`.mobile-auth-container`);if(e){let n=`تسجيل الخروج من الحساب (${t})`;i&&(i.innerHTML=`
+  `},ae=()=>{n();let e=localStorage.getItem(`userRole`),t=localStorage.getItem(`username`)||``,r=!!(e&&localStorage.getItem(`token`));document.querySelectorAll(`.js-login-trigger`).forEach(e=>{let t=e.classList.contains(`footer-link`);e.style.display=r&&!t?`none`:``}),document.querySelectorAll(`.student-name-placeholder`).forEach(e=>{e.textContent=t||`طالب زائر`});let i=document.querySelector(`.nav-auth-container`),a=document.querySelector(`.mobile-auth-container`);if(e){let n=`تسجيل الخروج من الحساب (${t})`;i&&(i.innerHTML=`
           ${ie()}
           <button class="login-icon-btn logged-in" id="auth-action-btn" title="${n}">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

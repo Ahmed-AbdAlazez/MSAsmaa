@@ -1473,7 +1473,9 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const getNotificationButtonHTML = () => {
-    if (localStorage.getItem("userRole") !== "student") return "";
+    const userRole = localStorage.getItem("userRole");
+    // Show notification bell for both students and teachers
+    if (userRole !== "student" && userRole !== "teacher") return "";
     return `
     <div class="notification-center">
       <button class="notification-btn" id="notification-btn" type="button" title="الإشعارات" aria-label="الإشعارات">

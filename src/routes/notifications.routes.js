@@ -10,20 +10,21 @@ const {
 
 const router = express.Router();
 
-const requireStudent = (req, res, next) => {
-  if (req.user.role !== "student") {
+const requireAuthenticatedUser = (req, res, next) => {
+  // Both students and teachers can access notifications
+  if (req.user.role !== "student" && req.user.role !== "teacher") {
     return res
       .status(403)
-      .json({ error: "الطلاب فقط يمكنهم الوصول إلى الإشعارات." });
+      .json({ error: "الطلاب والمعلمات فقط يمكنهم الوصول إلى الإشعارات." });
   }
   return next();
 };
 
 /**
  * GET /api/notifications
- * Retrieves notifications for the authenticated student.
+ * Retrieves notifications for the authenticated user (student or teacher).
  */
-router.get("/notifications", requireAuth, requireStudent, async (req, res) => {
+router.get("/notifications", requireAuth, requireAuthenticatedUser, async (req, res) => {
   try {
     const userId = req.user.id;
     const items = await getNotificationsForUser(userId);
@@ -40,7 +41,7 @@ router.get("/notifications", requireAuth, requireStudent, async (req, res) => {
 router.get(
   "/notifications/unread-count",
   requireAuth,
-  requireStudent,
+  requireAuthenticatedUser,
   async (req, res) => {
     try {
       const count = await getUnreadCount(req.user.id);
@@ -59,7 +60,7 @@ router.get(
 router.post(
   "/notifications/:id/read",
   requireAuth,
-  requireStudent,
+  requireAuthenticatedUser,
   async (req, res) => {
     try {
       const userId = req.user.id;
@@ -83,7 +84,7 @@ router.post(
 router.patch(
   "/notifications/:id/read",
   requireAuth,
-  requireStudent,
+  requireAuthenticatedUser,
   async (req, res) => {
     try {
       const success = await markNotificationAsRead(req.params.id, req.user.id);
@@ -108,7 +109,7 @@ router.patch(
 router.post(
   "/notifications/mark-all-read",
   requireAuth,
-  requireStudent,
+  requireAuthenticatedUser,
   async (req, res) => {
     try {
       const userId = req.user.id;
@@ -126,7 +127,7 @@ router.post(
 router.patch(
   "/notifications/read-all",
   requireAuth,
-  requireStudent,
+  requireAuthenticatedUser,
   async (req, res) => {
     try {
       await markAllNotificationsAsRead(req.user.id);

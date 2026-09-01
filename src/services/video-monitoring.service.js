@@ -40,7 +40,7 @@ async function checkAndHandleVideoStatus(videoId, lessonId, teacherId) {
 
     // Success case: video is ready
     if (video.status === 4) {
-      return { videoId, status: 4, action: "ready" };
+      return await handleVideoSuccess(videoId, lessonId, teacherId, video);
     }
 
     // Still processing: no action needed yet
@@ -166,6 +166,57 @@ async function handleVideoFailure(videoId, lessonId, teacherId, video) {
 }
 
 /**
+ * Handles a successful video: notifies teacher that encoding is complete.
+ *
+ * @private
+ * @param {string} videoId - Bunny's video ID
+ * @param {string} lessonId - The lesson this video belongs to
+ * @param {string} teacherId - The teacher to notify
+ * @param {Object} video - Video metadata from Bunny
+ * @returns {Promise<Object>} Result object
+ */
+async function handleVideoSuccess(videoId, lessonId, teacherId, video) {
+  console.log(`[video-monitoring] Video ${videoId} ready for viewing`);
+
+  const parsedTitle = parseLessonTitle(video.title);
+  const videoName = parsedTitle.name || "فيديو";
+
+  const result = {
+    videoId,
+    lessonId,
+    action: "success_notification",
+    results: {},
+  };
+
+  // Notify the teacher that video processing is complete
+  try {
+    await createNotificationForTeacher(teacherId, {
+      type: "video_success",
+      title: "✅ تم رفع الفيديو بنجاح",
+      message: `تم رفع الفيديو "${videoName}" بنجاح لدرس "${lessonId}". يمكن للطلاب الآن مشاهدة الفيديو.`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      // Link to lesson management section
+      link: `/dashboard-teacher.html?tab=manage-videos&lesson=${encodeURIComponent(
+        lessonId
+      )}`,
+    });
+    result.results.notification = "sent";
+    console.log(
+      `[video-monitoring] Notified teacher ${teacherId} about video ${videoId} success`
+    );
+  } catch (notifError) {
+    console.error(
+      `[video-monitoring] Failed to notify teacher about video success:`,
+      notifError
+    );
+    result.results.notification = `failed: ${notifError.message}`;
+  }
+
+  return result;
+}
+
+/**
  * Clears the video reference for a lesson.
  * This is separate from getLessonVideoId() to handle the future DB migration.
  *
@@ -254,9 +305,9 @@ function startVideoStatusMonitoring(
         teacherId
       );
 
-      // Stop if ready or if failure was handled
+      // Stop if ready, if failure was handled, or on error
       if (
-        result.status === 4 ||
+        result.action === "success_notification" ||
         result.action === "failure_cleanup" ||
         result.error
       ) {
