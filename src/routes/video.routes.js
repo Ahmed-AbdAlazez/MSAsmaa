@@ -36,6 +36,10 @@ const {
   parseLessonTitle: parseTitle,
 } = require("../services/bunny.service.js");
 
+const {
+  startVideoStatusMonitoring,
+} = require("../services/video-monitoring.service.js");
+
 // Sanitize user text before embedding it in the Bunny title:
 // "|" is our metadata separator and must never come from user input.
 const cleanTitlePart = (s) =>
@@ -125,6 +129,15 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
     });
 
+    // ⚠️ START BACKGROUND MONITORING
+    // After the teacher finishes uploading, Bunny encodes asynchronously.
+    // This monitoring detects when encoding completes OR fails.
+    // If it fails, we automatically notify the teacher and clean up.
+    startVideoStatusMonitoring(bunnyVideoId, lessonId, req.user.id, {
+      pollIntervalMs: 30000, // Check every 30 seconds
+      maxDurationMs: 24 * 60 * 60 * 1000, // Stop after 24 hours
+    });
+
     return res.status(201).json({
       message:
         "Video created on Bunny. Upload the file to uploadUrl using an HTTP PUT request.",
@@ -152,7 +165,11 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
  * GET /api/lessons/:lessonId/video-url
  *
  * Playback flow. Returns a short-lived signed playback URL for the lesson's
- * video — but only after the enrollment check below says the user may watch.
+ * video — but only after the enrollment check below says the user may watch
+ * AND the video is confirmed ready (status === 4).
+ *
+ * IMPORTANT: Students NEVER see processing or failed videos.
+ * A processing video simply doesn't exist from the student's perspective.
  */
 router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
   /* ======================================================================
@@ -198,6 +215,16 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
     if (!lessonVideoId) {
       // 404, not 403: the user IS allowed to watch, there just isn't a video
       // uploaded yet.
+      return res.status(404).json({
+        error: "لم يتم رفع فيديو لهذا الدرس بعد.",
+      });
+    }
+
+    // ⚠️ CRITICAL: Check video status before giving student access
+    // Students NEVER see processing (status < 4) or failed (status >= 5) videos
+    const videoMetadata = await getVideo(lessonVideoId);
+    if (!videoMetadata || videoMetadata.status !== 4) {
+      // Return 404 (not "processing") so student sees "no video yet"
       return res.status(404).json({
         error: "لم يتم رفع فيديو لهذا الدرس بعد.",
       });
@@ -276,6 +303,10 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
  * Lists ALL videos of a lesson (a lesson may have several parts), each with
  * its parsed metadata and a fresh signed playback URL. Gated by the same
  * enrollment check as video-url.
+ *
+ * CRITICAL: Only returns videos with status === 4 (ready).
+ * Processing and failed videos are NEVER shown to students — they simply
+ * don't appear in the list. Teachers see all statuses in their management view.
  */
 router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
@@ -290,7 +321,13 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
 
   try {
     const items = await findAllVideosByLessonId(req.params.lessonId);
-    const videoIds = items.map((video) => video.guid);
+    
+    // ⚠️ CRITICAL: Filter to only ready videos for students
+    // Status codes: 4 = Finished (ready), 5 = Error, 6 = UploadFailed
+    // Students see ZERO processing and ZERO failed videos
+    const readyVideos = items.filter((video) => video.status === 4);
+    
+    const videoIds = readyVideos.map((video) => video.guid);
 
     const chapters = await prisma.videoChapter.findMany({
       where: { videoId: { in: videoIds } },
@@ -310,7 +347,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
 
     return res.json({
       lessonId: req.params.lessonId,
-      videos: items.map((video) => ({
+      videos: readyVideos.map((video) => ({
         videoId: video.guid,
         ...parseTitle(video.title),
         status: video.status,

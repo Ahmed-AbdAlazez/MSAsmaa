@@ -40,6 +40,40 @@ async function createNotificationForApprovedStudents({
   });
 }
 
+/**
+ * Creates a notification for a specific teacher.
+ * Used for video failure alerts and other teacher-specific updates.
+ *
+ * @param {string} teacherId - The teacher's user ID
+ * @param {Object} options - Notification data
+ * @returns {Promise<Object>} Created notification record
+ */
+async function createNotificationForTeacher(teacherId, {
+  type,
+  title,
+  message,
+  relatedId = null,
+  relatedType = null,
+  link = null,
+}) {
+  if (!teacherId) {
+    console.warn('[notifications] createNotificationForTeacher called without teacherId');
+    return { count: 0 };
+  }
+
+  return prisma.notification.create({
+    data: {
+      userId: teacherId,
+      type,
+      title,
+      message,
+      relatedId,
+      relatedType,
+      link,
+    },
+  });
+}
+
 async function getNotificationsForUser(userId) {
   return prisma.notification.findMany({
     where: { userId },
@@ -70,6 +104,7 @@ async function markAllNotificationsAsRead(userId) {
 
 module.exports = {
   createNotificationForApprovedStudents,
+  createNotificationForTeacher,
   getNotificationsForUser,
   getUnreadCount,
   markNotificationAsRead,
