@@ -1276,12 +1276,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const fetchNotifications = async () => {
     const userId = localStorage.getItem("userId");
-    if (!userId) return [];
+    console.log('[notifications] fetchNotifications called - userId:', userId);
+    if (!userId) {
+      console.warn('[notifications] No userId in localStorage, returning empty');
+      return [];
+    }
     const headers = authHeaders();
+    console.log('[notifications] Auth headers:', headers.Authorization ? 'Bearer token set' : 'No authorization header');
     const call = () =>
       fetchJson(`${API_BASE}/notifications`, { headers }).then(
-        (data) => data.notifications || [],
-      );
+        (data) => {
+          console.log('[notifications] API returned:', data);
+          return data.notifications || [];
+        },
+      ).catch((error) => {
+        console.error('[notifications] fetchJson failed:', error);
+        throw error;
+      });
     // Fresh cache → return it and quietly refresh in the background so the
     // bell is never stale. (No re-render here — re-rendering while the menu
     // is open replays the fade-in and looks like blinking; the next open
@@ -1290,12 +1301,15 @@ document.addEventListener("DOMContentLoaded", () => {
       cachedNotifications.length &&
       Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL
     ) {
+      console.log('[notifications] Using cached notifications:', cachedNotifications.length);
       call()
         .then((fresh) => {
           cachedNotifications = fresh;
           notificationsFetchedAt = Date.now();
+          console.log('[notifications] Background refresh complete:', fresh.length);
         })
-        .catch(() => {
+        .catch((err) => {
+          console.warn('[notifications] Background refresh failed:', err);
           /* keep showing cached list */
         });
       return cachedNotifications;
@@ -1303,10 +1317,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Memoize the in-flight request so the page-load prefetch and a quick
     // bell click (before it resolves) share ONE network call.
     if (!notificationsInFlight) {
+      console.log('[notifications] Starting new fetch...');
       notificationsInFlight = call()
         .then((notifications) => {
           cachedNotifications = notifications;
           notificationsFetchedAt = Date.now();
+          console.log('[notifications] Fetch complete:', notifications.length);
           return notifications;
         })
         .finally(() => {
@@ -1325,11 +1341,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateNotificationBadge = async () => {
     let unreadCount = 0;
     try {
+      console.log('[notifications] Fetching unread count from API...');
       const data = await fetchJson(`${API_BASE}/notifications/unread-count`, {
         headers: authHeaders(),
       });
       unreadCount = Number(data.count) || 0;
+      console.log('[notifications] Unread count:', unreadCount);
     } catch (error) {
+      console.error('[notifications] Failed to get unread count, falling back to fetch:', error);
       const notifications = await fetchNotifications();
       unreadCount = notifications.filter(
         (item) => !(item.isRead ?? item.read),
@@ -1544,7 +1563,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (mobileAuthContainer) {
         const notificationAction =
-          userRole === "student"
+          (userRole === "student" || userRole === "teacher")
             ? '<button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>'
             : "";
         mobileAuthContainer.innerHTML = `
