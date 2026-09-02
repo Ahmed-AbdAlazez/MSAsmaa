@@ -1487,14 +1487,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
   const initializeQuizExperience = () => {
+    // Notifications are currently student-only (teacher bell disabled).
+    if (localStorage.getItem("userRole") !== "student") return;
     fetchNotifications().catch(() => {});
     updateNotificationBadge();
   };
 
   const getNotificationButtonHTML = () => {
     const userRole = localStorage.getItem("userRole");
-    // Show notification bell for both students and teachers
-    if (userRole !== "student" && userRole !== "teacher") return "";
+    // Show the notification bell for students only for now; the teacher
+    // notifications flow is disabled until it is fixed.
+    if (userRole !== "student") return "";
     return `
     <div class="notification-center">
       <button class="notification-btn" id="notification-btn" type="button" title="الإشعارات" aria-label="الإشعارات">
@@ -1563,7 +1566,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (mobileAuthContainer) {
         const notificationAction =
-          (userRole === "student" || userRole === "teacher")
+          userRole === "student"
             ? '<button class="btn btn-light btn-full" id="mobile-notifications-btn">الإشعارات الجديدة</button>'
             : "";
         mobileAuthContainer.innerHTML = `
