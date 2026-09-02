@@ -98,6 +98,20 @@ async function createRoom(roomName, opts = {}) {
     // Room already exists => reuse it.
     return { url, name: roomName, created: false };
   }
+
+  // Daily also returns HTTP 400 "invalid-request-error: a room named X already
+  // exists" when a room with the same name already exists. Treat that the same
+  // as 409 and reuse the existing room rather than failing.
+  if (response.status === 400) {
+    const errorBody = await response.text();
+    if (/already exists/i.test(errorBody)) {
+      return { url, name: roomName, created: false };
+    }
+    throw new Error(
+      `Daily createRoom failed (HTTP 400): ${errorBody}`
+    );
+  }
+
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`Daily createRoom failed (HTTP ${response.status}): ${errorBody}`);
