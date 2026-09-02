@@ -151,38 +151,83 @@ async function openEmbeddedCall(deps, room) {
     });
     activeFrame = frame;
 
+    // ------------------------------------------------------------------
+    // DEBUGGING: detailed runtime trace of the join flow. Logs the REAL
+    // error/event objects so the actual cause is visible in the console,
+    // but NEVER logs tokens, API keys, or other secrets.
+    // ------------------------------------------------------------------
+    const trace = (stage, ...args) =>
+      console.log(`[liveSession] ${stage}`, ...args);
+
     // Surface real join/network/permission errors instead of a silent black
     // iframe. A rejected join (e.g. camera permission denied, room/token
     // problem, offline) is shown to the teacher immediately.
     frame.on("error", (event) => {
-      const message =
-        event?.errorMsg || event?.error?.message || "فشل الاتصال بالبث المباشر.";
-      console.error("[liveSession] Daily error:", message);
-      showToast(`تعذر الدخول إلى البث: ${message}`, "danger");
+      const detail =
+        event?.errorMsg || event?.error?.message || event?.errorMsgCode || "";
+      console.error("[liveSession] Daily 'error' event:", event);
+      trace("Daily error event ->", detail || "(no message)");
+      // The real reason is logged to the console above; the toast stays short
+      // and friendly for the teacher.
+      showToast("تعذر الدخول إلى البث المباشر.", "danger");
       // Leave the call cleanly if the session never established.
       try { frame.leave(); } catch (_) {}
     });
 
+    frame.on("camera-error", (event) => {
+      console.warn("[liveSession] Daily 'camera-error' event:", event);
+      trace("camera-error ->", event?.errorMsg || "(no message)");
+    });
+
+    frame.on("network-connection-error", (event) => {
+      console.warn("[liveSession] Daily 'network-connection-error' event:", event);
+    });
+
+    frame.on("access-state-change", (event) => {
+      trace("access-state-change ->", JSON.stringify(event?.accessState));
+    });
+
     // Once joined, remove the "connecting…" note.
-    frame.on("joined-meeting", () => {
+    frame.on("joining-meeting", () => trace("event: joining-meeting"));
+    frame.on("joined-meeting", (event) => {
+      trace("event: joined-meeting", JSON.stringify({ local: event?.participants?.local?.session_id }));
       connectingNote.remove();
+    });
+    frame.on("left-meeting", (event) => {
+      trace("event: left-meeting", event?.errorMsg || "");
+    });
+
+    trace("Join config", {
+      url: room.url,
+      hasToken: Boolean(room.token),
+      tokenLength: room.token ? room.token.length : 0,
+      isOwner: room.isOwner,
+      stub: room.stub,
     });
 
     // Explicitly join the room with the meeting token. This is the reliable,
     // documented way to enter a private Daily room — the Prebuilt UI will not
     // show the actual call until join() resolves.
+    trace("join() started");
     try {
       await frame.join({ url: room.url, token: room.token });
+      trace("join() succeeded");
       if (!closed) connectingNote.remove();
     } catch (joinError) {
-      // join() rejects on a real failure (permission denied, room closed,
-      // token invalid, network). Replace the silent black area with a message.
+      // Log the REAL error object — do not hide it behind the Arabic message.
+      console.error("[liveSession] join() FAILED — full object:", joinError);
+      trace("join() failed ->", {
+        name: joinError?.name,
+        message: joinError?.message,
+        errorMsgCode: joinError?.errorMsgCode,
+        code: joinError?.code,
+      });
+      // Replace the silent black area with a clear Arabic message.
       connectingNote.textContent =
         joinError?.message || "تعذر الدخول إلى البث المباشر.";
       connectingNote.classList.add("live-stage-loading-error");
-      console.error("[liveSession] join failed:", joinError);
       showToast(
-        joinError?.message || "تعذر الدخول إلى البث المباشر. يرجى المحاولة لاحقاً.",
+        "تعذر الدخول إلى البث المباشر. راجعي وحدة التحكم لمعرفة التفاصيل.",
         "danger",
       );
       try { frame.leave(); } catch (_) {}
@@ -322,12 +367,23 @@ function bindStartButtons(deps) {
   if (!btn || btn.dataset.bound) return;
   btn.dataset.bound = "1";
   btn.addEventListener("click", async () => {
+    console.log("[liveSession] Start Live clicked");
     try {
       btn.disabled = true;
+      console.log("[liveSession] Requesting /api/live/start …");
       const data = await deps.fetchJson("/api/live/start", {
         method: "POST",
         headers: { ...deps.authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ title: "بث مباشر — شرح الأحياء" }),
+      });
+      console.log("[liveSession] /api/live/start response:", {
+        live: data.live,
+        stub: data.stub,
+        isOwner: data.isOwner,
+        roomName: data.room?.name,
+        url: data.room?.url,
+        hasToken: Boolean(data.token),
+        tokenLength: data.token ? data.token.length : 0,
       });
       deps.showToast(
         data.stub
@@ -344,6 +400,7 @@ function bindStartButtons(deps) {
       });
       refreshLiveUi(deps); // immediately show the "live" state in the bar
     } catch (error) {
+      console.error("[liveSession] Start Live failed:", error);
       deps.showToast(error?.message || "فشل بدء البث.", "danger");
     } finally {
       btn.disabled = false;
@@ -358,11 +415,19 @@ function bindJoinButton(deps, session) {
   cta.dataset.bound = "1";
   cta.addEventListener("click", async (event) => {
     event.preventDefault();
+    console.log("[liveSession] Join CTA clicked");
     try {
       const data = await deps.fetchJson("/api/live/join", {
         method: "POST",
         headers: { ...deps.authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({}),
+      });
+      console.log("[liveSession] /api/live/join response:", {
+        live: data.live,
+        stub: data.stub,
+        isOwner: data.isOwner,
+        roomName: data.room?.name,
+        hasToken: Boolean(data.token),
       });
       await openEmbeddedCall(deps, {
         url: data.room.url,
@@ -371,6 +436,7 @@ function bindJoinButton(deps, session) {
         stub: data.stub,
       });
     } catch (error) {
+      console.error("[liveSession] Join CTA failed:", error);
       deps.showToast(error?.message || "فشل الانضمام إلى البث.", "danger");
     }
   });

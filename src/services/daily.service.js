@@ -79,12 +79,15 @@ async function createRoom(roomName, opts = {}) {
     privacy: "private", // only holders of a meeting token can join
     properties: {
       exp: Math.floor(Date.now() / 1000) + SESSION_LIFETIME_SECONDS,
-      lang: "ar",
+      // NOTE: do NOT set properties.lang to "ar" — Daily does not support
+      // Arabic as a language ("ar" is not in Daily's supported language list).
+      // An unsupported room-level lang is stored into the room config and
+      // makes the Prebuilt iframe fail to load/join (black screen / generic
+      // join error). Omit it and let Daily use the browser default / "user".
       // Students joining this room start with camera OFF and mic OFF by
       // default (lecture-style), togglable by the owner (teacher).
       start_video_off: opts.start_video_off ?? false,
       start_audio_off: opts.start_audio_off ?? true,
-      // Prefer the (upcoming) Arabic support automatically; benign otherwise.
     },
   };
 
