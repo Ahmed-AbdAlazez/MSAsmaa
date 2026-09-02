@@ -139,6 +139,7 @@ async function openEmbeddedCall(deps, room) {
       theme: DAILY_THEME,
       lang: "ar",
     });
+    activeFrame = frame;
 
     // Wire the site's "إنهاء" button. For the owner this also ends the
     // session server-side (which kicks everyone and deletes the room); for a
@@ -155,8 +156,7 @@ async function openEmbeddedCall(deps, room) {
       } catch (_) {
         /* best-effort; we still leave the call */
       }
-      try { frame.destroy(); } catch (_) {}
-      host.remove();
+      closeEmbeddedCall();
       refreshLiveUi(deps); // reflect the now-idle state everywhere
     });
 
@@ -185,8 +185,20 @@ async function openEmbeddedCall(deps, room) {
   }
 }
 
-/** Removes the embedded live stage (leaves the call if open). */
+/**
+ * The currently-open Daily Prebuilt frame (if any). We must call destroy()
+ * before creating a new frame — daily-js throws "Duplicate DailyIframe
+ * instances are not allowed" if a previous instance is left alive while a new
+ * createFrame() is made.
+ */
+let activeFrame = null;
+
+/** Removes the embedded live stage AND destroys its Daily frame instance. */
 function closeEmbeddedCall() {
+  if (activeFrame && typeof activeFrame.destroy === "function") {
+    try { activeFrame.destroy(); } catch (_) {}
+  }
+  activeFrame = null;
   const stage = document.getElementById("msasmaa-live-stage");
   if (stage) stage.remove();
 }
