@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!response.ok) throw new Error(data.message || 'تعذر إرسال رسالة إعادة التعيين.');
       if (!data.data?.resetToken) throw new Error('طلب تغيير كلمة المرور غير صالح.');
       sessionStorage.setItem('passwordResetToken', data.data.resetToken);
-      window.location.href = 'reset-password.html';
+      window.location.href = '/reset-password';
     } catch (error) { showToast(error.message, 'danger'); }
   });
 });

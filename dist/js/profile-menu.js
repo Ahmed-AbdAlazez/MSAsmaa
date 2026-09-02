@@ -21,8 +21,8 @@
 
   const ROLE_LABELS = { student: 'طالب', teacher: 'معلم' };
   const DASHBOARDS = {
-    student: 'courses.html',
-    teacher: 'dashboard-teacher.html',
+    student: '/courses',
+    teacher: '/dashboard-teacher',
   };
   const AVATAR_PALETTE = [
     'linear-gradient(135deg, #0F4C3A, #14B8A6)',
@@ -74,7 +74,7 @@
     ['userRole', 'username', 'userId', 'token'].forEach((key) => {
       try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
     });
-    window.location.href = 'index.html';
+    window.location.href = '/';
   }
 
   function buildMenu(user) {
@@ -92,7 +92,7 @@
       '<div class="profile-dropdown" role="menu" hidden>',
       `<div class="profile-dropdown-header"><strong>${user.name || 'مستخدم'}</strong><small>${roleLabel}</small></div>`,
       '<button class="profile-menu-item" type="button" data-action="profile" role="menuitem">👤 الملف الشخصي</button>',
-      `${user.role === 'student' ? '<a class="profile-menu-item" href="courses.html" role="menuitem">📚 الكورسات</a>' : `<a class="profile-menu-item" href="${DASHBOARDS[user.role] || '#'}" role="menuitem">📊 لوحة التحكم</a>`}`,
+      `${user.role === 'student' ? '<a class="profile-menu-item" href="/courses" role="menuitem">📚 الكورسات</a>' : `<a class="profile-menu-item" href="${DASHBOARDS[user.role] || '#'}" role="menuitem">📊 لوحة التحكم</a>`}`,
       '<button class="profile-menu-item profile-menu-danger" type="button" data-action="logout" role="menuitem">🚪 تسجيل الخروج</button>',
       '</div>',
     ].join('');

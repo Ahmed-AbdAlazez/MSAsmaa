@@ -68,9 +68,9 @@ function completeLogin(role, displayName, userId, token) {
 
   setTimeout(() => {
     if (String(role).toLowerCase() === 'teacher') {
-      window.location.href = 'dashboard-teacher.html';
+      window.location.href = '/dashboard-teacher';
     } else {
-      window.location.href = 'courses.html';
+      window.location.href = '/courses';
     }
   }, 1000);
 }

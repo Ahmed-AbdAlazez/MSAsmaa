@@ -10,7 +10,7 @@ export function initStudentMistakesPage({ API_BASE, authHeaders, fetchJson, show
   const root = document.querySelector('#student-mistakes-page');
   if (!root) return;
   if (String(localStorage.getItem('userRole') || '').toLowerCase() !== 'student' || !localStorage.getItem('token')) {
-    window.location.replace('login.html');
+    window.location.replace('/login');
     return;
   }
   const list = root.querySelector('#student-mistakes-list');

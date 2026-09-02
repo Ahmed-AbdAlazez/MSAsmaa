@@ -58,15 +58,17 @@ export function initNavbar() {
 
   // Helper to determine active state of nav links
   const getActive = (paths) => {
+    const normalizedCurrentPath = currentPath.replace(/^\//, "").replace(/\.html$/, "");
     const isMatch = paths.some((path) => {
-      if (path === "index.html") {
+      const normalizedPath = path.replace(/^\//, "").replace(/\.html$/, "");
+      if (normalizedPath === "index") {
         return (
           currentPath === "/" ||
           currentPath.endsWith("index.html") ||
           currentPath === ""
         );
       }
-      return currentPath.includes(path);
+      return normalizedCurrentPath === normalizedPath;
     });
     return isMatch ? "active" : "";
   };
@@ -75,7 +77,7 @@ export function initNavbar() {
     // LOGGED OUT STATE: Show minimal navbar with only logo, dark mode toggle, and login/signup buttons
     navbarElement.innerHTML = `
       <div class="container">
-        <a href="index.html" class="brand">
+        <a href="/" class="brand">
           <span class="brand-icon">🧬</span>
           <span>المرسال</span>
         </a>
@@ -83,8 +85,8 @@ export function initNavbar() {
           <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
             <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
           </button>
-          <a href="login.html" class="btn-login-minimal">تسجيل الدخول</a>
-          <a href="login.html?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+          <a href="/login" class="btn-login-minimal">تسجيل الدخول</a>
+          <a href="/login?mode=signup" class="btn-signup-minimal">حساب جديد</a>
           <button class="nav-toggle" aria-label="فتح القائمة">☰</button>
         </div>
       </div>
@@ -117,8 +119,8 @@ export function initNavbar() {
         <button class="mobile-drawer-close">✕</button>
       </div>
       <div class="mobile-auth-minimal" style="padding: 1rem 0;">
-        <a href="login.html" class="btn btn-primary btn-full">تسجيل الدخول</a>
-        <a href="login.html?mode=signup" class="btn btn-light btn-full">حساب جديد</a>
+        <a href="/login" class="btn btn-primary btn-full">تسجيل الدخول</a>
+        <a href="/login?mode=signup" class="btn btn-light btn-full">حساب جديد</a>
       </div>
     `;
   } else {
@@ -128,41 +130,41 @@ export function initNavbar() {
     let dashboardLink = "";
     let mobileDashboardLink = "";
     if (isTeacher) {
-      dashboardLink = `<li><a href="dashboard-teacher.html" class="nav-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
-      mobileDashboardLink = `<li><a href="dashboard-teacher.html" class="mobile-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
+      dashboardLink = `<li><a href="/dashboard-teacher" class="nav-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
+      mobileDashboardLink = `<li><a href="/dashboard-teacher" class="mobile-link ${getActive(["dashboard-teacher.html"])}">لوحة المعلمة</a></li>`;
     }
 
     const registrationRequestsLink = isTeacher
-      ? `<li><a href="registration-requests.html" class="nav-link ${getActive(["registration-requests.html"])}">طلبات التسجيل</a></li>`
+      ? `<li><a href="/registration-requests" class="nav-link ${getActive(["registration-requests.html"])}">طلبات التسجيل</a></li>`
       : "";
     const mobileRegistrationRequestsLink = isTeacher
-      ? `<li><a href="registration-requests.html" class="mobile-link ${getActive(["registration-requests.html"])}">طلبات التسجيل</a></li>`
+      ? `<li><a href="/registration-requests" class="mobile-link ${getActive(["registration-requests.html"])}">طلبات التسجيل</a></li>`
       : "";
     const studentsManagementLink = isTeacher
-      ? `<li><a href="students.html" class="nav-link ${getActive(["students.html"])}">الطلاب</a></li>`
+      ? `<li><a href="/students" class="nav-link ${getActive(["students.html"])}">الطلاب</a></li>`
       : "";
     const mobileStudentsManagementLink = isTeacher
-      ? `<li><a href="students.html" class="mobile-link ${getActive(["students.html"])}">الطلاب</a></li>`
+      ? `<li><a href="/students" class="mobile-link ${getActive(["students.html"])}">الطلاب</a></li>`
       : "";
 
     const mistakesLink = isStudent
-      ? `<li><a href="student-mistakes.html" class="nav-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
+      ? `<li><a href="/student-mistakes" class="nav-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
       : "";
     const mobileMistakesLink = isStudent
-      ? `<li><a href="student-mistakes.html" class="mobile-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
+      ? `<li><a href="/student-mistakes" class="mobile-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
       : "";
 
     // Generate navbar inner HTML
     navbarElement.innerHTML = `
       <div class="container">
-        <a href="index.html" class="brand">
+        <a href="/" class="brand">
           <span class="brand-icon">🧬</span>
           <span>المرسال</span>
         </a>
         <ul class="nav-links">
-          <li><a href="index.html" class="nav-link ${getActive(["index.html"])}">الرئيسية</a></li>
-          <li><a href="courses.html" class="nav-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
-          <li><a href="exams.html" class="nav-link ${getActive(["exams.html"])}">الاختبارات</a></li>
+          <li><a href="/" class="nav-link ${getActive(["index.html"])}">الرئيسية</a></li>
+          <li><a href="/courses" class="nav-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
+          <li><a href="/exams" class="nav-link ${getActive(["exams.html"])}">الاختبارات</a></li>
           ${dashboardLink}
           ${mistakesLink}
           ${registrationRequestsLink}
@@ -205,9 +207,9 @@ export function initNavbar() {
         <button class="mobile-drawer-close">✕</button>
       </div>
       <ul class="mobile-links">
-        <li><a href="index.html" class="mobile-link ${getActive(["index.html"])}">الرئيسية</a></li>
-        <li><a href="courses.html" class="mobile-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
-        <li><a href="exams.html" class="mobile-link ${getActive(["exams.html"])}">الاختبارات</a></li>
+        <li><a href="/" class="mobile-link ${getActive(["index.html"])}">الرئيسية</a></li>
+        <li><a href="/courses" class="mobile-link ${getActive(["courses.html", "course-biology.html", "lessons.html", "lesson-view.html"])}">الكورسات</a></li>
+        <li><a href="/exams" class="mobile-link ${getActive(["exams.html"])}">الاختبارات</a></li>
         ${mobileDashboardLink}
         ${mobileMistakesLink}
         ${mobileRegistrationRequestsLink}

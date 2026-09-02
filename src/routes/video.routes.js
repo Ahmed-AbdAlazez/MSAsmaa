@@ -129,7 +129,7 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       message: `تم إضافة فيديو جديد: ${rawTitle}`,
       relatedId: lessonId,
       relatedType: "lesson",
-      link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+      link: `/lesson-view?lesson=${encodeURIComponent(lessonId)}`,
     });
 
     // Also notify the teacher who uploaded it
@@ -139,7 +139,7 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       message: `تم رفع الفيديو "${rawTitle}" بنجاح. جاري معالجة الفيديو...`,
       relatedId: lessonId,
       relatedType: "lesson",
-      link: `/dashboard-teacher.html?tab=manage-videos&lesson=${encodeURIComponent(lessonId)}`,
+      link: `/dashboard-teacher?tab=manage-videos&lesson=${encodeURIComponent(lessonId)}`,
     });
 
     // ⚠️ START BACKGROUND MONITORING

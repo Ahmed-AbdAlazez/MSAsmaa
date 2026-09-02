@@ -43,10 +43,10 @@
       try {
         if (!localStorage.getItem("token")) {
           sessionStorage.setItem("course-login-required", "1");
-          window.location.replace("login.html");
+          window.location.replace("/login");
         }
       } catch (e) {
-        window.location.replace("login.html");
+        window.location.replace("/login");
       }
     })();
   </script>
@@ -61,8 +61,8 @@
     
     <!-- Breadcrumbs -->
     <nav style="font-size: 0.9rem; margin-bottom: 1.5rem; color: var(--color-text-muted);">
-      <a href="index.html" style="color: var(--color-primary);">الرئيسية</a> / 
-      <a href="lessons.html" style="color: var(--color-primary);">المناهج</a> / 
+      <a href="/" style="color: var(--color-primary);">الرئيسية</a> /
+      <a href="/lessons" style="color: var(--color-primary);">المناهج</a> /
       <span id="lesson-breadcrumb-title">الدعامة في النبات</span>
     </nav>
 
@@ -157,7 +157,7 @@
         <div>
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
-            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="/course-biology" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
           </ul>
         </div>
       </div>
