@@ -41,7 +41,7 @@ async function main() {
       type: 'video_success',
       title: '✅ تم رفع الفيديو بنجاح',
       message: 'فيديو تجريبي تم رفعه بنجاح',
-      link: '/dashboard-teacher.html',
+      link: '/dashboard-teacher',
     });
     console.log(`   Created notification: ID=${newNotif.id}`);
 

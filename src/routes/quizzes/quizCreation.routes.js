@@ -137,7 +137,7 @@ router.post("/quizzes", requireAuth, requireTeacher, async (req, res) => {
     message: `تم إضافة امتحان جديد: ${quiz.title}`,
     relatedId: quiz.id,
     relatedType: "quiz",
-    link: `/exams.html?quiz=${encodeURIComponent(quiz.id)}`,
+    link: `/exams?quiz=${encodeURIComponent(quiz.id)}`,
   });
   return res.status(201).json({ message: "تم إنشاء الاختبار.", quiz });
 });

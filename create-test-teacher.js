@@ -34,7 +34,7 @@ async function main() {
     console.log('Password (كلمة المرور): Test@1234');
     console.log('Name:', teacher.name);
     console.log('Email:', teacher.email);
-    console.log('\nThese credentials can be used to log in at: http://localhost:5173/login.html');
+    console.log('\nThese credentials can be used to log in at: http://localhost:5173/login');
 
     await prisma.$disconnect();
   } catch (error) {

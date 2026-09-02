@@ -164,7 +164,7 @@ router.post("/notifications/quiz", requireAuth, async (req, res) => {
       title: "امتحان جديد",
       message: `تم إضافة امتحان جديد: ${trimmedTitle}`,
       relatedType: "quiz",
-      link: "/exams.html",
+      link: "/exams",
     });
     return res.json({ success: true });
   } catch (error) {

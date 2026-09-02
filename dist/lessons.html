@@ -41,14 +41,14 @@
       try {
         if (!localStorage.getItem("token")) {
           sessionStorage.setItem("course-login-required", "1");
-          window.location.replace("login.html");
+          window.location.replace("/login");
         }
       } catch (e) {
-        window.location.replace("login.html");
+        window.location.replace("/login");
       }
     })();
   </script>
-  <script type="module" crossorigin src="/assets/main-DQTroeu2.js"></script>
+  <script type="module" crossorigin src="/assets/main-jl87pwT7.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/main-Kv5Fr28x.css">
 </head>
 <body>
@@ -78,7 +78,7 @@
             </p>
           </div>
           <div>
-            <a href="course-biology.html" class="btn btn-primary btn-full">تصفح منهج الأحياء (3ث)</a>
+            <a href="/course-biology" class="btn btn-primary btn-full">تصفح منهج الأحياء (3ث)</a>
           </div>
         </div>
 
@@ -99,7 +99,7 @@
         <div>
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
-            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="/course-biology" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
           </ul>
         </div>
       </div>

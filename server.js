@@ -29,6 +29,6 @@ app.listen(PORT, () => {
 
   console.log(`✅ Server running at http://localhost:${PORT}`);
   console.log(
-    `   First chapter / first lesson: http://localhost:${PORT}/lesson-view.html?title=مفهوم الدعامة في الكائنات الحية`
+    `   First chapter / first lesson: http://localhost:${PORT}/lesson-view?title=مفهوم الدعامة في الكائنات الحية`
   );
 });

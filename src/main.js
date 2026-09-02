@@ -18,16 +18,16 @@ window.addEventListener("storage", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  const isStudentsPage = window.location.pathname.includes("students.html");
+  const isStudentsPage = /\/students(?:\.html)?$/.test(window.location.pathname);
   const isTeacherOnlyPage =
-    window.location.pathname.includes("registration-requests.html") ||
-    window.location.pathname.includes("dashboard-teacher.html") ||
+    /\/registration-requests(?:\.html)?$/.test(window.location.pathname) ||
+    /\/dashboard-teacher(?:\.html)?$/.test(window.location.pathname) ||
     isStudentsPage;
   if (isTeacherOnlyPage) {
     const role = String(localStorage.getItem("userRole") || "").toLowerCase();
     const token = localStorage.getItem("token");
     if (role !== "teacher" || !token) {
-      window.location.replace(isStudentsPage ? "login.html" : "index.html");
+      window.location.replace(isStudentsPage ? "/login" : "/");
       return;
     }
   }
@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     event.preventDefault();
     const href = loginTrigger.getAttribute("href");
-    window.location.href = href || "login.html";
+    window.location.href = href || "/login";
   });
 
   // --- Team credits modal (footer "فريق العمل" link) ----------------------
@@ -227,7 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const destination = new URL(href, window.location.href);
       return (
         destination.origin === window.location.origin &&
-        /\/(?:courses|course-biology|lessons|lesson-view)\.html$/.test(
+        /\/(?:courses|course-biology|lessons|lesson-view)(?:\.html)?$/.test(
           destination.pathname,
         )
       );
@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
     window.showToast("يجب تسجيل الدخول أولاً للبحث عن الكورسات.", "warning");
     window.setTimeout(() => {
-      window.location.href = "login.html";
+      window.location.href = "/login";
     }, 1500);
     },
     true,
@@ -1141,7 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document
       .querySelector("#btn-teacher-add")
       ?.addEventListener("click", () => {
-        window.location.href = "students.html";
+        window.location.href = "/students";
       });
 
     const totalStudents = document.querySelector("#teacher-total-students");
@@ -1664,7 +1664,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const mobileLoginBtn = document.querySelector("#mobile-login-btn");
     if (mobileLoginBtn) {
       mobileLoginBtn.addEventListener("click", () => {
-        window.location.href = "login.html";
+        window.location.href = "/login";
       });
     }
 
@@ -1692,7 +1692,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (userRole) {
       handleLogout();
     } else {
-      window.location.href = "login.html";
+      window.location.href = "/login";
     }
   };
 
@@ -1710,7 +1710,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateAuthUI();
     // Redirect to index page
     setTimeout(() => {
-      window.location.href = "index.html";
+      window.location.href = "/";
     }, 800);
   };
 
@@ -1749,7 +1749,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // --- Dynamic URL Parameter Parsing for lesson-view.html ---
-  if (window.location.pathname.includes("lesson-view.html")) {
+  if (/\/lesson-view(?:\.html)?$/.test(window.location.pathname)) {
     const urlParams = new URLSearchParams(window.location.search);
     const titleParam = urlParams.get("title");
     if (titleParam) {
@@ -1814,7 +1814,7 @@ document.addEventListener("DOMContentLoaded", () => {
         item.className = "lesson-list-item";
         item.style.cssText = "margin-bottom:0.5rem;";
         item.href =
-          `lesson-view.html?lesson=${encodeURIComponent(lesson.id)}` +
+          `/lesson-view?lesson=${encodeURIComponent(lesson.id)}` +
           `&chapter=${encodeURIComponent(chapter.id)}` +
           `&title=${encodeURIComponent(lesson.name)}`;
         item.innerHTML = `<div class="lesson-list-item-title"><span class="lesson-list-item-icon">▶️</span><span>${lesson.name}</span></div>`;

@@ -111,7 +111,7 @@ async function handleVideoFailure(videoId, lessonId, teacherId, video) {
       relatedId: lessonId,
       relatedType: "lesson",
       // Link to lesson management section so teacher can re-upload
-      link: `/dashboard-teacher.html?tab=manage-videos&lesson=${encodeURIComponent(
+      link: `/dashboard-teacher?tab=manage-videos&lesson=${encodeURIComponent(
         lessonId
       )}`,
     });
@@ -135,7 +135,7 @@ async function handleVideoFailure(videoId, lessonId, teacherId, video) {
       message: `عذراً، حدثت مشكلة في تحميل الفيديو "${videoName}" لدرس "${lessonId}". سيتم حل المشكلة قريباً إن شاء الله.`,
       relatedId: lessonId,
       relatedType: "lesson",
-      link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+      link: `/lesson-view?lesson=${encodeURIComponent(lessonId)}`,
     });
     cleanupResults.results.student_notification = "sent";
     console.log(
@@ -224,7 +224,7 @@ async function handleVideoSuccess(videoId, lessonId, teacherId, video) {
       relatedId: lessonId,
       relatedType: "lesson",
       // Link to lesson management section
-      link: `/dashboard-teacher.html?tab=manage-videos&lesson=${encodeURIComponent(
+      link: `/dashboard-teacher?tab=manage-videos&lesson=${encodeURIComponent(
         lessonId
       )}`,
     });
@@ -249,7 +249,7 @@ async function handleVideoSuccess(videoId, lessonId, teacherId, video) {
       relatedId: lessonId,
       relatedType: "lesson",
       // Link to lesson view
-      link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+      link: `/lesson-view?lesson=${encodeURIComponent(lessonId)}`,
     });
     result.results.student_notification = "sent";
     console.log(

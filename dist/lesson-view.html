@@ -41,15 +41,15 @@
       try {
         if (!localStorage.getItem("token")) {
           sessionStorage.setItem("course-login-required", "1");
-          window.location.replace("login.html");
+          window.location.replace("/login");
         }
       } catch (e) {
-        window.location.replace("login.html");
+        window.location.replace("/login");
       }
     })();
   </script>
-  <script type="module" crossorigin src="/assets/main-DQTroeu2.js"></script>
-  <script type="module" crossorigin src="/assets/exams-CPDs5e0S.js"></script>
+  <script type="module" crossorigin src="/assets/main-jl87pwT7.js"></script>
+  <script type="module" crossorigin src="/assets/exams-Bm66G2Rg.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/main-Kv5Fr28x.css">
   <link rel="stylesheet" crossorigin href="/assets/exams-C8oV7bI5.css">
 </head>
@@ -63,8 +63,8 @@
     
     <!-- Breadcrumbs -->
     <nav style="font-size: 0.9rem; margin-bottom: 1.5rem; color: var(--color-text-muted);">
-      <a href="index.html" style="color: var(--color-primary);">الرئيسية</a> / 
-      <a href="lessons.html" style="color: var(--color-primary);">المناهج</a> / 
+      <a href="/" style="color: var(--color-primary);">الرئيسية</a> /
+      <a href="/lessons" style="color: var(--color-primary);">المناهج</a> /
       <span id="lesson-breadcrumb-title">الدعامة في النبات</span>
     </nav>
 
@@ -159,7 +159,7 @@
         <div>
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
-            <li><a href="course-biology.html" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="/course-biology" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
           </ul>
         </div>
       </div>

@@ -130,7 +130,7 @@ router.post("/live/start", requireAuth, async (req, res) => {
       message: title,
       relatedId: roomName,
       relatedType: "live",
-      link: "/exams.html#live",
+      link: "/exams#live",
     });
 
     return res.status(201).json({

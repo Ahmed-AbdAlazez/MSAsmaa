@@ -26,7 +26,7 @@ console.log(`   Username: ${username || '❌ NOT SET'}`);
 
 if (!token) {
   console.error('\n❌ NOT LOGGED IN! Please log in first.');
-  console.log('   Go to: http://localhost:5173/login.html');
+  console.log('   Go to: http://localhost:5173/login');
 } else if (userRole !== 'teacher' && userRole !== 'student') {
   console.error(`\n❌ INVALID ROLE: "${userRole}" (should be "teacher" or "student")`);
 }
