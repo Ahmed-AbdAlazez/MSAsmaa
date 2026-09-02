@@ -3,6 +3,7 @@ import { initStudentsPage } from "./studentsPage.js";
 import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
 import { formatDuration } from "./utils.js";
+import { initLiveStreaming } from "./liveSession.js";
 
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
 // 'storage' event fires only in other tabs/documents, so flipping dark
@@ -1130,6 +1131,10 @@ document.addEventListener("DOMContentLoaded", () => {
   if (document.querySelector('#student-mistakes-page')) {
     initStudentMistakesPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
+
+  // Daily.co live-streaming (live indicator for students, start button for
+  // the teacher, embedded Prebuilt call). Runs on every logged-in page.
+  initLiveStreaming({ API_BASE, authHeaders, fetchJson, showToast });
 
   const teacherDashboard = document.querySelector("#teacher-dashboard-page");
   if (teacherDashboard) {
