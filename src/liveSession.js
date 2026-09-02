@@ -137,7 +137,7 @@ async function openEmbeddedCall(deps, room) {
       showLeaveButton: false, // we provide our own end/close control
       iframeStyle: { width: "100%", height: "100%", border: "0" },
       theme: DAILY_THEME,
-      lang: "ar",
+      lang: "user", // falls back to the browser's language (Daily has no "ar")
     });
     activeFrame = frame;
 
