@@ -58,6 +58,7 @@ const {
 } = require("../services/lesson.stub.service.js");
 const {
   createNotificationForApprovedStudents,
+  createNotificationForTeacher,
 } = require("../services/notifications.service.js");
 
 const router = express.Router();
@@ -120,6 +121,8 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
     // Bunny's title remains the source of truth).
     await saveLessonVideoId(lessonId, bunnyVideoId);
 
+    // 📢 NOTIFY ALL PARTIES
+    // Send notification to all approved students
     await createNotificationForApprovedStudents({
       type: "video",
       title: "فيديو جديد",
@@ -127,6 +130,16 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
       relatedId: lessonId,
       relatedType: "lesson",
       link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+    });
+
+    // Also notify the teacher who uploaded it
+    await createNotificationForTeacher(req.user.id, {
+      type: "video_upload",
+      title: "📹 تم رفع الفيديو",
+      message: `تم رفع الفيديو "${rawTitle}" بنجاح. جاري معالجة الفيديو...`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      link: `/dashboard-teacher.html?tab=manage-videos&lesson=${encodeURIComponent(lessonId)}`,
     });
 
     // ⚠️ START BACKGROUND MONITORING

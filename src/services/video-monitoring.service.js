@@ -22,7 +22,10 @@
  * =========================================================================== */
 
 const { getVideo, deleteVideo } = require("./bunny.service.js");
-const { createNotificationForTeacher } = require("./notifications.service.js");
+const {
+  createNotificationForTeacher,
+  createNotificationForApprovedStudents,
+} = require("./notifications.service.js");
 const { getLessonVideoId } = require("./lesson.stub.service.js");
 const { parseTitle: parseLessonTitle } = require("./bunny.service.js");
 
@@ -112,7 +115,7 @@ async function handleVideoFailure(videoId, lessonId, teacherId, video) {
         lessonId
       )}`,
     });
-    cleanupResults.results.notification = "sent";
+    cleanupResults.results.teacher_notification = "sent";
     console.log(
       `[video-monitoring] Notified teacher ${teacherId} about video ${videoId} failure`
     );
@@ -121,7 +124,29 @@ async function handleVideoFailure(videoId, lessonId, teacherId, video) {
       `[video-monitoring] Failed to notify teacher about video failure:`,
       notifError
     );
-    cleanupResults.results.notification = `failed: ${notifError.message}`;
+    cleanupResults.results.teacher_notification = `failed: ${notifError.message}`;
+  }
+
+  // Step 1b: Also notify students that the video upload failed
+  try {
+    await createNotificationForApprovedStudents({
+      type: "video_failed",
+      title: "⚠️ مشكلة في تحميل الفيديو",
+      message: `عذراً، حدثت مشكلة في تحميل الفيديو "${videoName}" لدرس "${lessonId}". سيتم حل المشكلة قريباً إن شاء الله.`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+    });
+    cleanupResults.results.student_notification = "sent";
+    console.log(
+      `[video-monitoring] Notified students about video ${videoId} failure`
+    );
+  } catch (studentNotifError) {
+    console.error(
+      `[video-monitoring] Failed to notify students about video failure:`,
+      studentNotifError
+    );
+    cleanupResults.results.student_notification = `failed: ${studentNotifError.message}`;
   }
 
   // Step 2: Delete the failed video from Bunny
@@ -188,7 +213,9 @@ async function handleVideoSuccess(videoId, lessonId, teacherId, video) {
     results: {},
   };
 
-  // Notify the teacher that video processing is complete
+  // 📢 NOTIFY BOTH TEACHER AND STUDENTS
+  
+  // Step 1: Notify the teacher that video processing is complete
   try {
     await createNotificationForTeacher(teacherId, {
       type: "video_success",
@@ -201,7 +228,7 @@ async function handleVideoSuccess(videoId, lessonId, teacherId, video) {
         lessonId
       )}`,
     });
-    result.results.notification = "sent";
+    result.results.teacher_notification = "sent";
     console.log(
       `[video-monitoring] Notified teacher ${teacherId} about video ${videoId} success`
     );
@@ -210,7 +237,30 @@ async function handleVideoSuccess(videoId, lessonId, teacherId, video) {
       `[video-monitoring] Failed to notify teacher about video success:`,
       notifError
     );
-    result.results.notification = `failed: ${notifError.message}`;
+    result.results.teacher_notification = `failed: ${notifError.message}`;
+  }
+
+  // Step 2: Notify all approved students that the video is ready
+  try {
+    await createNotificationForApprovedStudents({
+      type: "video_ready",
+      title: "📹 فيديو جديد متاح الآن",
+      message: `الفيديو "${videoName}" أصبح جاهزاً للمشاهدة الآن!`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      // Link to lesson view
+      link: `/lesson-view.html?lesson=${encodeURIComponent(lessonId)}`,
+    });
+    result.results.student_notification = "sent";
+    console.log(
+      `[video-monitoring] Notified all students about video ${videoId} ready`
+    );
+  } catch (studentNotifError) {
+    console.error(
+      `[video-monitoring] Failed to notify students about video success:`,
+      studentNotifError
+    );
+    result.results.student_notification = `failed: ${studentNotifError.message}`;
   }
 
   return result;
