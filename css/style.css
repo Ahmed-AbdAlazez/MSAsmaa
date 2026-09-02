@@ -4051,6 +4051,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 }
 .live-stage-close:hover { background: #dc2626; }
 .live-stage-frame {
+  position: relative;
   flex: 1;
   width: 100%;
   max-width: 1200px;
@@ -4058,6 +4059,7 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   border-radius: 14px;
   overflow: hidden;
   background: #000;
+  min-height: 60vh; /* guarantee the embedded call always has real space */
 }
 .live-stage-frame iframe {
   width: 100%;
@@ -4065,6 +4067,25 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   border: 0;
   display: block;
 }
+.live-stage-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  background: radial-gradient(circle at 50% 30%, #1b2b3a, #0a1118);
+  text-align: center;
+  padding: 1rem;
+  z-index: 1;
+}
+.live-stage-loading-error {
+  color: #fecaca;
+  background: radial-gradient(circle at 50% 30%, #3b1d24, #14070b);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.live-stage-frame > iframe { position: relative; z-index: 2; }
 
 @media (max-width: 600px) {
   .livebar-inner { padding: 0 0.6rem; }

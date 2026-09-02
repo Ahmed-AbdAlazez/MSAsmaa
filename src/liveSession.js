@@ -130,6 +130,16 @@ async function openEmbeddedCall(deps, room) {
     const anchor = document.querySelector("main") || document.body;
     anchor.appendChild(host);
 
+    // Give the caller a clear "connecting…" state so a slow join is obviously
+    // loading and not a frozen black area.
+    const connectingNote = document.createElement("div");
+    connectingNote.className = "live-stage-loading";
+    connectingNote.textContent = "جارٍ الاتصال بالبث…";
+    frameHost.appendChild(connectingNote);
+
+    // Clean up if this frame is closed before join() resolves.
+    let closed = false;
+
     const frame = Daily.createFrame({
       parentEl: frameHost,
       url: room.url,
@@ -141,11 +151,50 @@ async function openEmbeddedCall(deps, room) {
     });
     activeFrame = frame;
 
+    // Surface real join/network/permission errors instead of a silent black
+    // iframe. A rejected join (e.g. camera permission denied, room/token
+    // problem, offline) is shown to the teacher immediately.
+    frame.on("error", (event) => {
+      const message =
+        event?.errorMsg || event?.error?.message || "فشل الاتصال بالبث المباشر.";
+      console.error("[liveSession] Daily error:", message);
+      showToast(`تعذر الدخول إلى البث: ${message}`, "danger");
+      // Leave the call cleanly if the session never established.
+      try { frame.leave(); } catch (_) {}
+    });
+
+    // Once joined, remove the "connecting…" note.
+    frame.on("joined-meeting", () => {
+      connectingNote.remove();
+    });
+
+    // Explicitly join the room with the meeting token. This is the reliable,
+    // documented way to enter a private Daily room — the Prebuilt UI will not
+    // show the actual call until join() resolves.
+    try {
+      await frame.join({ url: room.url, token: room.token });
+      if (!closed) connectingNote.remove();
+    } catch (joinError) {
+      // join() rejects on a real failure (permission denied, room closed,
+      // token invalid, network). Replace the silent black area with a message.
+      connectingNote.textContent =
+        joinError?.message || "تعذر الدخول إلى البث المباشر.";
+      connectingNote.classList.add("live-stage-loading-error");
+      console.error("[liveSession] join failed:", joinError);
+      showToast(
+        joinError?.message || "تعذر الدخول إلى البث المباشر. يرجى المحاولة لاحقاً.",
+        "danger",
+      );
+      try { frame.leave(); } catch (_) {}
+      return null;
+    }
+
     // Wire the site's "إنهاء" button. For the owner this also ends the
     // session server-side (which kicks everyone and deletes the room); for a
     // student it just leaves their own camera/mic and hides the stage.
     const closeBtn = host.querySelector(".live-stage-close");
     closeBtn.addEventListener("click", async () => {
+      closed = true;
       try {
         if (room.isOwner) {
           await deps.fetchJson("/api/live/end", {
@@ -165,6 +214,7 @@ async function openEmbeddedCall(deps, room) {
     window.addEventListener(
       "beforeunload",
       () => {
+        closed = true;
         try { frame.destroy(); } catch (_) {}
       },
       { once: true },
