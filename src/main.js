@@ -2318,72 +2318,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     loadNotes();
                   } catch (err) {
                     showToast(err.message, "danger");
-}
+                  }
+                });
 
-  // --- Homepage "لوحة المتصدرين" feature card -----------------------------
-  // Fills the leaderboard card with LIVE course rankings when a student or
-  // teacher is logged in. Guests simply keep the static preview rows shown in
-  // the markup (no API call, no auth required, card never looks broken).
-  const homeLeaderboardList = document.getElementById("home-leaderboard-list");
-  if (homeLeaderboardList) {
-    // Leaderboard routes live under /api (not /api/v1), same workaround as
-    // src/exams.js: build the API origin by stripping the v1 version suffix.
-    const leaderboardApiBase = String(API_BASE || "").replace(/\/api\/v1\/?$/, "");
-    const rankMedals = ["🥇", "🥈", "🥉"];
-    const lbStyleCls = ["gold", "silver", "bronze"];
-
-    const buildLeaderboardRow = (row) => {
-      const el = document.createElement("div");
-      el.className = "sc-row";
-      if (
-        String(row.studentId) === String(localStorage.getItem("userId") || "")
-      ) {
-        el.classList.add("lb-me");
-      }
-
-      const rank = document.createElement("span");
-      rank.className = "sc-lb-rank";
-      if (row.rank >= 1 && row.rank <= 3) {
-        rank.classList.add(lbStyleCls[row.rank - 1]);
-      } else {
-        rank.classList.add("num");
-      }
-      rank.textContent = row.rank;
-
-      const name = document.createElement("span");
-      name.className = "sc-row-label";
-      name.textContent = row.studentName || "";
-
-      const score = document.createElement("span");
-      score.className = "sc-row-tag";
-      score.textContent = row.bestScore;
-
-      el.append(rank, name, score);
-      return el;
-    };
-
-    (async () => {
-      if (!getAuthToken()) return; // guests keep the static preview rows
-      try {
-        const data = await fetchJson(
-          `${leaderboardApiBase}/api/courses/biology/leaderboard`,
-          { headers: authHeaders() },
-        );
-        const rankings = Array.isArray(data.rankings) ? data.rankings : [];
-        if (!rankings.length) return;
-        homeLeaderboardList.innerHTML = "";
-        rankings
-          .slice(0, 4)
-          .forEach((row) =>
-            homeLeaderboardList.appendChild(buildLeaderboardRow(row)),
-          );
-      } catch (leaderboardError) {
-        // Any failure (offline, DB down, nothing released yet) keeps the
-        // static preview rows, so the card renders the same as the others.
-      }
-    })();
-  }
-});
               contentEl
                 .querySelector(".note-cancel-btn")
                 .addEventListener("click", () => loadNotes());

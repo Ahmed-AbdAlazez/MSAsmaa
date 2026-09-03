@@ -1283,6 +1283,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!hasToken) return;
 
+  const isStudent = getRole() === "student";
+  const courseLeaderboardCard = document.getElementById(
+    "course-leaderboard-card",
+  );
+  if (courseLeaderboardCard) {
+    courseLeaderboardCard.style.display = isStudent ? "none" : "";
+  }
+
   const examsSubtitle = document.getElementById("exams-subtitle");
   if (examsSubtitle) {
     examsSubtitle.textContent =
@@ -1293,7 +1301,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (document.getElementById("exams-by-lesson")) {
     loadHub();
-    loadCourseLeaderboard();
+    if (!isStudent) loadCourseLeaderboard();
   }
   setupFullscreenHandler();
 
