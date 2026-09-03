@@ -75,10 +75,6 @@ app.use("/api", materialsRoutes);
 const notificationsRoutes = require("./src/routes/notifications.routes.js");
 app.use("/api", notificationsRoutes);
 
-// Daily.co live-streaming feature (start/status/join/end).
-// See src/routes/live.routes.js for the full endpoint list and LIVE_README.md.
-app.use("/api", require("./src/routes/live.routes.js"));
-
 // Quiz feature (teacher creation + student taking + leaderboards + review).
 // See src/routes/quizzes/quiz.routes.js for the full endpoint list and
 // QUIZ_README.md for flows, stubs, and testing.
