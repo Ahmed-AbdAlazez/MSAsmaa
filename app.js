@@ -81,7 +81,9 @@ app.use("/api", notificationsRoutes);
 app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
 
 // Live Streaming Sessions (Zoom & Google Meet).
-app.use("/api/live", require("./src/routes/live-session.routes.js"));
+const liveSessionRoutes = require("./src/routes/live-session.routes.js");
+app.use("/api/live", liveSessionRoutes);
+app.use("/api/v1/live", liveSessionRoutes);
 
 // Lesson notes (teacher).
 app.use("/api", require("./src/routes/lessonNotesComments.routes.js"));
