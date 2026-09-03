@@ -45,6 +45,7 @@ export default defineConfig({
         "registration-requests": "registration-requests.html",
         students: "students.html",
         "student-mistakes": "student-mistakes.html",
+        "live-session": "live-session.html",
       },
     },
   },

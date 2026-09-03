@@ -32,6 +32,48 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // --- Active Live Session Banner for Students ---
+  async function checkGlobalActiveLiveBanner() {
+    // Don't show banner on the live session page itself or for logged out users
+    if (window.location.pathname.includes("live-session.html") || !localStorage.getItem("token")) return;
+    try {
+      const data = await fetchJson(`${API_BASE}/live/active`, { headers: authHeaders() }).catch(() => null);
+      if (data && data.session && !document.getElementById("global-live-banner")) {
+        const banner = document.createElement("div");
+        banner.id = "global-live-banner";
+        banner.style.cssText = "position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--color-surface, #fff); border:2px solid #ef4444; border-radius:14px; padding:0.85rem 1.25rem; box-shadow:0 10px 25px rgba(0,0,0,0.15); display:flex; align-items:center; gap:1rem; animation: slideUp 0.3s ease;";
+        banner.innerHTML = `
+          <div>
+            <div style="color:#ef4444; font-weight:800; font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
+              <span style="display:inline-block; width:8px; height:8px; background:#ef4444; border-radius:50%; animation: pulse-red 1.5s infinite;"></span>
+              بث مباشر الآن
+            </div>
+            <div style="font-weight:700; font-size:0.95rem; margin-top:0.2rem; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(data.session.title || "درس مباشر")}</div>
+          </div>
+          <button id="btn-global-join-live" class="btn btn-primary btn-sm" style="white-space:nowrap;">انضم للبث 🚀</button>
+        `;
+        document.body.appendChild(banner);
+
+        document.getElementById("btn-global-join-live")?.addEventListener("click", async () => {
+          try {
+            const tokenData = await fetchJson(`${API_BASE}/live/join-token`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...authHeaders(),
+              },
+              body: JSON.stringify({ sessionId: data.session.id }),
+            });
+            window.location.href = `/live-session.html?token=${tokenData.token}`;
+          } catch (err) {
+            alert(err.message || "تعذر الانضمام للبث المباشر.");
+          }
+        });
+      }
+    } catch (_) {}
+  }
+  checkGlobalActiveLiveBanner();
+
   // --- Helper function to reinitialize navbar UI (called on initial load and after auth state changes) ---
   const reinitializeNavbarUI = () => {
     initNavbar();
@@ -1166,6 +1208,121 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch((error) => {
         console.warn("[teacher-dashboard] Failed to refresh summary:", error);
       });
+
+    // --- Live Session Teacher Controls ---
+    const startLiveForm = document.querySelector("#start-live-form");
+    const activeLiveCard = document.querySelector("#teacher-active-live-card");
+    const activeLiveTitle = document.querySelector("#active-live-title");
+    const activeLiveProvider = document.querySelector("#active-live-provider");
+    const btnEndLive = document.querySelector("#btn-end-live-session");
+    const btnJoinAsTeacher = document.querySelector("#btn-join-as-teacher");
+
+    let currentActiveSessionId = null;
+
+    async function checkActiveLiveSession() {
+      try {
+        const data = await fetchJson(`${API_BASE}/live/active`, { headers: authHeaders() });
+        if (data && data.session) {
+          currentActiveSessionId = data.session.id;
+          if (activeLiveCard) activeLiveCard.style.display = "block";
+          if (activeLiveTitle) activeLiveTitle.textContent = data.session.title || "بث مباشر نشط";
+          if (activeLiveProvider) {
+            const providerName = data.session.provider === "google_meet" ? "Google Meet 🟢" : "Zoom 🔵";
+            activeLiveProvider.textContent = `المزود: ${providerName}`;
+          }
+        } else {
+          currentActiveSessionId = null;
+          if (activeLiveCard) activeLiveCard.style.display = "none";
+        }
+      } catch (err) {
+        console.warn("[teacher-dashboard] Failed to check active live session:", err);
+      }
+    }
+
+    checkActiveLiveSession();
+
+    if (startLiveForm) {
+      startLiveForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const titleInput = document.querySelector("#live-session-title-input");
+        const allowCameraCheckbox = document.querySelector("#live-allow-camera-checkbox");
+        const submitBtn = document.querySelector("#btn-start-live-session");
+
+        const title = (titleInput?.value || "").trim();
+        const provider = "google_meet";
+        const allowCamera = Boolean(allowCameraCheckbox?.checked);
+
+        if (!title) {
+          alert("يرجى إدخال عنوان البث المباشر.");
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "جاري بدء البث المباشر...";
+        }
+
+        try {
+          await fetchJson(`${API_BASE}/live/sessions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+            body: JSON.stringify({ title, provider, allowCamera }),
+          });
+
+          alert("تم بدء البث المباشر بنجاح وإرسال الإشعار للطلاب!");
+          if (titleInput) titleInput.value = "";
+          await checkActiveLiveSession();
+        } catch (err) {
+          alert(err.message || "فشل بدء البث المباشر.");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "🔴 بدء بث مباشر وإرسال الإشعار";
+          }
+        }
+      });
+    }
+
+    if (btnJoinAsTeacher) {
+      btnJoinAsTeacher.addEventListener("click", async (e) => {
+        e.preventDefault();
+        if (!currentActiveSessionId) return;
+        try {
+          const tokenData = await fetchJson(`${API_BASE}/live/join-token`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+            body: JSON.stringify({ sessionId: currentActiveSessionId }),
+          });
+          window.open(`/live-session.html?token=${tokenData.token}`, "_blank");
+        } catch (err) {
+          alert(err.message || "تعذر الانضمام للبث كمعلمة.");
+        }
+      });
+    }
+
+    if (btnEndLive) {
+      btnEndLive.addEventListener("click", async () => {
+        if (!currentActiveSessionId) return;
+        if (!confirm("هل أنتِ متأكدة من رغبتكِ في إنهاء هذا البث المباشر؟")) return;
+
+        try {
+          await fetchJson(`${API_BASE}/live/sessions/${currentActiveSessionId}/end`, {
+            method: "POST",
+            headers: authHeaders(),
+          });
+          alert("تم إنهاء البث المباشر بنجاح.");
+          await checkActiveLiveSession();
+        } catch (err) {
+          alert(err.message || "فشل إنهاء البث المباشر.");
+        }
+      });
+    }
   }
 
   // --- Tab Switcher Logic (e.g., Lesson Page) ---

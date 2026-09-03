@@ -80,6 +80,9 @@ app.use("/api", notificationsRoutes);
 // QUIZ_README.md for flows, stubs, and testing.
 app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
 
+// Live Streaming Sessions (Zoom & Google Meet).
+app.use("/api/live", require("./src/routes/live-session.routes.js"));
+
 // Lesson notes (teacher).
 app.use("/api", require("./src/routes/lessonNotesComments.routes.js"));
 
