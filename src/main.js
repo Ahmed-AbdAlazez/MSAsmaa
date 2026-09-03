@@ -16,7 +16,9 @@ window.addEventListener("storage", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  const isStudentsPage = /\/students(?:\.html)?$/.test(window.location.pathname);
+  const isStudentsPage = /\/students(?:\.html)?$/.test(
+    window.location.pathname,
+  );
   const isTeacherOnlyPage =
     /\/registration-requests(?:\.html)?$/.test(window.location.pathname) ||
     /\/dashboard-teacher(?:\.html)?$/.test(window.location.pathname) ||
@@ -148,7 +150,9 @@ document.addEventListener("DOMContentLoaded", () => {
       overlay.classList.remove("show");
       setTimeout(() => overlay.remove(), 200);
     };
-    overlay.querySelector(".team-modal-close").addEventListener("click", dismiss);
+    overlay
+      .querySelector(".team-modal-close")
+      .addEventListener("click", dismiss);
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) dismiss();
     });
@@ -240,10 +244,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!link || getAuthToken() || !isProtectedCourseLink(link.href)) return;
 
       event.preventDefault();
-    window.showToast("يجب تسجيل الدخول أولاً للبحث عن الكورسات.", "warning");
-    window.setTimeout(() => {
-      window.location.href = "/login";
-    }, 1500);
+      window.showToast("يجب تسجيل الدخول أولاً للبحث عن الكورسات.", "warning");
+      window.setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
     },
     true,
   );
@@ -1126,7 +1130,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
-  if (document.querySelector('#student-mistakes-page')) {
+  if (document.querySelector("#student-mistakes-page")) {
     initStudentMistakesPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
@@ -1275,23 +1279,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const fetchNotifications = async () => {
     const userId = localStorage.getItem("userId");
-    console.log('[notifications] fetchNotifications called - userId:', userId);
+    console.log("[notifications] fetchNotifications called - userId:", userId);
     if (!userId) {
-      console.warn('[notifications] No userId in localStorage, returning empty');
+      console.warn(
+        "[notifications] No userId in localStorage, returning empty",
+      );
       return [];
     }
     const headers = authHeaders();
-    console.log('[notifications] Auth headers:', headers.Authorization ? 'Bearer token set' : 'No authorization header');
+    console.log(
+      "[notifications] Auth headers:",
+      headers.Authorization ? "Bearer token set" : "No authorization header",
+    );
     const call = () =>
-      fetchJson(`${API_BASE}/notifications`, { headers }).then(
-        (data) => {
-          console.log('[notifications] API returned:', data);
+      fetchJson(`${API_BASE}/notifications`, { headers })
+        .then((data) => {
+          console.log("[notifications] API returned:", data);
           return data.notifications || [];
-        },
-      ).catch((error) => {
-        console.error('[notifications] fetchJson failed:', error);
-        throw error;
-      });
+        })
+        .catch((error) => {
+          console.error("[notifications] fetchJson failed:", error);
+          throw error;
+        });
     // Fresh cache → return it and quietly refresh in the background so the
     // bell is never stale. (No re-render here — re-rendering while the menu
     // is open replays the fade-in and looks like blinking; the next open
@@ -1300,15 +1309,21 @@ document.addEventListener("DOMContentLoaded", () => {
       cachedNotifications.length &&
       Date.now() - notificationsFetchedAt < NOTIFICATIONS_CACHE_TTL
     ) {
-      console.log('[notifications] Using cached notifications:', cachedNotifications.length);
+      console.log(
+        "[notifications] Using cached notifications:",
+        cachedNotifications.length,
+      );
       call()
         .then((fresh) => {
           cachedNotifications = fresh;
           notificationsFetchedAt = Date.now();
-          console.log('[notifications] Background refresh complete:', fresh.length);
+          console.log(
+            "[notifications] Background refresh complete:",
+            fresh.length,
+          );
         })
         .catch((err) => {
-          console.warn('[notifications] Background refresh failed:', err);
+          console.warn("[notifications] Background refresh failed:", err);
           /* keep showing cached list */
         });
       return cachedNotifications;
@@ -1316,12 +1331,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Memoize the in-flight request so the page-load prefetch and a quick
     // bell click (before it resolves) share ONE network call.
     if (!notificationsInFlight) {
-      console.log('[notifications] Starting new fetch...');
+      console.log("[notifications] Starting new fetch...");
       notificationsInFlight = call()
         .then((notifications) => {
           cachedNotifications = notifications;
           notificationsFetchedAt = Date.now();
-          console.log('[notifications] Fetch complete:', notifications.length);
+          console.log("[notifications] Fetch complete:", notifications.length);
           return notifications;
         })
         .finally(() => {
@@ -1340,14 +1355,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateNotificationBadge = async () => {
     let unreadCount = 0;
     try {
-      console.log('[notifications] Fetching unread count from API...');
+      console.log("[notifications] Fetching unread count from API...");
       const data = await fetchJson(`${API_BASE}/notifications/unread-count`, {
         headers: authHeaders(),
       });
       unreadCount = Number(data.count) || 0;
-      console.log('[notifications] Unread count:', unreadCount);
+      console.log("[notifications] Unread count:", unreadCount);
     } catch (error) {
-      console.error('[notifications] Failed to get unread count, falling back to fetch:', error);
+      console.error(
+        "[notifications] Failed to get unread count, falling back to fetch:",
+        error,
+      );
       const notifications = await fetchNotifications();
       unreadCount = notifications.filter(
         (item) => !(item.isRead ?? item.read),
@@ -1517,9 +1535,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Populate auth placeholders dynamically
   const updateAuthUI = () => {
     // Reinitialize the entire navbar (switches between minimal and full navbar)
-  reinitializeNavbarUI();
+    reinitializeNavbarUI();
 
-  const userRole = localStorage.getItem("userRole");
+    const userRole = localStorage.getItem("userRole");
     const username = localStorage.getItem("username") || "";
 
     // Standalone Login/Sign-up CTAs (homepage hero, bottom CTA banner, exams
@@ -2206,10 +2224,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const videoEntry = lessonVideos[currentVideoIdx];
         if (!videoEntry.ready) {
-          showToast(
-            "الفيديو ما زال قيد المعالجة، حاولي بعد قليل.",
-            "warning",
-          );
+          showToast("الفيديو ما زال قيد المعالجة، حاولي بعد قليل.", "warning");
           return;
         }
 
@@ -2312,72 +2327,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     loadNotes();
                   } catch (err) {
                     showToast(err.message, "danger");
-}
+                  }
+                });
 
-  // --- Homepage "لوحة المتصدرين" feature card -----------------------------
-  // Fills the leaderboard card with LIVE course rankings when a student or
-  // teacher is logged in. Guests simply keep the static preview rows shown in
-  // the markup (no API call, no auth required, card never looks broken).
-  const homeLeaderboardList = document.getElementById("home-leaderboard-list");
-  if (homeLeaderboardList) {
-    // Leaderboard routes live under /api (not /api/v1), same workaround as
-    // src/exams.js: build the API origin by stripping the v1 version suffix.
-    const leaderboardApiBase = String(API_BASE || "").replace(/\/api\/v1\/?$/, "");
-    const rankMedals = ["🥇", "🥈", "🥉"];
-    const lbStyleCls = ["gold", "silver", "bronze"];
-
-    const buildLeaderboardRow = (row) => {
-      const el = document.createElement("div");
-      el.className = "sc-row";
-      if (
-        String(row.studentId) === String(localStorage.getItem("userId") || "")
-      ) {
-        el.classList.add("lb-me");
-      }
-
-      const rank = document.createElement("span");
-      rank.className = "sc-lb-rank";
-      if (row.rank >= 1 && row.rank <= 3) {
-        rank.classList.add(lbStyleCls[row.rank - 1]);
-      } else {
-        rank.classList.add("num");
-      }
-      rank.textContent = row.rank;
-
-      const name = document.createElement("span");
-      name.className = "sc-row-label";
-      name.textContent = row.studentName || "";
-
-      const score = document.createElement("span");
-      score.className = "sc-row-tag";
-      score.textContent = row.bestScore;
-
-      el.append(rank, name, score);
-      return el;
-    };
-
-    (async () => {
-      if (!getAuthToken()) return; // guests keep the static preview rows
-      try {
-        const data = await fetchJson(
-          `${leaderboardApiBase}/api/courses/biology/leaderboard`,
-          { headers: authHeaders() },
-        );
-        const rankings = Array.isArray(data.rankings) ? data.rankings : [];
-        if (!rankings.length) return;
-        homeLeaderboardList.innerHTML = "";
-        rankings
-          .slice(0, 4)
-          .forEach((row) =>
-            homeLeaderboardList.appendChild(buildLeaderboardRow(row)),
-          );
-      } catch (leaderboardError) {
-        // Any failure (offline, DB down, nothing released yet) keeps the
-        // static preview rows, so the card renders the same as the others.
-      }
-    })();
-  }
-});
               contentEl
                 .querySelector(".note-cancel-btn")
                 .addEventListener("click", () => loadNotes());
@@ -3113,19 +3065,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const formRow = document.createElement("div");
       formRow.style.cssText =
         "display:flex; align-items:flex-end; gap:0.6rem; flex-wrap:wrap; background:var(--color-surface); border:1px solid var(--color-border); padding:0.8rem 1rem; border-radius:var(--radius-md);";
-      
+
       formRow.innerHTML =
         `<div style="flex:2; min-width:160px; display:flex; flex-direction:column; gap:0.35rem;">` +
-          `<label for="marker-title-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">عنوان العلامة</label>` +
-          `<input id="marker-title-input" type="text" placeholder="مثال: سؤال 1" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
+        `<label for="marker-title-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">عنوان العلامة</label>` +
+        `<input id="marker-title-input" type="text" placeholder="مثال: سؤال 1" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem;">` +
         `</div>` +
         `<div style="flex:1; min-width:110px; display:flex; flex-direction:column; gap:0.35rem;">` +
-          `<label for="marker-time-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">الوقت (دقيقة:ثانية)</label>` +
-          `<input id="marker-time-input" type="text" placeholder="مثال: 3:20 أو 1:05:30" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
+        `<label for="marker-time-input" style="font-size:0.8rem; font-weight:700; color:var(--color-text);">الوقت (دقيقة:ثانية)</label>` +
+        `<input id="marker-time-input" type="text" placeholder="مثال: 3:20 أو 1:05:30" autocomplete="off" style="padding:0.45rem 0.6rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; font-variant-numeric:tabular-nums;">` +
         `</div>` +
         `<div style="flex-shrink:0; display:flex; gap:0.5rem; flex-wrap:wrap;">` +
-          `<button type="button" id="marker-add-btn" class="btn btn-primary" style="font-size:0.85rem; padding:0.45rem 1.2rem; border-radius:var(--radius-sm); height:37px;">🚩 إضافة علامة</button>` +
-          `<button type="button" id="marker-view-btn" class="btn btn-light" style="font-size:0.85rem; padding:0.45rem 1rem; border-radius:var(--radius-sm); height:37px;">📋 عرض كل الفواصل (0)</button>` +
+        `<button type="button" id="marker-add-btn" class="btn btn-primary" style="font-size:0.85rem; padding:0.45rem 1.2rem; border-radius:var(--radius-sm); height:37px;">🚩 إضافة علامة</button>` +
+        `<button type="button" id="marker-view-btn" class="btn btn-light" style="font-size:0.85rem; padding:0.45rem 1rem; border-radius:var(--radius-sm); height:37px;">📋 عرض كل الفواصل (0)</button>` +
         `</div>`;
       wrap.appendChild(formRow);
 
@@ -3143,7 +3095,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // current marks data is what the teacher sees - never a stale copy.
       const openMarksReview = () => {
         ensureModalStyles();
-        document.querySelectorAll(".mk-rv-overlay").forEach((el) => el.remove());
+        document
+          .querySelectorAll(".mk-rv-overlay")
+          .forEach((el) => el.remove());
         const overlay = document.createElement("div");
         overlay.className = "custom-modal-overlay mk-rv-overlay";
         overlay.innerHTML = `
@@ -3172,7 +3126,13 @@ document.addEventListener("DOMContentLoaded", () => {
             "[فواصل] renderRows fired — markers.length =",
             markers.length,
             "| sample =",
-            markers.slice(0, 5).map((m) => ({ title: m.title, sec: m.startTimeSeconds, id: m.id })),
+            markers
+              .slice(0, 5)
+              .map((m) => ({
+                title: m.title,
+                sec: m.startTimeSeconds,
+                id: m.id,
+              })),
           );
           if (!markers.length) {
             listEl.innerHTML =
@@ -3180,71 +3140,75 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
           try {
-          markers.forEach((m, idx) => {
-            const row = document.createElement("div");
-            row.style.cssText =
-              "display:flex; justify-content:space-between; align-items:center; gap:0.6rem; padding:0.5rem 0.65rem; background:var(--surface-glass-strong); border:1px solid var(--color-border); border-radius:var(--radius-sm);";
+            markers.forEach((m, idx) => {
+              const row = document.createElement("div");
+              row.style.cssText =
+                "display:flex; justify-content:space-between; align-items:center; gap:0.6rem; padding:0.5rem 0.65rem; background:var(--surface-glass-strong); border:1px solid var(--color-border); border-radius:var(--radius-sm);";
 
-            const info = document.createElement("div");
-            info.style.cssText =
-              "display:flex; align-items:center; gap:0.5rem; flex:1; min-width:0;";
+              const info = document.createElement("div");
+              info.style.cssText =
+                "display:flex; align-items:center; gap:0.5rem; flex:1; min-width:0;";
 
-            const icon = document.createElement("span");
-            icon.textContent = "🔖";
-            icon.style.cssText = "flex-shrink:0;";
+              const icon = document.createElement("span");
+              icon.textContent = "🔖";
+              icon.style.cssText = "flex-shrink:0;";
 
-            const text = document.createElement("span");
-            text.style.cssText =
-              "font-weight:600; flex:1; min-width:0; color:var(--color-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;";
-            text.textContent = m.title;
+              const text = document.createElement("span");
+              text.style.cssText =
+                "font-weight:600; flex:1; min-width:0; color:var(--color-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;";
+              text.textContent = m.title;
 
-            const time = document.createElement("span");
-            time.style.cssText =
-              "flex-shrink:0; font-size:0.68rem; font-variant-numeric:tabular-nums; color:var(--color-text-muted); background:var(--surface-glass-strong); border:1px solid var(--color-border); padding:0.14rem 0.5rem; border-radius:30px;";
-            time.textContent = formatDuration(m.startTimeSeconds);
+              const time = document.createElement("span");
+              time.style.cssText =
+                "flex-shrink:0; font-size:0.68rem; font-variant-numeric:tabular-nums; color:var(--color-text-muted); background:var(--surface-glass-strong); border:1px solid var(--color-border); padding:0.14rem 0.5rem; border-radius:30px;";
+              time.textContent = formatDuration(m.startTimeSeconds);
 
-            info.append(icon, text, time);
+              info.append(icon, text, time);
 
-            const delBtn = document.createElement("button");
-            delBtn.type = "button";
-            delBtn.className = "btn btn-light";
-            delBtn.style.cssText =
-              "font-size:0.75rem; padding:0.2rem 0.45rem; color:var(--color-danger); flex-shrink:0;";
-            delBtn.title = "حذف العلامة";
-            delBtn.textContent = "🗑 حذف";
+              const delBtn = document.createElement("button");
+              delBtn.type = "button";
+              delBtn.className = "btn btn-light";
+              delBtn.style.cssText =
+                "font-size:0.75rem; padding:0.2rem 0.45rem; color:var(--color-danger); flex-shrink:0;";
+              delBtn.title = "حذف العلامة";
+              delBtn.textContent = "🗑 حذف";
 
-            delBtn.addEventListener("click", async () => {
-              const isSaved = Boolean(m.id);
-              if (isSaved) {
-                const confirmed = await showConfirmModal(
-                  `حذف الفصل "${m.title}" (${formatDuration(
-                    m.startTimeSeconds,
-                  )}) نهائياً؟ لا يمكن التراجع.`,
-                  { isDestructive: true, confirmText: "حذف", cancelText: "إلغاء" },
-                );
-                if (!confirmed) return;
-                try {
-                  await fetchJson(`/api/videos/chapters/${m.id}`, {
-                    method: "DELETE",
-                    headers: authHeaders(),
-                  });
-                } catch (deleteError) {
-                  showToast(deleteError.message, "danger");
-                  return;
+              delBtn.addEventListener("click", async () => {
+                const isSaved = Boolean(m.id);
+                if (isSaved) {
+                  const confirmed = await showConfirmModal(
+                    `حذف الفصل "${m.title}" (${formatDuration(
+                      m.startTimeSeconds,
+                    )}) نهائياً؟ لا يمكن التراجع.`,
+                    {
+                      isDestructive: true,
+                      confirmText: "حذف",
+                      cancelText: "إلغاء",
+                    },
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await fetchJson(`/api/videos/chapters/${m.id}`, {
+                      method: "DELETE",
+                      headers: authHeaders(),
+                    });
+                  } catch (deleteError) {
+                    showToast(deleteError.message, "danger");
+                    return;
+                  }
+                  videoObj.chapters = (videoObj.chapters || []).filter(
+                    (c) => c.id !== m.id,
+                  );
                 }
-                videoObj.chapters = (videoObj.chapters || []).filter(
-                  (c) => c.id !== m.id,
-                );
-              }
-              markers.splice(idx, 1);
-              renderRows();
-              updateViewAllCount();
-              if (isSaved) showToast("تم حذف الفصل بنجاح.", "success");
-            });
+                markers.splice(idx, 1);
+                renderRows();
+                updateViewAllCount();
+                if (isSaved) showToast("تم حذف الفصل بنجاح.", "success");
+              });
 
-            row.append(info, delBtn);
-            listEl.appendChild(row);
-          });
+              row.append(info, delBtn);
+              listEl.appendChild(row);
+            });
           } catch (renderError) {
             console.error("[فواصل] فشل أثناء عرض العلامات:", renderError);
             listEl.innerHTML =
@@ -3289,7 +3253,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const secs = parseTimeInput(timeStr);
         if (secs === null) {
-          showToast("صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30) أو ثواني فقط.", "warning");
+          showToast(
+            "صيغة الوقت غير صالحة. استخدم دقيقة:ثانية (مثل 3:20) أو ساعة:دقيقة:ثانية (مثل 1:05:30) أو ثواني فقط.",
+            "warning",
+          );
           timeInput.focus();
           return;
         }
@@ -3297,7 +3264,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (videoObj.lengthSeconds && secs > videoObj.lengthSeconds) {
           showToast(
             `التوقيت (${formatDuration(secs)}) يتجاوز طول الفيديو (${formatDuration(videoObj.lengthSeconds)}).`,
-            "danger"
+            "danger",
           );
           timeInput.focus();
           return;
@@ -3305,7 +3272,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         markers.push({ title, startTimeSeconds: secs });
         markers.sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
-        
+
         titleInput.value = "";
         timeInput.value = "";
         titleInput.focus();

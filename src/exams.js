@@ -7,8 +7,6 @@
  *   POST /api/quizzes/:id/start                     start OR auto-resume
  *   POST /api/quizzes/:id/answers                   autosave on every change
  *   POST /api/quizzes/:id/submit                    manual submit
- *   GET  /api/quizzes/:id/leaderboard               per-quiz ranking (gated)
- *   GET  /api/courses/:courseId/leaderboard         cumulative course board
  *   GET  /api/quiz-results/:resultId/review         gated answer review
  *
  * The server owns ALL timing truth: remainingSeconds from the start response
@@ -581,10 +579,11 @@ function requestRunFullscreen(runOverlay) {
       runOverlay.classList.add("exam-fullscreen");
       return false;
     })
-    .then((entered) =>
-      // Give the fullscreenchange handler a tick to sync the layout class,
-      // then let the content reveal.
-      new Promise((resolve) => setTimeout(() => resolve(entered), 120)),
+    .then(
+      (entered) =>
+        // Give the fullscreenchange handler a tick to sync the layout class,
+        // then let the content reveal.
+        new Promise((resolve) => setTimeout(() => resolve(entered), 120)),
     );
 }
 
@@ -786,7 +785,10 @@ async function beginQuiz(quizId, quizTitle) {
   } catch (error) {
     console.error("[exams] failed to start quiz:", error);
     hideRunOverlay();
-    showToast("تعذر بدء الاختبار. تأكدي من الاتصال ثم أعيدي المحاولة.", "danger");
+    showToast(
+      "تعذر بدء الاختبار. تأكدي من الاتصال ثم أعيدي المحاولة.",
+      "danger",
+    );
   } finally {
     runState.starting = false;
   }
@@ -831,7 +833,7 @@ async function submitQuiz(auto = false) {
 }
 
 /* =====================================================================
- * RESULT VIEW: score banner + THIS quiz's leaderboard + gated review
+ * RESULT VIEW: score banner + gated review
  * ===================================================================== */
 
 /**
@@ -904,7 +906,6 @@ function renderScoreBanner(result) {
 async function openResult(quizId, resultId, summaryData = null) {
   document.getElementById("quiz-result-overlay").style.display = "flex";
 
-  const lbBody = document.getElementById("quiz-leaderboard-body");
   const reviewBody = document.getElementById("review-body");
 
   // The score shows instantly — even before end_time releases the review.
@@ -927,34 +928,13 @@ async function openResult(quizId, resultId, summaryData = null) {
     }
   }
 
-  /* ---- per-quiz leaderboard + review (parallel fetches) ----- */
-  lbBody.innerHTML = skeletonRows(4);
   reviewBody.innerHTML = resultId
     ? skeletonRows(3)
     : '<p class="muted">لا توجد محاولة مسجلة لهذا الاختبار بعد.</p>';
 
-  const [lb, review] = await Promise.all([
-    api("GET", `/api/quizzes/${quizId}/leaderboard`),
-    resultId
-      ? api("GET", `/api/quiz-results/${resultId}/review`)
-      : Promise.resolve({ ok: false, status: 404 }),
-  ]);
-
-  if (lb.ok && lb.data.released) {
-    lbBody.innerHTML = `<div class="skeleton-reveal">${leaderboardTable(lb.data.rankings)}</div>`;
-  } else if (lb.ok) {
-    lbBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 لوحة الترتيب تظهر بعد انتهاء وقت الاختبار للجميع (${formatDateTime(lb.data.availableAfter)}).</div>`;
-  } else {
-    lbBody.innerHTML = skeletonError(
-      "تعذر تحميل لوحة الترتيب، حاول مرة أخرى.",
-      "إعادة المحاولة",
-    );
-    lbBody
-      .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () =>
-        openResult(quizId, resultId, summaryData),
-      );
-  }
+  const review = resultId
+    ? await api("GET", `/api/quiz-results/${resultId}/review`)
+    : { ok: false, status: 404 };
 
   if (!resultId) return;
 
@@ -980,30 +960,6 @@ async function openResult(quizId, resultId, summaryData = null) {
   const r = review.data.review;
   renderScoreBanner(r);
   reviewBody.innerHTML = `<div class="skeleton-reveal">${r.questions.map(reviewQuestionHtml).join("")}</div>`;
-}
-
-function leaderboardTable(rankings) {
-  const medals = ["🥇", "🥈", "🥉"];
-  const me = String(localStorage.getItem("userId") || "");
-  const html = `<table class="lb-table">
-    <thead><tr><th>#</th><th>الطالبة</th><th>الدرجة</th></tr></thead>
-    <tbody>
-      ${rankings
-        .map(
-          (row) => `<tr class="${row.studentId === me ? "me" : ""}">
-            <td>${
-              row.rank <= 3
-                ? `<span class="rank-medal">${medals[row.rank - 1]}</span>`
-                : ""
-            } ${row.rank}</td>
-            <td>${escapeHtml(row.studentName)}</td>
-            <td>${row.bestScore}</td>
-          </tr>`,
-        )
-        .join("")}
-    </tbody>
-  </table>`;
-  return `<div class="table-responsive">${html}</div>`;
 }
 
 /**
@@ -1043,57 +999,6 @@ function reviewQuestionHtml(question) {
       <div class="written-box model"><h5>الإجابة النموذجية</h5>${escapeHtml(question.modelAnswer)}</div>
     </div>
   </div>`;
-}
-
-/* =====================================================================
- * COURSE CUMULATIVE LEADERBOARD (hub section)
- * ===================================================================== */
-
-async function loadCourseLeaderboard() {
-  const body = document.getElementById("course-leaderboard-body");
-  if (!body) return;
-  // Skeleton inside the already-visible leaderboard card while fetching.
-  body.innerHTML = skeletonRows(4);
-  let response;
-  try {
-    response = await api("GET", `/api/courses/${COURSE_ID}/leaderboard`);
-  } catch (error) {
-    console.error("[exams] failed to load course leaderboard:", error);
-    body.innerHTML = skeletonError(
-      "تعذر تحميل لوحة الكورس، حاول مرة أخرى.",
-      "إعادة المحاولة",
-    );
-    body
-      .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () => loadCourseLeaderboard());
-    return;
-  }
-  const { ok, data } = response;
-
-  if (!ok || !data || !Array.isArray(data.rankings)) {
-    body.innerHTML = skeletonError(
-      "تعذر تحميل لوحة الكورس، حاول مرة أخرى.",
-      "إعادة المحاولة",
-    );
-    body
-      .querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", () => loadCourseLeaderboard());
-    return;
-  }
-
-  let pendingNote = "";
-  if (data.pendingQuizzes && data.pendingQuizzes.length > 0) {
-    pendingNote = `<div class="locked-note" style="margin-bottom:.75rem;">
-      ⏳ ${data.pendingQuizzes.length} اختبار لسه شغال — درجاته تُضاف بعد انتهاء وقته:
-      ${data.pendingQuizzes.map((quiz) => escapeHtml(quiz.title)).join("، ")}</div>`;
-  }
-  body.innerHTML =
-    `<div class="skeleton-reveal">` +
-    pendingNote +
-    (data.rankings.length === 0
-      ? '<p class="muted">لا توجد درجات بعد.</p>'
-      : leaderboardTable(data.rankings)) +
-    `</div>`;
 }
 
 /* =====================================================================
@@ -1288,12 +1193,11 @@ document.addEventListener("DOMContentLoaded", () => {
     examsSubtitle.textContent =
       getRole() === "teacher"
         ? "أنتِ مسجلة كمعلمة — هذه الصفحة تعرض ما يراه الطلاب."
-        : "كل اختبارات الكورس في مكان واحد: القادمة، الجارية، والمنتهية مع النتائج والترتيب.";
+        : "كل اختبارات الكورس في مكان واحد: القادمة، الجارية، والمنتهية مع النتائج.";
   }
 
   if (document.getElementById("exams-by-lesson")) {
     loadHub();
-    loadCourseLeaderboard();
   }
   setupFullscreenHandler();
 
