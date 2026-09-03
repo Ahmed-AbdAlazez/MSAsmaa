@@ -581,10 +581,11 @@ function requestRunFullscreen(runOverlay) {
       runOverlay.classList.add("exam-fullscreen");
       return false;
     })
-    .then((entered) =>
-      // Give the fullscreenchange handler a tick to sync the layout class,
-      // then let the content reveal.
-      new Promise((resolve) => setTimeout(() => resolve(entered), 120)),
+    .then(
+      (entered) =>
+        // Give the fullscreenchange handler a tick to sync the layout class,
+        // then let the content reveal.
+        new Promise((resolve) => setTimeout(() => resolve(entered), 120)),
     );
 }
 
@@ -786,7 +787,10 @@ async function beginQuiz(quizId, quizTitle) {
   } catch (error) {
     console.error("[exams] failed to start quiz:", error);
     hideRunOverlay();
-    showToast("تعذر بدء الاختبار. تأكدي من الاتصال ثم أعيدي المحاولة.", "danger");
+    showToast(
+      "تعذر بدء الاختبار. تأكدي من الاتصال ثم أعيدي المحاولة.",
+      "danger",
+    );
   } finally {
     runState.starting = false;
   }
