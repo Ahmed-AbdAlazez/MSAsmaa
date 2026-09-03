@@ -1318,7 +1318,7 @@ html[dir="rtl"] .scroll-progress-fill {
 .ac-3 { --sc-accent: #10B981; }
 .ac-4 { --sc-accent: #0E7490; }
 .ac-5 { --sc-accent: #06B6D4; }
-.ac-6 { --sc-accent: #0F4C3A; }
+
 
 /* Slightly brighter accents on dark surfaces so they stay vivid. */
 [data-theme="dark"] .ac-1 { --sc-accent: #34D399; }
@@ -1326,7 +1326,7 @@ html[dir="rtl"] .scroll-progress-fill {
 [data-theme="dark"] .ac-3 { --sc-accent: #6EE7B7; }
 [data-theme="dark"] .ac-4 { --sc-accent: #22D3EE; }
 [data-theme="dark"] .ac-5 { --sc-accent: #67E8F9; }
-[data-theme="dark"] .ac-6 { --sc-accent: #5EEAD4; }
+
 
 /* top-corner icon badge */
 .showcase-icon {
