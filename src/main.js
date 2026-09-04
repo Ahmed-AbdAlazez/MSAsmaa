@@ -2038,11 +2038,19 @@ document.addEventListener("DOMContentLoaded", () => {
           try {
             downloadButton.disabled = true;
             downloadButton.textContent = "جاري...";
-            const data = await fetchJson(
+            const downloadResponse = await fetch(
               `/api/materials/${encodeURIComponent(material.id)}/download`,
               { headers: authHeaders() },
             );
-            window.open(data.downloadUrl, "_blank", "noopener");
+            if (!downloadResponse.ok) {
+              const errorData = await downloadResponse.json().catch(() => ({}));
+              throw new Error(
+                errorData.message || errorData.error || "تعذر تحميل ملف PDF.",
+              );
+            }
+            const pdfUrl = URL.createObjectURL(await downloadResponse.blob());
+            window.open(pdfUrl, "_blank", "noopener");
+            setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
           } catch (error) {
             showToast(error.message, "danger");
           } finally {
@@ -2591,109 +2599,51 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auth: JWT Bearer token from the shared helper (no client-trusted role
     // headers — the backend decides who may upload).
     // ------------------------------------------------------------------
-    // DIRECT UPLOAD (3 phases). The platform caps function request bodies,
-    // so the PDF bytes must never pass through our API:
-    //   1. ask our API for a short-lived signed storage upload URL
-    //   2. PUT the file straight to storage (progress reported here)
-    //   3. tell our API to register the material (+ normalize server-side)
-    // ------------------------------------------------------------------
-    const prepared = await fetchJson(
-      `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ fileName: pdfFile.name }),
-      },
-    );
+    const result = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(
+        "POST",
+        `/api/lessons/${encodeURIComponent(lessonId)}/materials`,
+      );
+      Object.entries(authHeaders()).forEach(([key, value]) =>
+        xhr.setRequestHeader(key, value),
+      );
 
-    let result;
-    if (swUploadAvailable) {
-      // BACKGROUND PATH: hand the whole upload (bytes PUT + finalize) to the
-      // service worker so navigating to other pages cannot interrupt it.
-      const jobId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const workflow = {
-        jobId,
-        kind: "pdf",
-        lessonId,
-        filePath: prepared.filePath,
-        label: `PDF: ${formDataTitle}`,
-        phase: "uploading",
-        progress: 0,
-      };
-      saveUploadWorkflow(workflow);
-
-      const outcome = await startSwUploadJob({
-        id: jobId,
-        kind: "pdf",
-        url: prepared.signedUrl,
-        method: "PUT",
-        headers: { "Content-Type": "application/pdf" },
-        blob: pdfFile,
-        finalize: {
-          url: `/api/materials/finalize`,
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders() },
-          body: JSON.stringify({
-            lessonId,
-            filePath: prepared.filePath,
-            title: formDataTitle,
-          }),
-        },
-        meta: { ...workflow },
-        status: "queued",
-      });
-
-      if (!outcome.ok) {
-        throw new Error(outcome.error || "فشل رفع ملف PDF.");
-      }
-      saveUploadWorkflow({ ...workflow, phase: "completed", progress: 100 });
-      result = {};
-    } else {
-      // INLINE FALLBACK (no service worker): classic in-page XHR upload.
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", prepared.signedUrl);
-        xhr.setRequestHeader("Content-Type", "application/pdf");
-
-        if (typeof onProgress === "function") {
-          xhr.upload.addEventListener("progress", (e) => {
-            if (e.lengthComputable) {
-              onProgress(Math.round((e.loaded / e.total) * 100), null);
-            }
-          });
-        }
-
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`فشل رفع الملف (${xhr.status}).`));
+      if (typeof onProgress === "function") {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            onProgress(Math.round((e.loaded / e.total) * 100), null);
           }
         });
+      }
 
-        xhr.addEventListener("error", () =>
-          reject(new Error("انقطع الاتصال أثناء رفع ملف PDF.")),
-        );
-
-        xhr.send(pdfFile);
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText || "{}"));
+        } else {
+          let errorBody = {};
+          try {
+            errorBody = JSON.parse(xhr.responseText || "{}");
+          } catch (_) {
+            // The server may return a non-JSON proxy error.
+          }
+          reject(
+            new Error(
+              errorBody.message || errorBody.error || "فشل رفع ملف PDF.",
+            ),
+          );
+        }
       });
 
-      if (typeof onProgress === "function")
-        onProgress(100, "جاري تحسين الملف على السيرفر...");
+      xhr.addEventListener("error", () =>
+        reject(new Error("انقطع الاتصال أثناء رفع ملف PDF.")),
+      );
 
-      result = await fetchJson(`/api/materials/finalize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({
-          lessonId,
-          filePath: prepared.filePath,
-          title: formDataTitle,
-        }),
-      });
-    }
+      const formData = new FormData();
+      formData.append("title", formDataTitle);
+      formData.append("file", pdfFile);
+      xhr.send(formData);
+    });
 
     // Invalidate the lesson-view cache for this lesson so the next visit
     // fetches a fresh list that includes the new PDF (otherwise the cached
@@ -3126,13 +3076,11 @@ document.addEventListener("DOMContentLoaded", () => {
             "[فواصل] renderRows fired — markers.length =",
             markers.length,
             "| sample =",
-            markers
-              .slice(0, 5)
-              .map((m) => ({
-                title: m.title,
-                sec: m.startTimeSeconds,
-                id: m.id,
-              })),
+            markers.slice(0, 5).map((m) => ({
+              title: m.title,
+              sec: m.startTimeSeconds,
+              id: m.id,
+            })),
           );
           if (!markers.length) {
             listEl.innerHTML =
