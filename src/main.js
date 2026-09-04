@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             window.location.href = `/live-session.html?token=${tokenData.token}`;
           } catch (err) {
-            alert(err.message || "تعذر الانضمام للبث المباشر.");
+            window.showToast(err.message || "تعذر الانضمام للبث المباشر.", "danger");
           }
         });
       }
@@ -1253,7 +1253,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const allowCamera = Boolean(allowCameraCheckbox?.checked);
 
         if (!title) {
-          alert("يرجى إدخال عنوان البث المباشر.");
+          window.showToast("يرجى إدخال عنوان البث المباشر.", "warning");
           return;
         }
 
@@ -1272,11 +1272,11 @@ document.addEventListener("DOMContentLoaded", () => {
             body: JSON.stringify({ title, provider, allowCamera }),
           });
 
-          alert("تم بدء البث المباشر بنجاح وإرسال الإشعار للطلاب!");
+          window.showToast("تم بدء البث المباشر بنجاح وإرسال الإشعار للطلاب! 🎉", "success");
           if (titleInput) titleInput.value = "";
           await checkActiveLiveSession();
         } catch (err) {
-          alert(err.message || "فشل بدء البث المباشر.");
+          window.showToast(err.message || "فشل بدء البث المباشر.", "danger");
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
@@ -1301,7 +1301,7 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           window.open(`/live-session.html?token=${tokenData.token}`, "_blank");
         } catch (err) {
-          alert(err.message || "تعذر الانضمام للبث كمعلمة.");
+          window.showToast(err.message || "تعذر الانضمام للبث كمعلمة.", "danger");
         }
       });
     }
@@ -1309,17 +1309,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnEndLive) {
       btnEndLive.addEventListener("click", async () => {
         if (!currentActiveSessionId) return;
-        if (!confirm("هل أنتِ متأكدة من رغبتكِ في إنهاء هذا البث المباشر؟")) return;
 
         try {
           await fetchJson(`${API_BASE}/live/sessions/${currentActiveSessionId}/end`, {
             method: "POST",
             headers: authHeaders(),
           });
-          alert("تم إنهاء البث المباشر بنجاح.");
+          window.showToast("تم إنهاء البث المباشر بنجاح.", "success");
           await checkActiveLiveSession();
         } catch (err) {
-          alert(err.message || "فشل إنهاء البث المباشر.");
+          window.showToast(err.message || "فشل إنهاء البث المباشر.", "danger");
         }
       });
     }
