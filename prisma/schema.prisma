@@ -258,3 +258,40 @@ model VideoChapter {
   @@map("video_chapters")
 }
 
+/// Live streaming sessions started by teacher (Zoom or Google Meet).
+model LiveSession {
+  id          String   @id @default(uuid())
+  title       String
+  provider    String   // "zoom" or "google_meet"
+  meetingId   String   @map("meeting_id")
+  meetingUrl  String   @map("meeting_url")
+  passcode    String?
+  allowCamera Boolean  @default(false) @map("allow_camera")
+  status      String   @default("active") // "active" | "ended"
+  teacherId   String   @map("teacher_id")
+  lessonId    String?  @map("lesson_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tokens LiveSessionToken[]
+
+  @@map("live_sessions")
+}
+
+/// Short-lived single-use access tokens for enrolled students joining live sessions.
+model LiveSessionToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  sessionId String   @map("session_id")
+  studentId String   @map("student_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([studentId, sessionId])
+  @@map("live_session_tokens")
+}
+

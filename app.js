@@ -77,6 +77,11 @@ app.use("/api", notificationsRoutes);
 // QUIZ_README.md for flows, stubs, and testing.
 app.use("/api", require("./src/routes/quizzes/quiz.routes.js"));
 
+// Live Streaming Sessions (Zoom & Google Meet).
+const liveSessionRoutes = require("./src/routes/live-session.routes.js");
+app.use("/api/live", liveSessionRoutes);
+app.use("/api/v1/live", liveSessionRoutes);
+
 // Lesson notes (teacher).
 app.use("/api", require("./src/routes/lessonNotesComments.routes.js"));
 

@@ -25,6 +25,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/lessons/, "/api/lessons"),
       },
+      //   ${API_BASE}/live/...     -> backend mounts live routes at /api/live
+      "/live": {
+        target: API_TARGET,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/live/, "/api/live"),
+      },
     },
   },
 
@@ -45,6 +51,7 @@ export default defineConfig({
         "registration-requests": "registration-requests.html",
         students: "students.html",
         "student-mistakes": "student-mistakes.html",
+        "live-session": "live-session.html",
       },
     },
   },
