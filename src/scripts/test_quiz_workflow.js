@@ -22,7 +22,7 @@
  *
  * Run:  node src/scripts/test_quiz_workflow.js
  *
- * NOTE: Supabase Storage calls are stubbed below (pure network isolation);
+ * NOTE: external storage calls are stubbed below (pure network isolation);
  * everything else — routing, timing, grading, gating — is the REAL code.
  */
 
@@ -34,10 +34,17 @@ require("dotenv").config();
  * patches must be in place first. Everything else runs for real.
  * ------------------------------------------------------------------ */
 const storageService = require("../services/supabaseStorage.service.js");
-storageService.uploadQuizImage = async (buffer, mimeType, quizId) =>
-  `quizzes/${quizId}/test-image.${mimeType === "image/png" ? "png" : "jpg"}`;
 storageService.getQuizImageSignedUrl = async (filePath) =>
   `https://signed.test/${filePath}?token=fake`;
+const driveStorageService = require("../services/googleDriveStorage.service.js");
+const { Readable } = require("stream");
+driveStorageService.uploadQuizImage = async () => ({
+  id: "drive-test-image-id",
+});
+driveStorageService.getImageStream = async () => ({
+  headers: { "content-type": "image/png" },
+  data: Readable.from(Buffer.from("test-image")),
+});
 
 // Quiz publication normally notifies every approved student. This suite
 // replaces that publisher before app.js is loaded so QA never sends dummy
@@ -92,7 +99,7 @@ async function req(method, path, { token, body, form } = {}) {
   }).catch((err) => {
     if (err && err.name === "TimeoutError") {
       console.log(`   [net] ${method} ${path} timed out after 20s`);
-      return { status: 0, json: async () => ({}) };
+      return { status: 0, headers: new Headers(), json: async () => ({}) };
     }
     throw err;
   });
@@ -103,7 +110,7 @@ async function req(method, path, { token, body, form } = {}) {
   } catch (_) {
     /* non-JSON body tolerated */
   }
-  return { status: res.status, data };
+  return { status: res.status, headers: res.headers, data };
 }
 
 /** Multipart builder for the image question (Node 18+ FormData/Blob). */
@@ -112,13 +119,13 @@ function imageQuestionForm(question) {
   form.append("type", question.type);
   form.append("text", question.text);
   question.choices.forEach((choice, index) =>
-    form.append(`choice${index + 1}`, choice)
+    form.append(`choice${index + 1}`, choice),
   );
   form.append("correctIndex", String(question.correctIndex));
   form.append(
     "image",
     new Blob([Buffer.from("fake-png-bytes")], { type: "image/png" }),
-    "diagram.png"
+    "diagram.png",
   );
   return form;
 }
@@ -178,15 +185,47 @@ async function runTests() {
   // explicit “not enrolled” case.
   await prisma.user.createMany({
     data: [
-      { id: QA_USERS.studentA, studentCode: `B${Date.now()}1`, name: "QA Student A", password: "qa-only", role: "STUDENT", status: "APPROVED" },
-      { id: QA_USERS.studentB, studentCode: `B${Date.now()}2`, name: "QA Student B", password: "qa-only", role: "STUDENT", status: "PENDING" },
-      { id: QA_USERS.studentC, studentCode: `B${Date.now()}3`, name: "QA Student C", password: "qa-only", role: "STUDENT", status: "APPROVED" },
-      { id: QA_USERS.studentZ, studentCode: `B${Date.now()}4`, name: "QA Student Z", password: "qa-only", role: "STUDENT", status: "APPROVED" },
+      {
+        id: QA_USERS.studentA,
+        studentCode: `B${Date.now()}1`,
+        name: "QA Student A",
+        password: "qa-only",
+        role: "STUDENT",
+        status: "APPROVED",
+      },
+      {
+        id: QA_USERS.studentB,
+        studentCode: `B${Date.now()}2`,
+        name: "QA Student B",
+        password: "qa-only",
+        role: "STUDENT",
+        status: "PENDING",
+      },
+      {
+        id: QA_USERS.studentC,
+        studentCode: `B${Date.now()}3`,
+        name: "QA Student C",
+        password: "qa-only",
+        role: "STUDENT",
+        status: "APPROVED",
+      },
+      {
+        id: QA_USERS.studentZ,
+        studentCode: `B${Date.now()}4`,
+        name: "QA Student Z",
+        password: "qa-only",
+        role: "STUDENT",
+        status: "APPROVED",
+      },
     ],
   });
   setStudentNameForTesting(QA_USERS.studentA, "سارة أحمد");
   setStudentNameForTesting(QA_USERS.studentC, "منى خالد");
-  setCourseRosterForTesting(COURSE, [QA_USERS.studentA, QA_USERS.studentC, QA_USERS.studentZ]);
+  setCourseRosterForTesting(COURSE, [
+    QA_USERS.studentA,
+    QA_USERS.studentC,
+    QA_USERS.studentZ,
+  ]);
 
   const teacher = tokenFor("teacher-t1", "TEACHER");
   const studentA = tokenFor(QA_USERS.studentA, "STUDENT");
@@ -220,7 +259,11 @@ async function runTests() {
         durationMinutes: 60,
       },
     });
-    check("create quiz -> 201", created.status === 201, JSON.stringify(created.data));
+    check(
+      "create quiz -> 201",
+      created.status === 201,
+      JSON.stringify(created.data),
+    );
     const quiz1 = created.data.quiz.id;
 
     const q1 = await req("POST", `/api/quizzes/${quiz1}/questions`, {
@@ -256,7 +299,7 @@ async function runTests() {
     });
     check(
       "add MCQ with IMAGE -> 201 (path stored, no bytes)",
-      q3.status === 201 && typeof q3.data.question.imagePath === "string"
+      q3.status === 201 && typeof q3.data.question.imagePath === "string",
     );
 
     const overLimit = await req("POST", `/api/quizzes/${quiz1}/questions`, {
@@ -269,18 +312,21 @@ async function runTests() {
       token: studentA,
       body: {},
     });
-    check("student cannot create quizzes -> 403", forbiddenCreate.status === 403);
+    check(
+      "student cannot create quizzes -> 403",
+      forbiddenCreate.status === 403,
+    );
 
     const teacherQuestions = await req(
       "GET",
       `/api/quizzes/${quiz1}/questions`,
-      { token: teacher }
+      { token: teacher },
     );
     check(
       "teacher sees FULL questions (answers included)",
       teacherQuestions.data.questions.length === 3 &&
         teacherQuestions.data.questions[0].correctChoiceId === "c2" &&
-        teacherQuestions.data.questions[1].modelAnswer === "الميتوكوندريا"
+        teacherQuestions.data.questions[1].modelAnswer === "الميتوكوندريا",
     );
 
     /* ================================================================
@@ -305,7 +351,7 @@ async function runTests() {
       mineBefore.status === 200 &&
         Boolean(mineBefore.data.attempts) &&
         mineBefore.data.attempts[quiz1] === undefined,
-      JSON.stringify(mineBefore.data)
+      JSON.stringify(mineBefore.data),
     );
 
     const start1 = await req("POST", `/api/quizzes/${quiz1}/start`, {
@@ -318,7 +364,7 @@ async function runTests() {
     );
     check(
       "server recorded start + personal deadline",
-      Boolean(start1.data.startedAt && start1.data.personalDeadline)
+      Boolean(start1.data.startedAt && start1.data.personalDeadline),
     );
 
     // CRITICAL LEAK SCAN: no answers may reach the taking view.
@@ -326,9 +372,34 @@ async function runTests() {
     check(
       "taking view hides correctChoiceId/modelAnswer",
       !takeViewJson.includes("correctChoiceId") &&
-        !takeViewJson.includes("modelAnswer")
+        !takeViewJson.includes("modelAnswer"),
     );
-    check("image exposed as signed URL", /signed\.test/.test(takeViewJson));
+    const imageUrl = start1.data.questions.find(
+      (question) => question.imageUrl,
+    )?.imageUrl;
+    check(
+      "image exposed as protected Drive endpoint",
+      Boolean(
+        imageUrl &&
+        /\/api\/quizzes\/questions\/[^/]+\/image\?token=/.test(imageUrl),
+      ),
+      JSON.stringify(imageUrl),
+    );
+    const protectedImagePath = imageUrl && imageUrl.replace(/\?token=.*/, "");
+    const unauthenticatedImage = await req(
+      "GET",
+      protectedImagePath || "/api/quizzes/questions/missing/image",
+    );
+    check(
+      "image endpoint rejects unauthenticated access",
+      unauthenticatedImage.status === 401,
+    );
+    const authorizedImage = await req("GET", imageUrl, { token: studentA });
+    check(
+      "enrolled student can stream the image",
+      authorizedImage.status === 200 &&
+        authorizedImage.headers?.get("content-type")?.startsWith("image/"),
+    );
 
     const attempt1 = start1.data.attemptId;
 
@@ -339,7 +410,11 @@ async function runTests() {
       token: studentA,
       body: { questionId: q1.data.question.id, value: "c1" }, // wrong
     });
-    check("autosave wrong MCQ choice -> 200", wrongSave.status === 200, `status: ${wrongSave.status}, data: ${JSON.stringify(wrongSave.data)}`);
+    check(
+      "autosave wrong MCQ choice -> 200",
+      wrongSave.status === 200,
+      `status: ${wrongSave.status}, data: ${JSON.stringify(wrongSave.data)}`,
+    );
     // ...written text...
     const writtenSave = await req("POST", `/api/quizzes/${quiz1}/answers`, {
       token: studentA,
@@ -348,7 +423,11 @@ async function runTests() {
         value: "النواة (إجابة خاطئة لكن تُحفظ فقط)",
       },
     });
-    check("autosave written text -> 200", writtenSave.status === 200, `status: ${writtenSave.status}, data: ${JSON.stringify(writtenSave.data)}`);
+    check(
+      "autosave written text -> 200",
+      writtenSave.status === 200,
+      `status: ${writtenSave.status}, data: ${JSON.stringify(writtenSave.data)}`,
+    );
 
     // ...and final flush with the right image-question answer.
     const submit1 = await req("POST", `/api/quizzes/${quiz1}/submit`, {
@@ -357,19 +436,23 @@ async function runTests() {
         answers: { [q3.data.question.id]: "c1" }, // correct (index0->c1)
       },
     });
-    check("manual submit -> 200", submit1.status === 200, `status: ${submit1.status}, data: ${JSON.stringify(submit1.data)}`);
+    check(
+      "manual submit -> 200",
+      submit1.status === 200,
+      `status: ${submit1.status}, data: ${JSON.stringify(submit1.data)}`,
+    );
 
     /* ---- TEST 5 folded here: immediate score = MCQ only -------------- */
     section("TEST 5: immediate score counts MCQ only");
     check(
       "score 1 / totalMcq 2 (written excluded)",
       submit1.data.result.score === 1 && submit1.data.result.totalMcq === 2,
-      JSON.stringify(submit1.data.result)
+      JSON.stringify(submit1.data.result),
     );
     check(
       "submission summary carries NO per-question detail",
       !JSON.stringify(submit1.data).includes("wasCorrect") &&
-        !JSON.stringify(submit1.data).includes("correctChoiceId")
+        !JSON.stringify(submit1.data).includes("correctChoiceId"),
     );
 
     /* ---- TEST 5b: hub attempt-state feed (score without review) ------ */
@@ -392,12 +475,12 @@ async function runTests() {
         Boolean(mineEntry.latestSubmitted) &&
         mineEntry.latestSubmitted.score === 1 &&
         mineEntry.latestSubmitted.totalMcq === 2,
-      JSON.stringify(mineAfter.data)
+      JSON.stringify(mineAfter.data),
     );
     check(
       "hub feed exposes NO per-question detail either",
       !JSON.stringify(mineEntry).includes("correctChoiceId") &&
-        !JSON.stringify(mineEntry).includes("modelAnswer")
+        !JSON.stringify(mineEntry).includes("modelAnswer"),
     );
 
     /* ================================================================
@@ -412,36 +495,39 @@ async function runTests() {
       lb1Early.status === 200 &&
         lb1Early.data.released === false &&
         lb1Early.data.rankings === null,
-      JSON.stringify(lb1Early.data)
+      JSON.stringify(lb1Early.data),
     );
 
     const review1Early = await req(
       "GET",
       `/api/quiz-results/${submit1.data.result.resultId}/review`,
-      { token: studentA }
+      { token: studentA },
     );
     check(
       "DIRECT review call before end_time -> 403 + availableAfter, no data",
       review1Early.status === 403 &&
         Boolean(review1Early.data.availableAfter) &&
         review1Early.data.review === null,
-      JSON.stringify(review1Early.data)
+      JSON.stringify(review1Early.data),
     );
 
     const otherReview = await req(
       "GET",
       `/api/quiz-results/${submit1.data.result.resultId}/review`,
-      { token: studentC }
+      { token: studentC },
     );
-    check("another student cannot open someone else's result", otherReview.status === 403);
+    check(
+      "another student cannot open someone else's result",
+      otherReview.status === 403,
+    );
 
     const courseLbEarly = await req(
       "GET",
       `/api/courses/${COURSE}/leaderboard`,
-      { token: teacher }
+      { token: teacher },
     );
     const earlyRowA = courseLbEarly.data.rankings.find(
-      (row) => row.studentId === QA_USERS.studentA
+      (row) => row.studentId === QA_USERS.studentA,
     );
     check(
       "course board shows student-a with ZERO until quiz releases (score hidden, not excluded)",
@@ -449,7 +535,7 @@ async function runTests() {
         earlyRowA &&
         earlyRowA.totalScore === 0 &&
         courseLbEarly.data.pendingQuizzes.some((quiz) => quiz.id === quiz1),
-      JSON.stringify(courseLbEarly.data)
+      JSON.stringify(courseLbEarly.data),
     );
 
     /* ================================================================
@@ -484,7 +570,9 @@ async function runTests() {
     const question6Id = q6.data.question.id;
 
     // Attempt 1: wrong answer, submitted.
-    const s6a = await req("POST", `/api/quizzes/${quiz6}/start`, { token: studentC });
+    const s6a = await req("POST", `/api/quizzes/${quiz6}/start`, {
+      token: studentC,
+    });
     await req("POST", `/api/quizzes/${quiz6}/submit`, {
       token: studentC,
       body: { answers: { [question6Id]: "c1" } }, // wrong
@@ -498,11 +586,16 @@ async function runTests() {
     const granted = await req(
       "POST",
       `/api/quizzes/${quiz6}/students/${QA_USERS.studentC}/grant-retry`,
-      { token: teacher }
+      { token: teacher },
     );
-    check("teacher grants retry -> allowance 2", granted.data.allowedAttempts === 2);
+    check(
+      "teacher grants retry -> allowance 2",
+      granted.data.allowedAttempts === 2,
+    );
 
-    const s6b = await req("POST", `/api/quizzes/${quiz6}/start`, { token: studentC });
+    const s6b = await req("POST", `/api/quizzes/${quiz6}/start`, {
+      token: studentC,
+    });
     check("retry start succeeds (attempt #2)", s6b.status === 201);
     await req("POST", `/api/quizzes/${quiz6}/submit`, {
       token: studentC,
@@ -513,7 +606,7 @@ async function runTests() {
       token: teacher,
     });
     const student6Row = results6.data.students.find(
-      (row) => row.studentId === QA_USERS.studentC
+      (row) => row.studentId === QA_USERS.studentC,
     );
     check(
       "BOTH attempts stored & visible to teacher (0 then 1)",
@@ -521,7 +614,7 @@ async function runTests() {
         student6Row.attempts.length === 2 &&
         student6Row.attempts[0].score === 0 &&
         student6Row.attempts[1].score === 1,
-      JSON.stringify(student6Row)
+      JSON.stringify(student6Row),
     );
 
     /* ================================================================
@@ -552,7 +645,11 @@ async function runTests() {
     });
     const q5b = await req("POST", `/api/quizzes/${quiz5}/questions`, {
       token: teacher,
-      body: { type: "written", text: "سؤال مقالي للاستكمال", modelAnswer: "نموذجي" },
+      body: {
+        type: "written",
+        text: "سؤال مقالي للاستكمال",
+        modelAnswer: "نموذجي",
+      },
     });
 
     const s5first = await req("POST", `/api/quizzes/${quiz5}/start`, {
@@ -574,26 +671,26 @@ async function runTests() {
     check(
       "reopen -> status 'resumed' (no teacher approval needed)",
       s5reopen.data.status === "resumed",
-      JSON.stringify(s5reopen.data)
+      JSON.stringify(s5reopen.data),
     );
     check(
       "SAME attempt continues (not a fresh one)",
-      s5reopen.data.attemptId === s5first.data.attemptId
+      s5reopen.data.attemptId === s5first.data.attemptId,
     );
     check(
       "saved answer restored pre-filled",
-      s5reopen.data.savedAnswers[s5first.data.questions[0].id] === "c3"
+      s5reopen.data.savedAnswers[s5first.data.questions[0].id] === "c3",
     );
     check(
       "timer REDUCED by time away (not reset)",
       s5reopen.data.remainingSeconds > 0 &&
         s5reopen.data.remainingSeconds <= fullTime - 2,
-      `full=${fullTime}s now=${s5reopen.data.remainingSeconds}s`
+      `full=${fullTime}s now=${s5reopen.data.remainingSeconds}s`,
     );
     check(
       "question order/content identical on resume",
       JSON.stringify(s5reopen.data.questions.map((q) => q.id)) ===
-        JSON.stringify(s5first.data.questions.map((q) => q.id))
+        JSON.stringify(s5first.data.questions.map((q) => q.id)),
     );
 
     // Finish quiz 5 properly so its state is settled (stays OPEN for the
@@ -625,7 +722,7 @@ async function runTests() {
         questionCount: 2,
         startTime: iso(-1000),
         endTime: iso(+10 * 60_000), // overall window LONG -> personal wins
-        durationMinutes: 0.1,        // = 6 seconds!
+        durationMinutes: 0.1, // = 6 seconds!
       },
     });
     // NOTE: quiz2's 6-second personal duration means we start it NOW and
@@ -645,21 +742,27 @@ async function runTests() {
       body: { type: "written", text: "عدّاد", modelAnswer: "أي نص" },
     });
 
-    const s2 = await req("POST", `/api/quizzes/${quiz2}/start`, { token: studentA });
+    const s2 = await req("POST", `/api/quizzes/${quiz2}/start`, {
+      token: studentA,
+    });
     check("quiz2 started (6s personal timer)", s2.status === 201);
     check(
       "remainingSeconds respects the SHORT personal limit",
       s2.data.remainingSeconds <= 6,
-      `got ${s2.data.remainingSeconds}`
+      `got ${s2.data.remainingSeconds}`,
     );
 
     // Answer correctly, then walk away WITHOUT submitting.
     // (On a loaded DB this autosave can itself cross the deadline and get
     // the 409 auto-submit response — handled after the reopen below.)
-    const savedBeforeLeaving = await req("POST", `/api/quizzes/${quiz2}/answers`, {
-      token: studentA,
-      body: { questionId: q2mcq.data.question.id, value: "c2" },
-    });
+    const savedBeforeLeaving = await req(
+      "POST",
+      `/api/quizzes/${quiz2}/answers`,
+      {
+        token: studentA,
+        body: { questionId: q2mcq.data.question.id, value: "c2" },
+      },
+    );
 
     await sleep(6500); // personal countdown dies while she is gone
 
@@ -673,23 +776,28 @@ async function runTests() {
     ) {
       // Slow roundtrips let the autosave finalize the attempt first;
       // grade from ITS result — same rule, different trigger point.
-      console.log("   [flake-tolerant] autosave crossed the deadline; using its 409 result");
+      console.log(
+        "   [flake-tolerant] autosave crossed the deadline; using its 409 result",
+      );
       s2back = {
         status: 200,
-        data: { status: "auto_submitted", result: savedBeforeLeaving.data.result },
+        data: {
+          status: "auto_submitted",
+          result: savedBeforeLeaving.data.result,
+        },
       };
     }
     check(
       "late reopen -> auto_submitted (cannot resume expired attempt)",
       s2back.status === 200 && s2back.data.status === "auto_submitted",
-      JSON.stringify(s2back.data)
+      JSON.stringify(s2back.data),
     );
     check(
       "auto-submitted with SAVED answers graded (1 of 1 MCQ; written excluded, reason auto-personal-timer)",
       s2back.data.result.score === 1 &&
         s2back.data.result.totalMcq === 1 &&
         s2back.data.result.submissionReason === "auto-personal-timer",
-      JSON.stringify(s2back.data.result)
+      JSON.stringify(s2back.data.result),
     );
 
     const retryAfterAuto = await req("POST", `/api/quizzes/${quiz2}/start`, {
@@ -697,7 +805,7 @@ async function runTests() {
     });
     check(
       "auto-submit consumed the attempt: another start -> 403",
-      retryAfterAuto.status === 403
+      retryAfterAuto.status === 403,
     );
 
     /* ================================================================
@@ -715,8 +823,8 @@ async function runTests() {
         // Window must outlive the setup requests even on a slow connection,
         // then expire via sleepUntil() below.
         startTime: iso(-500),
-        endTime: iso(+15_000),   // window dies FIRST
-        durationMinutes: 60,     // personal timer would allow much more
+        endTime: iso(+15_000), // window dies FIRST
+        durationMinutes: 60, // personal timer would allow much more
       },
     });
     const quiz3 = created3.data.quiz.id;
@@ -730,13 +838,15 @@ async function runTests() {
       },
     });
 
-    const s3 = await req("POST", `/api/quizzes/${quiz3}/start`, { token: studentA });
+    const s3 = await req("POST", `/api/quizzes/${quiz3}/start`, {
+      token: studentA,
+    });
     check(
       "start honors the SMALLER limit (window, not 60min duration)",
       s3.status === 201 &&
         s3.data.remainingSeconds > 0 &&
         s3.data.remainingSeconds <= 16,
-      `got ${s3.data.remainingSeconds}s`
+      `got ${s3.data.remainingSeconds}s`,
     );
 
     await req("POST", `/api/quizzes/${quiz3}/answers`, {
@@ -755,7 +865,7 @@ async function runTests() {
         probe3.data.result.submissionReason === "auto-quiz-end" &&
         probe3.data.result.score === 1 &&
         probe3.data.result.totalMcq === 1,
-      JSON.stringify(probe3.data)
+      JSON.stringify(probe3.data),
     );
 
     /* ---- TEST 8 (part 1): review AFTER end_time ---------------------- */
@@ -763,16 +873,19 @@ async function runTests() {
     const review3 = await req(
       "GET",
       `/api/quiz-results/${probe3.data.result.resultId}/review`,
-      { token: studentA }
+      { token: studentA },
     );
-    check("review now opens -> 200 with review data", review3.status === 200 && Boolean(review3.data.review));
+    check(
+      "review now opens -> 200 with review data",
+      review3.status === 200 && Boolean(review3.data.review),
+    );
     const rv3q = review3.data.review.questions[0];
     check(
       "MCQ item exposes student choice + correct choice + flag",
       rv3q.studentChoiceId === "c2" &&
         rv3q.correctChoiceId === "c2" &&
         rv3q.wasCorrect === true,
-      JSON.stringify(rv3q)
+      JSON.stringify(rv3q),
     );
 
     /* ================================================================
@@ -812,7 +925,9 @@ async function runTests() {
       },
     });
 
-    const s4 = await req("POST", `/api/quizzes/${quiz4}/start`, { token: studentC });
+    const s4 = await req("POST", `/api/quizzes/${quiz4}/start`, {
+      token: studentC,
+    });
     // (explicit saves below, clearer than clever loops)
     await req("POST", `/api/quizzes/${quiz4}/answers`, {
       token: studentC,
@@ -830,17 +945,19 @@ async function runTests() {
     const review4 = await req(
       "GET",
       `/api/quiz-results/${probe4.data.result.resultId}/review`,
-      { token: studentC }
+      { token: studentC },
     );
     const rv4mcq = review4.data.review.questions.find((q) => q.type === "mcq");
-    const rv4written = review4.data.review.questions.find((q) => q.type === "written");
+    const rv4written = review4.data.review.questions.find(
+      (q) => q.type === "written",
+    );
 
     check(
       "wrong MCQ: theirChoice≠correctChoice, wasCorrect=false (red/green inputs)",
       rv4mcq.studentChoiceId === "c3" &&
         rv4mcq.correctChoiceId === "c2" &&
         rv4mcq.wasCorrect === false,
-      JSON.stringify(rv4mcq)
+      JSON.stringify(rv4mcq),
     );
     check(
       "written item: student text + model answer, NO grading flag whatsoever",
@@ -848,11 +965,11 @@ async function runTests() {
         rv4written.modelAnswer === "التقابل بين أجزاء الجسم حول محور." &&
         !("wasCorrect" in rv4written) &&
         !("correct" in rv4written),
-      JSON.stringify(rv4written)
+      JSON.stringify(rv4written),
     );
     check(
       "written never affected the score (still MCQ-only denominator)",
-      review4.data.review.totalMcq === 1 && review4.data.review.score === 0
+      review4.data.review.totalMcq === 1 && review4.data.review.score === 0,
     );
 
     /* ---- TEST 6 (post): leaderboard RELEASED with best-attempt rule -- */
@@ -866,16 +983,22 @@ async function runTests() {
     check(
       "released:true and best score (1) ranked, worst (0) ignored",
       lb6.data.released === true &&
-        lb6.data.rankings.find((r) => r.studentId === QA_USERS.studentC).bestScore === 1,
-      JSON.stringify(lb6.data.rankings)
+        lb6.data.rankings.find((r) => r.studentId === QA_USERS.studentC)
+          .bestScore === 1,
+      JSON.stringify(lb6.data.rankings),
     );
     const lb3 = await req("GET", `/api/quizzes/${quiz3}/leaderboard`, {
       token: studentA,
     });
-    const row3 = lb3.data.rankings.find((r) => r.studentId === QA_USERS.studentA);
+    const row3 = lb3.data.rankings.find(
+      (r) => r.studentId === QA_USERS.studentA,
+    );
     check(
       "real names shown; rank computed",
-      lb3.data.released === true && row3.bestScore === 1 && row3.studentName === "سارة أحمد" && row3.rank === 1
+      lb3.data.released === true &&
+        row3.bestScore === 1 &&
+        row3.studentName === "سارة أحمد" &&
+        row3.rank === 1,
     );
 
     /* ---- Final course leaderboard ------------------------------------ */
@@ -886,34 +1009,38 @@ async function runTests() {
       Math.max(
         Date.parse(created.data.quiz.endTime),
         Date.parse(created3.data.quiz.endTime),
-        Date.parse(created6.data.quiz.endTime)
-      )
+        Date.parse(created6.data.quiz.endTime),
+      ),
     );
     const courseLb = await req("GET", `/api/courses/${COURSE}/leaderboard`, {
       token: teacher,
     });
-    const rowA = courseLb.data.rankings.find((r) => r.studentId === QA_USERS.studentA);
-    const rowC = courseLb.data.rankings.find((r) => r.studentId === QA_USERS.studentC);
+    const rowA = courseLb.data.rankings.find(
+      (r) => r.studentId === QA_USERS.studentA,
+    );
+    const rowC = courseLb.data.rankings.find(
+      (r) => r.studentId === QA_USERS.studentC,
+    );
     // Released by now: quiz1(1) + quiz3(1) + quiz6(0 for A, never took it)
     // = 2. quiz2/quiz5 windows are still open -> excluded as pending.
     check(
       "student-a sums best scores across RELEASED quizzes only (=2)",
       rowA.totalScore === 2,
-      JSON.stringify(rowA)
+      JSON.stringify(rowA),
     );
     check(
       "student-c present with retry-best counted (=1)",
       rowC.totalScore === 1,
-      JSON.stringify(rowC)
+      JSON.stringify(rowC),
     );
     check(
       "still-open quiz5 listed as pending, NOT summed",
-      courseLb.data.pendingQuizzes.some((q) => q.title === "اختبار الاستكمال")
+      courseLb.data.pendingQuizzes.some((q) => q.title === "اختبار الاستكمال"),
     );
 
     check(
       "roster student with zero appears at bottom (not excluded)",
-      courseLb.data.rankings.some((r) => r.bestScore === 0)
+      courseLb.data.rankings.some((r) => r.bestScore === 0),
     );
 
     /* ================================================================
@@ -924,25 +1051,30 @@ async function runTests() {
     const byId = new Map(hub.data.exams.map((exam) => [exam.id, exam]));
     check(
       "hub feed lists every quiz with lesson, timing and duration",
-      hub.status === 200 && byId.get(quiz1).lessonId === "lesson-quiz-test" &&
+      hub.status === 200 &&
+        byId.get(quiz1).lessonId === "lesson-quiz-test" &&
         byId.get(quiz1).durationMinutes === 60,
-      JSON.stringify(hub.data).slice(0, 200)
+      JSON.stringify(hub.data).slice(0, 200),
     );
     check(
       "ended quizzes labeled 'ended'  (quiz1/3/6 windows passed)",
-      ["quiz1", "quiz3", "quiz6"].every((label) =>
-        ({ quiz1, quiz3, quiz6 })[label] &&
-        byId.get({ quiz1, quiz3, quiz6 }[label]).status === "ended")
+      ["quiz1", "quiz3", "quiz6"].every(
+        (label) =>
+          ({ quiz1, quiz3, quiz6 })[label] &&
+          byId.get({ quiz1, quiz3, quiz6 }[label]).status === "ended",
+      ),
     );
     check(
       "still-open quizzes labeled 'active' (quiz5)",
-      byId.get(quiz5) && byId.get(quiz5).status === "active"
+      byId.get(quiz5) && byId.get(quiz5).status === "active",
     );
     const teacherHubPreview = await req("GET", "/api/quizzes/available", {
       token: teacher,
     });
-    check("teacher can preview the exams feed -> 200",
-      teacherHubPreview.status === 200);
+    check(
+      "teacher can preview the exams feed -> 200",
+      teacherHubPreview.status === 200,
+    );
 
     /* ================================================================
      * TEST 12 - NOTIFICATION on publish (shared helper reused)
@@ -968,8 +1100,10 @@ async function runTests() {
 
     check(
       "publishing a quiz requests a notification for approved students",
-      testNotifications.some((notice) => notice.message.includes("اختبار الإشعارات")),
-      JSON.stringify(testNotifications)
+      testNotifications.some((notice) =>
+        notice.message.includes("اختبار الإشعارات"),
+      ),
+      JSON.stringify(testNotifications),
     );
 
     /* ================================================================
@@ -1013,18 +1147,18 @@ async function runTests() {
       JSON.stringify({
         questions: startResponse.data.questions.map((q) => q.text),
         choiceOrders: startResponse.data.questions.map(
-          (q) => q.choices && q.choices.map((c) => c.id).join("")
+          (q) => q.choices && q.choices.map((c) => c.id).join(""),
         ),
       });
 
     check(
       "student A and student C see DIFFERENT arrangement",
       orderOf(sA) !== orderOf(sC),
-      "identical orders received"
+      "identical orders received",
     );
     check(
       "every MCQ still exposes all 4 choices after shuffling",
-      sA.data.questions.every((q) => q.choices.length === 4)
+      sA.data.questions.every((q) => q.choices.length === 4),
     );
 
     // Persistence: A autosaves nothing structural, reopens -> same layout.
@@ -1040,10 +1174,16 @@ async function runTests() {
       sAreopen.data.status === "resumed" &&
         JSON.stringify(sAreopen.data.questions.map((q) => q.id)) ===
           JSON.stringify(sA.data.questions.map((q) => q.id)) &&
-        JSON.stringify(sAreopen.data.questions.map((q) =>
-          q.choices ? q.choices.map((c) => c.id).join("|") : null)) ===
-          JSON.stringify(sA.data.questions.map((q) =>
-            q.choices ? q.choices.map((c) => c.id).join("|") : null))
+        JSON.stringify(
+          sAreopen.data.questions.map((q) =>
+            q.choices ? q.choices.map((c) => c.id).join("|") : null,
+          ),
+        ) ===
+          JSON.stringify(
+            sA.data.questions.map((q) =>
+              q.choices ? q.choices.map((c) => c.id).join("|") : null,
+            ),
+          ),
     );
 
     // Grading unaffected by shuffle: each question's text carries its
@@ -1055,15 +1195,19 @@ async function runTests() {
       const n = Number(q.text.match(/(\d+)/)[1]);
       finalAnswers[q.id] = `c${((n - 1) % 4) + 1}`;
     }
-    const shuffleSubmit = await req("POST", `/api/quizzes/${shuffleQuiz}/submit`, {
-      token: studentA,
-      body: { answers: finalAnswers },
-    });
+    const shuffleSubmit = await req(
+      "POST",
+      `/api/quizzes/${shuffleQuiz}/submit`,
+      {
+        token: studentA,
+        body: { answers: finalAnswers },
+      },
+    );
     check(
       "grading matches by choice ID despite shuffled display (5/5)",
       shuffleSubmit.data.result.score === 5 &&
         shuffleSubmit.data.result.totalMcq === 5,
-      JSON.stringify(shuffleSubmit.data.result)
+      JSON.stringify(shuffleSubmit.data.result),
     );
   } finally {
     server.close();
