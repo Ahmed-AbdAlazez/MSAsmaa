@@ -86,13 +86,11 @@ router.post(
       cleanTitle(req),
       driveFile,
     );
-    return res
-      .status(201)
-      .json({
-        message: "تم رفع مادة PDF بنجاح.",
-        lessonId: req.params.lessonId,
-        material: { id: material.id, title: material.title },
-      });
+    return res.status(201).json({
+      message: "تم رفع مادة PDF بنجاح.",
+      lessonId: req.params.lessonId,
+      material: { id: material.id, title: material.title },
+    });
   }),
 );
 
@@ -148,6 +146,37 @@ router.get(
       return next(
         new AppError("فشل تحميل ملف PDF. يرجى المحاولة لاحقاً.", 500),
       );
+    }
+  }),
+);
+
+router.get(
+  "/materials/:materialId/view",
+  requireAuth,
+  requireTeacher,
+  catchAsync(async (req, res, next) => {
+    const material = await getMaterialById(req.params.materialId);
+    if (!material) return next(new AppError("المادة غير موجودة.", 404));
+    if (!(await isTeacherOwnerOfLesson(req.user.id, material.lessonId))) {
+      return next(
+        new AppError("أنت لا تملكين الكورس الذي تتبع له هذه المادة.", 403),
+      );
+    }
+
+    try {
+      const stream = await getPdfStream(material.fileId);
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+      });
+      stream.on("error", () => {
+        if (!res.headersSent)
+          next(new AppError("فشل تحميل ملف PDF. يرجى المحاولة لاحقاً.", 500));
+      });
+      return stream.pipe(res);
+    } catch (error) {
+      console.error("[materials] PDF view failed:", error.message);
+      return next(new AppError("فشل فتح ملف PDF. يرجى المحاولة لاحقاً.", 500));
     }
   }),
 );

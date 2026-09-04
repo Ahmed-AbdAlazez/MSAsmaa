@@ -35,13 +35,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Active Live Session Banner for Students ---
   async function checkGlobalActiveLiveBanner() {
     // Don't show banner on the live session page itself or for logged out users
-    if (window.location.pathname.includes("live-session.html") || !localStorage.getItem("token")) return;
+    if (
+      window.location.pathname.includes("live-session.html") ||
+      !localStorage.getItem("token")
+    )
+      return;
     try {
-      const data = await fetchJson(`${API_BASE}/live/active`, { headers: authHeaders() }).catch(() => null);
-      if (data && data.session && !document.getElementById("global-live-banner")) {
+      const data = await fetchJson(`${API_BASE}/live/active`, {
+        headers: authHeaders(),
+      }).catch(() => null);
+      if (
+        data &&
+        data.session &&
+        !document.getElementById("global-live-banner")
+      ) {
         const banner = document.createElement("div");
         banner.id = "global-live-banner";
-        banner.style.cssText = "position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--color-surface, #fff); border:2px solid #ef4444; border-radius:14px; padding:0.85rem 1.25rem; box-shadow:0 10px 25px rgba(0,0,0,0.15); display:flex; align-items:center; gap:1rem; animation: slideUp 0.3s ease;";
+        banner.style.cssText =
+          "position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--color-surface, #fff); border:2px solid #ef4444; border-radius:14px; padding:0.85rem 1.25rem; box-shadow:0 10px 25px rgba(0,0,0,0.15); display:flex; align-items:center; gap:1rem; animation: slideUp 0.3s ease;";
         banner.innerHTML = `
           <div>
             <div style="color:#ef4444; font-weight:800; font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
@@ -54,21 +65,26 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         document.body.appendChild(banner);
 
-        document.getElementById("btn-global-join-live")?.addEventListener("click", async () => {
-          try {
-            const tokenData = await fetchJson(`${API_BASE}/live/join-token`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                ...authHeaders(),
-              },
-              body: JSON.stringify({ sessionId: data.session.id }),
-            });
-            window.location.href = `/live-session.html?token=${tokenData.token}`;
-          } catch (err) {
-            window.showToast(err.message || "تعذر الانضمام للبث المباشر.", "danger");
-          }
-        });
+        document
+          .getElementById("btn-global-join-live")
+          ?.addEventListener("click", async () => {
+            try {
+              const tokenData = await fetchJson(`${API_BASE}/live/join-token`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ sessionId: data.session.id }),
+              });
+              window.location.href = `/live-session.html?token=${tokenData.token}`;
+            } catch (err) {
+              window.showToast(
+                err.message || "تعذر الانضمام للبث المباشر.",
+                "danger",
+              );
+            }
+          });
       }
     } catch (_) {}
   }
@@ -1221,13 +1237,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function checkActiveLiveSession() {
       try {
-        const data = await fetchJson(`${API_BASE}/live/active`, { headers: authHeaders() });
+        const data = await fetchJson(`${API_BASE}/live/active`, {
+          headers: authHeaders(),
+        });
         if (data && data.session) {
           currentActiveSessionId = data.session.id;
           if (activeLiveCard) activeLiveCard.style.display = "block";
-          if (activeLiveTitle) activeLiveTitle.textContent = data.session.title || "بث مباشر نشط";
+          if (activeLiveTitle)
+            activeLiveTitle.textContent = data.session.title || "بث مباشر نشط";
           if (activeLiveProvider) {
-            const providerName = data.session.provider === "google_meet" ? "Google Meet 🟢" : "Zoom 🔵";
+            const providerName =
+              data.session.provider === "google_meet"
+                ? "Google Meet 🟢"
+                : "Zoom 🔵";
             activeLiveProvider.textContent = `المزود: ${providerName}`;
           }
         } else {
@@ -1235,7 +1257,10 @@ document.addEventListener("DOMContentLoaded", () => {
           if (activeLiveCard) activeLiveCard.style.display = "none";
         }
       } catch (err) {
-        console.warn("[teacher-dashboard] Failed to check active live session:", err);
+        console.warn(
+          "[teacher-dashboard] Failed to check active live session:",
+          err,
+        );
       }
     }
 
@@ -1273,7 +1298,10 @@ document.addEventListener("DOMContentLoaded", () => {
             body: JSON.stringify({ title, provider, allowCamera }),
           });
 
-          window.showToast("تم بدء البث المباشر بنجاح وإرسال الإشعار للطلاب! 🎉", "success");
+          window.showToast(
+            "تم بدء البث المباشر بنجاح وإرسال الإشعار للطلاب! 🎉",
+            "success",
+          );
           if (titleInput) titleInput.value = "";
           await checkActiveLiveSession();
         } catch (err) {
@@ -1302,7 +1330,10 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           window.open(`/live-session.html?token=${tokenData.token}`, "_blank");
         } catch (err) {
-          window.showToast(err.message || "تعذر الانضمام للبث كمعلمة.", "danger");
+          window.showToast(
+            err.message || "تعذر الانضمام للبث كمعلمة.",
+            "danger",
+          );
         }
       });
     }
@@ -1312,10 +1343,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!currentActiveSessionId) return;
 
         try {
-          await fetchJson(`${API_BASE}/live/sessions/${currentActiveSessionId}/end`, {
-            method: "POST",
-            headers: authHeaders(),
-          });
+          await fetchJson(
+            `${API_BASE}/live/sessions/${currentActiveSessionId}/end`,
+            {
+              method: "POST",
+              headers: authHeaders(),
+            },
+          );
           window.showToast("تم إنهاء البث المباشر بنجاح.", "success");
           await checkActiveLiveSession();
         } catch (err) {
@@ -3764,10 +3798,71 @@ document.addEventListener("DOMContentLoaded", () => {
         const actions = document.createElement("div");
         actions.style.cssText = "display:flex; gap:0.5rem;";
         actions.innerHTML =
+          '<button class="btn btn-secondary js-view-material" style="font-size:0.8rem;">عرض PDF</button>' +
+          '<button class="btn btn-light js-download-material" style="font-size:0.8rem;">تحميل PDF</button>' +
           '<button class="btn btn-light js-edit-material" style="font-size:0.8rem;">✏️ تعديل</button>' +
           '<button class="btn btn-light js-delete-material" style="font-size:0.8rem; color:var(--color-danger);">🗑 حذف</button>';
 
         row.append(info, actions);
+
+        const openMaterial = async (button, fallbackMessage) => {
+          try {
+            button.disabled = true;
+            const response = await fetch(
+              `/api/materials/${encodeURIComponent(material.id)}/view`,
+              { headers: authHeaders() },
+            );
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(
+                errorData.message || errorData.error || fallbackMessage,
+              );
+            }
+            const pdfUrl = URL.createObjectURL(await response.blob());
+            window.open(pdfUrl, "_blank", "noopener");
+            setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+          } catch (error) {
+            showToast(error.message, "danger");
+          } finally {
+            button.disabled = false;
+          }
+        };
+
+        row
+          .querySelector(".js-view-material")
+          .addEventListener("click", (event) =>
+            openMaterial(event.currentTarget, "تعذر فتح ملف PDF."),
+          );
+
+        row
+          .querySelector(".js-download-material")
+          .addEventListener("click", async (event) => {
+            const button = event.currentTarget;
+            try {
+              button.disabled = true;
+              const response = await fetch(
+                `/api/materials/${encodeURIComponent(material.id)}/download`,
+                { headers: authHeaders() },
+              );
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                  errorData.message || errorData.error || "تعذر تحميل ملف PDF.",
+                );
+              }
+              const pdfUrl = URL.createObjectURL(await response.blob());
+              const link = document.createElement("a");
+              link.href = pdfUrl;
+              link.download =
+                material.fileName || `${material.title || "material"}.pdf`;
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+            } catch (error) {
+              showToast(error.message, "danger");
+            } finally {
+              button.disabled = false;
+            }
+          });
 
         row.querySelector(".js-edit-material").addEventListener("click", () => {
           document.querySelector("#edit-material-id").value = material.id;
