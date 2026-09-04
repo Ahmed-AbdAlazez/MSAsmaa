@@ -23,6 +23,7 @@
     { "source": "/students", "destination": "/students.html" },
     { "source": "/student-mistakes", "destination": "/student-mistakes.html" },
     { "source": "/scoreboard", "destination": "/scoreboard.html" },
-    { "source": "/live-session", "destination": "/live-session.html" }
+    { "source": "/live-session", "destination": "/live-session.html" },
+    { "source": "/whiteboard", "destination": "/whiteboard.html" }
   ]
 }
