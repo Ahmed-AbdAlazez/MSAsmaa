@@ -59,6 +59,21 @@ model Notification {
   @@map("notifications")
 }
 
+model LessonMaterial {
+  id          String   @id @default(uuid())
+  lessonId    String   @map("lesson_id")
+  title       String
+  driveFileId String   @unique @map("drive_file_id")
+  fileName    String   @map("file_name")
+  mimeType    String   @map("mime_type")
+  sizeBytes   BigInt?  @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at")
+  modifiedAt  DateTime @updatedAt @map("modified_at")
+
+  @@index([lessonId, createdAt])
+  @@map("lesson_materials")
+}
+
 // ---------------------------------------------------------------------------
 // QUIZ FEATURE TABLES (added by the exams/quiz feature)
 // NOTE for collaborators: everything below this line is OWNED BY THE QUIZ

@@ -14,13 +14,13 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
 
 ## 1. PROGRAMMING LANGUAGES
 
-| Language | Where used |
-|---|---|
-| **JavaScript (Node.js, CommonJS)** | Backend API (`src/**`, `app.js`, `server.js`, `api/index.js`). Server must be **Node ≥ 18** (relies on global `fetch`). |
-| **JavaScript (ES Modules / browser)** | Frontend pages (`src/main.js`, `src/exams.js`, `src/loginPage.js`, `src/teacherQuizzes.js`, etc.) built by Vite. |
-| **HTML5** | All frontend pages (13 static `.html` files in project root). RTL, Arabic. |
-| **CSS3** | All styling (`css/style.css`, `css/login.css`, `css/exams.css`, `css/mascot.css`). Custom properties (CSS variables) for the design system. |
-| **SQL (PostgreSQL)** | Implicit — via Prisma ORM. No raw SQL written in app code. |
+| Language                              | Where used                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JavaScript (Node.js, CommonJS)**    | Backend API (`src/**`, `app.js`, `server.js`, `api/index.js`). Server must be **Node ≥ 18** (relies on global `fetch`).                     |
+| **JavaScript (ES Modules / browser)** | Frontend pages (`src/main.js`, `src/exams.js`, `src/loginPage.js`, `src/teacherQuizzes.js`, etc.) built by Vite.                            |
+| **HTML5**                             | All frontend pages (13 static `.html` files in project root). RTL, Arabic.                                                                  |
+| **CSS3**                              | All styling (`css/style.css`, `css/login.css`, `css/exams.css`, `css/mascot.css`). Custom properties (CSS variables) for the design system. |
+| **SQL (PostgreSQL)**                  | Implicit — via Prisma ORM. No raw SQL written in app code.                                                                                  |
 
 > No TypeScript. Frontend is multi-page static HTML — **not** a React/Vue/Angular SPA.
 
@@ -40,6 +40,7 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
   native `fetch` against the API. No React Query / SWR / Axios.
 
 ### Frontend source pages
+
 `index.html` (homepage), `login.html`, `forgot-password.html`, `reset-password.html`,
 `courses.html`, `course-biology.html`, `lessons.html`, `lesson-view.html`, `exams.html`,
 `students.html`, `registration-requests.html`, `student-mistakes.html`, `dashboard-teacher.html`.
@@ -83,20 +84,21 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
 - **ORM version:** Prisma 6.19.3.
 
 ### Actual data models in `prisma/schema.prisma` (confirmed)
-| Model | Table | Purpose |
-|---|---|---|
-| `User` | `users` | Students + teachers; `studentCode`, `name`, `password` (hashed), `email`, role, approval `status`, password-reset fields. |
-| `Notification` | `notifications` | Per-user in-app alerts (read state, related-type/link). |
-| `Quiz` | `quizzes` | Published exam; mixed-flag, question count, start/end window, per-student duration. |
-| `QuizLesson` | `quiz_lessons` | Join table linking a mixed quiz to covered lessons. |
-| `QuizQuestion` | `questions` | MCQ or written question; correct choice id, model answer, optional image. |
-| `QuizChoice` | `choices` | MCQ options (`c1`..`c4`). |
-| `QuizAttempt` | `quiz_attempts` | One row per attempt (in-progress **or** submitted); personal deadline, score, per-attempt shuffle ordering, fullscreen-exit count. |
-| `StudentAnswer` | `student_answers` | Autosaved answer per question (enables resume-after-close). |
-| `StudentMistake` | `student_mistakes` | Recorded incorrect answers → powers the “أخطائي” feature. |
-| `QuizExtraAttempt` | `quiz_extra_attempts` | Teacher-granted additional attempts (allowance = 1 + extra). |
-| `LessonNote` | `lesson_notes` | Teacher-written dynamic notes under a video. |
-| `VideoChapter` | `video_chapters` | Labeled chapters/timestamps for uploaded videos. |
+
+| Model              | Table                 | Purpose                                                                                                                            |
+| ------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `User`             | `users`               | Students + teachers; `studentCode`, `name`, `password` (hashed), `email`, role, approval `status`, password-reset fields.          |
+| `Notification`     | `notifications`       | Per-user in-app alerts (read state, related-type/link).                                                                            |
+| `Quiz`             | `quizzes`             | Published exam; mixed-flag, question count, start/end window, per-student duration.                                                |
+| `QuizLesson`       | `quiz_lessons`        | Join table linking a mixed quiz to covered lessons.                                                                                |
+| `QuizQuestion`     | `questions`           | MCQ or written question; correct choice id, model answer, optional image.                                                          |
+| `QuizChoice`       | `choices`             | MCQ options (`c1`..`c4`).                                                                                                          |
+| `QuizAttempt`      | `quiz_attempts`       | One row per attempt (in-progress **or** submitted); personal deadline, score, per-attempt shuffle ordering, fullscreen-exit count. |
+| `StudentAnswer`    | `student_answers`     | Autosaved answer per question (enables resume-after-close).                                                                        |
+| `StudentMistake`   | `student_mistakes`    | Recorded incorrect answers → powers the “أخطائي” feature.                                                                          |
+| `QuizExtraAttempt` | `quiz_extra_attempts` | Teacher-granted additional attempts (allowance = 1 + extra).                                                                       |
+| `LessonNote`       | `lesson_notes`        | Teacher-written dynamic notes under a video.                                                                                       |
+| `VideoChapter`     | `video_chapters`      | Labeled chapters/timestamps for uploaded videos.                                                                                   |
 
 > Note: There is **no** dedicated `Course`/`Lesson`/`Material`/`Enrollment` table yet.
 > Lesson/course metadata is currently stubbed (`src/services/lesson.stub.service.js`) and
@@ -108,6 +110,7 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
 ## 5. FILE STORAGE & MEDIA
 
 ### Video — Bunny Stream
+
 - **Provider:** Bunny.net Stream (API base `https://video.bunnycdn.com`, embed base `https://iframe.mediadelivery.net/embed`).
 - **Integration** (`src/services/bunny.service.js`):
   - **BUNNY_API_KEY** → creates videos, lists library, uploads, renames, deletes (sent as `AccessKey` header).
@@ -119,13 +122,18 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
     paginated through the whole library, cached in-memory (~60s TTL).
   - Node ≥18 required; env vars validated at startup (`src/config/bunny.env.config.js`).
 
-### Files/PDFs & images — Supabase Storage
-- **Provider:** Supabase Storage via `@supabase/supabase-js 2.112.3`.
-- **Integration** (`src/services/supabaseStorage.service.js`):
-  - **SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY** (server-side `createClient`, `persistSession:false`).
-  - Buckets: **`lesson-materials`** (PDFs) and **`quiz-images`**.
-  - Auto-creates the bucket and sets an explicit CORS origin policy; files served via **signed/bucket URLs**.
-  - Optional `MATERIALS_CORS_ORIGINS` overrides default `*`.
+### Lesson PDFs — private Google Drive
+
+- **Provider:** Google Drive API via `googleapis`.
+- **Integration:** `src/services/googleDriveStorage.service.js`; credentials are built only on the backend from
+  `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, and
+  `GOOGLE_OAUTH_REFRESH_TOKEN`, with `GOOGLE_DRIVE_FOLDER_ID` as the parent folder.
+- PDFs are streamed through the API after JWT and enrollment checks. Drive files are not made public.
+
+### Quiz images — Supabase Storage
+
+- **Provider:** Supabase Storage via `@supabase/supabase-js`.
+- **Integration:** `src/services/supabaseStorage.service.js`; only the private `quiz-images` bucket remains here.
 
 ---
 
@@ -144,13 +152,14 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
 
 ## 7. THIRD-PARTY SERVICES / APIs
 
-| Service | SDK / method | Used for |
-|---|---|---|
-| **Bunny.net Stream API** | raw `fetch` (REST) | Video create/upload/encode status/rename/delete, plus **signed playback URLs**. |
-| **Supabase Storage API** | `@supabase/supabase-js` (service-role) | PDF lesson materials + quiz image storage, bucket/CORS mgmt, signed URLs. |
-| **Neon (PostgreSQL)** | Prisma | Hosted relational database (all persistence). |
-| **Vercel** | platform | Static frontend hosting + serverless backend functions. |
-| (No email service — nodemailer/SendGrid/Resend **not found**; password reset is email-free.) | | |
+| Service                                                                                      | SDK / method                           | Used for                                                                        |
+| -------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------- |
+| **Bunny.net Stream API**                                                                     | raw `fetch` (REST)                     | Video create/upload/encode status/rename/delete, plus **signed playback URLs**. |
+| **Google Drive API**                                                                         | `googleapis` (service account)         | Private lesson PDF storage, metadata operations, and backend streaming.         |
+| **Supabase Storage API**                                                                     | `@supabase/supabase-js` (service-role) | Private quiz image storage and signed URLs.                                     |
+| **Neon (PostgreSQL)**                                                                        | Prisma                                 | Hosted relational database (all persistence).                                   |
+| **Vercel**                                                                                   | platform                               | Static frontend hosting + serverless backend functions.                         |
+| (No email service — nodemailer/SendGrid/Resend **not found**; password reset is email-free.) |                                        |                                                                                 |
 
 > The “WhatsApp deep link for support contact” from earlier planning was **not found** in the current code — not implemented (or removed).
 
@@ -161,7 +170,7 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
 - Authentication: student signup (pending teacher approval) + teacher/student login, JWT + bcrypt.
 - **Approval workflow** — teacher approves/rejects registration requests.
 - **Videos with chapters** — Bunny-backed playback; labeled timestamps; teacher upload/manage; lesson notes.
-- **PDF materials** — teacher upload → Supabase Storage, with PDF normalization pipeline.
+- **PDF materials** — teacher upload → private Google Drive, with PDF normalization pipeline.
 - **Quizzes** — teacher creation, scheduling, mixed quiz type, per-question types (MCQ/written).
 - **Per-attempt timing** — personal countdown deadline, fullscreen-exit tracking, resume-after-close (autosave).
 - **Quiz leaderboard** — results/ranking per quiz.
@@ -179,24 +188,28 @@ Anything not confirmed with certainty is explicitly marked **needs verification*
 
 Names only (never values). Source: `.env` var names + code references.
 
-| Variable | Purpose |
-|---|---|
-| `PORT` | Local server port (optional; default varies by entry point). |
-| `NODE_ENV` | `development`/`production`; toggles Prisma logging & client caching. |
-| `DATABASE_URL` | Postgres connection string (current value is a **Neon** direct/`?sslmode=require` URL). |
-| `JWT_SECRET` | Secret used to sign/verify JWTs. |
-| `JWT_EXPIRES_IN` | Token lifetime (default `7d`). |
-| `TEACHER_CODE` | Teacher seed student-code (prisma/seed.js). |
-| `TEACHER_NAME` | Teacher seed display name (default “Ms. Asmaa”). |
-| `TEACHER_PASSWORD` | Teacher seed password. |
-| `BUNNY_API_KEY` | Bunny Stream management API key (create/upload/list/delete videos). |
-| `BUNNY_LIBRARY_ID` | Bunny Stream video library numeric ID. |
-| `BUNNY_SIGNING_KEY` | Bunny signing key for token-authenticated playback URLs. |
-| `SUPABASE_URL` | Supabase project URL (Storage). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase **service-role** secret key (server-side Storage writes; never client). |
-| `MATERIALS_CORS_ORIGINS` | Optional comma-separated allowlist for the materials bucket CORS (default `*`). |
-| `VITE_API_URL` | Frontend API base for auth calls, e.g. `https://ms-asmaa.vercel.app/api/v1`. |
-| `LESSON_1_VIDEO_ID` | Seed/fallback video id for `lesson-1` (optional; lessons stub service). |
+| Variable                     | Purpose                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| `PORT`                       | Local server port (optional; default varies by entry point).                            |
+| `NODE_ENV`                   | `development`/`production`; toggles Prisma logging & client caching.                    |
+| `DATABASE_URL`               | Postgres connection string (current value is a **Neon** direct/`?sslmode=require` URL). |
+| `JWT_SECRET`                 | Secret used to sign/verify JWTs.                                                        |
+| `JWT_EXPIRES_IN`             | Token lifetime (default `7d`).                                                          |
+| `TEACHER_CODE`               | Teacher seed student-code (prisma/seed.js).                                             |
+| `TEACHER_NAME`               | Teacher seed display name (default “Ms. Asmaa”).                                        |
+| `TEACHER_PASSWORD`           | Teacher seed password.                                                                  |
+| `BUNNY_API_KEY`              | Bunny Stream management API key (create/upload/list/delete videos).                     |
+| `BUNNY_LIBRARY_ID`           | Bunny Stream video library numeric ID.                                                  |
+| `BUNNY_SIGNING_KEY`          | Bunny signing key for token-authenticated playback URLs.                                |
+| `SUPABASE_URL`               | Supabase project URL for quiz-image storage.                                            |
+| `SUPABASE_SERVICE_ROLE_KEY`  | Supabase service-role key for quiz-image storage.                                       |
+| `GOOGLE_DRIVE_FOLDER_ID`     | Dedicated private Drive folder for lesson PDFs.                                         |
+| `GOOGLE_OAUTH_CLIENT_ID`     | Google OAuth web-client ID, backend only.                                               |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth web-client secret, backend only.                                           |
+| `GOOGLE_OAUTH_REDIRECT_URI`  | Registered OAuth redirect URI.                                                          |
+| `GOOGLE_OAUTH_REFRESH_TOKEN` | Long-lived OAuth refresh token, backend only.                                           |
+| `VITE_API_URL`               | Frontend API base for auth calls, e.g. `https://ms-asmaa.vercel.app/api/v1`.            |
+| `LESSON_1_VIDEO_ID`          | Seed/fallback video id for `lesson-1` (optional; lessons stub service).                 |
 
 ---
 

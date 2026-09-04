@@ -164,32 +164,6 @@ async function runJob(job) {
       broadcast({ type: "progress", jobId: job.id, pct: 100 });
     }
 
-    // Optional server-side step after the raw bytes landed (PDF finalize:
-    // registers the material and runs normalization).
-    if (job.finalize) {
-      job.status = "finalizing";
-      await idbPut(job);
-      broadcast({
-        type: "progress",
-        jobId: job.id,
-        pct: 100,
-        stage: "finalizing",
-      });
-
-      const finalizeResponse = await fetch(job.finalize.url, {
-        method: job.finalize.method || "POST",
-        headers: job.finalize.headers || {},
-        body: job.finalize.body,
-      });
-
-      if (!finalizeResponse.ok) {
-        const detail = await finalizeResponse.text().catch(() => "");
-        throw new Error(
-          `تعذر تسجيل الملف (${finalizeResponse.status}) ${detail.slice(0, 140)}`,
-        );
-      }
-    }
-
     // Keep terminal metadata briefly so a newly loaded page can reconstruct
     // the completed workflow. The file bytes are no longer needed.
     job.status = "done";

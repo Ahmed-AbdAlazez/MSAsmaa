@@ -44,9 +44,12 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, x-user-id, x-user-role"
+    "Content-Type, x-user-id, x-user-role",
   );
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PATCH, DELETE, OPTIONS",
+  );
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
@@ -63,13 +66,7 @@ app.use("/api/lessons", videoRoutes);
 // Teacher-only video management (edit metadata / delete).
 app.use("/api/videos", require("./src/routes/video-manage.routes.js"));
 
-// Lesson PDF materials stored on Supabase Storage:
-//   POST /api/lessons/:lessonId/materials          (teacher uploads a PDF)
-//   GET  /api/lessons/:lessonId/materials          (list for the lesson page)
-//   GET  /api/materials/:materialId/download       (signed, enrollment-gated)
-app.use("/api", require("./src/routes/materials.routes.js"));
-
-// PDF lesson materials API (teacher upload + enrolled student download).
+// PDF lesson materials API (private Google Drive storage + backend streaming).
 app.use("/api", materialsRoutes);
 
 const notificationsRoutes = require("./src/routes/notifications.routes.js");
@@ -99,7 +96,10 @@ app.use("/api", apiRoutes);
 
 // Adham's centralized error handlers (JSON 404 for unknown API paths +
 // formatted error responses). Mounted last on purpose.
-const { notFound, errorHandler } = require("./src/middlewares/errorMiddleware.js");
+const {
+  notFound,
+  errorHandler,
+} = require("./src/middlewares/errorMiddleware.js");
 app.use(notFound);
 app.use(errorHandler);
 
