@@ -1278,12 +1278,10 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         const titleInput = document.querySelector("#live-session-title-input");
         const providerRadio = document.querySelector('input[name="live-provider-choice"]:checked');
-        const allowCameraCheckbox = document.querySelector("#live-allow-camera-checkbox");
         const submitBtn = document.querySelector("#btn-start-live-session");
 
         const title = (titleInput?.value || "").trim();
         const provider = providerRadio?.value || "google_meet";
-        const allowCamera = Boolean(allowCameraCheckbox?.checked);
 
         if (!title) {
           window.showToast("يرجى إدخال عنوان البث المباشر.", "warning");
@@ -1302,7 +1300,7 @@ document.addEventListener("DOMContentLoaded", () => {
               "Content-Type": "application/json",
               ...authHeaders(),
             },
-            body: JSON.stringify({ title, provider, allowCamera }),
+            body: JSON.stringify({ title, provider }),
           });
 
           window.showToast(
