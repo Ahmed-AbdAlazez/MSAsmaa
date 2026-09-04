@@ -27,8 +27,8 @@ const TOKEN_TTL_MINUTES = 10;
 async function createLiveSession({ teacherId, title, provider, lessonId = null, allowCamera = false }) {
   const normalizedProvider = String(provider || "").toLowerCase().trim();
 
-  if (normalizedProvider !== "zoom" && normalizedProvider !== "google_meet" && normalizedProvider !== "jitsi") {
-    throw new Error("مزود الخدمة غير صالح. اختر إما Google Meet أو Jitsi Meet.");
+  if (normalizedProvider !== "zoom" && normalizedProvider !== "google_meet") {
+    throw new Error("مزود الخدمة غير صالح. يرجى اختيار Google Meet.");
   }
 
   const cleanTitle = String(title || "").trim() || "بث مباشر تعليمي";
@@ -36,12 +36,6 @@ async function createLiveSession({ teacherId, title, provider, lessonId = null, 
   let meetingData;
   if (normalizedProvider === "zoom") {
     meetingData = await createZoomMeeting({ title: cleanTitle, allowCamera });
-  } else if (normalizedProvider === "jitsi") {
-    const roomId = `MsAsmaa_Biology_Live_${crypto.randomBytes(8).toString("hex")}`;
-    meetingData = {
-      meetingId: roomId,
-      meetingUrl: `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false&interfaceConfig.TOOLBAR_BUTTONS=['microphone','camera','closedcaptions','desktop','fullscreen','framerate','raisehand','chat','recording','etherpad','tileview','videobackgroundblur','help','mute-everyone']`,
-    };
   } else {
     meetingData = await createGoogleMeetSession({ title: cleanTitle });
   }

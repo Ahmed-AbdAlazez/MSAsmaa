@@ -1256,8 +1256,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const providerName =
               data.session.provider === "google_meet"
                 ? "Google Meet 🟢"
-                : data.session.provider === "jitsi"
-                ? "Jitsi Meet 🟣 (مدمج 100%)"
                 : "Zoom 🔵";
             activeLiveProvider.textContent = `المزود: ${providerName}`;
           }
