@@ -1,5 +1,6 @@
 import { initNavbar } from "./components/navbar.js";
 import { initStudentsPage } from "./studentsPage.js";
+import { initScoreboardPage } from "./scoreboardPage.js";
 import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
 import { formatDuration } from "./utils.js";
@@ -22,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const isTeacherOnlyPage =
     /\/registration-requests(?:\.html)?$/.test(window.location.pathname) ||
     /\/dashboard-teacher(?:\.html)?$/.test(window.location.pathname) ||
+    /\/scoreboard(?:\.html)?$/.test(window.location.pathname) ||
     isStudentsPage;
   if (isTeacherOnlyPage) {
     const role = String(localStorage.getItem("userRole") || "").toLowerCase();
@@ -1188,6 +1190,11 @@ document.addEventListener("DOMContentLoaded", () => {
     initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
+  const scoreboardPage = document.querySelector("#teacher-scoreboard-page");
+  if (scoreboardPage) {
+    initScoreboardPage({ API_BASE, authHeaders, fetchJson, showToast });
+  }
+
   if (document.querySelector("#student-mistakes-page")) {
     initStudentMistakesPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
@@ -1270,13 +1277,12 @@ document.addEventListener("DOMContentLoaded", () => {
       startLiveForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const titleInput = document.querySelector("#live-session-title-input");
-        const allowCameraCheckbox = document.querySelector(
-          "#live-allow-camera-checkbox",
-        );
+        const providerRadio = document.querySelector('input[name="live-provider-choice"]:checked');
+        const allowCameraCheckbox = document.querySelector("#live-allow-camera-checkbox");
         const submitBtn = document.querySelector("#btn-start-live-session");
 
         const title = (titleInput?.value || "").trim();
-        const provider = "google_meet";
+        const provider = providerRadio?.value || "google_meet";
         const allowCamera = Boolean(allowCameraCheckbox?.checked);
 
         if (!title) {
@@ -1329,7 +1335,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             body: JSON.stringify({ sessionId: currentActiveSessionId }),
           });
-          window.open(`/live-session.html?token=${tokenData.token}`, "_blank");
+          window.location.href = `/live-session.html?token=${tokenData.token}`;
         } catch (err) {
           window.showToast(
             err.message || "تعذر الانضمام للبث كمعلمة.",

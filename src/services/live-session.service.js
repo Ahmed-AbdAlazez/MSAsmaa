@@ -28,7 +28,7 @@ async function createLiveSession({ teacherId, title, provider, lessonId = null, 
   const normalizedProvider = String(provider || "").toLowerCase().trim();
 
   if (normalizedProvider !== "zoom" && normalizedProvider !== "google_meet") {
-    throw new Error("مزود الخدمة غير صالح. اختر إما Zoom أو Google Meet.");
+    throw new Error("مزود الخدمة غير صالح. يرجى اختيار Google Meet.");
   }
 
   const cleanTitle = String(title || "").trim() || "بث مباشر تعليمي";
@@ -250,6 +250,7 @@ async function validateTokenAndGetEmbed({ token, studentId }) {
     provider: session.provider,
     allowCamera: Boolean(session.allowCamera),
     embedUrl,
+    meetingId: session.meetingId,
     passcode: session.passcode || null,
   };
 }

@@ -650,6 +650,47 @@ async function getSubmittedResultsForQuiz(quizId) {
   return rows.map(mapAttempt);
 }
 
+/* ------------------------------------------------------------------ *
+ * SCOREBOARD (teacher-only student performance aggregation)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Every SUBMITTED attempt across the whole platform, together with its quiz
+ * title, per quiz. in_progress attempts (score null) are excluded because a
+ * scoreboard may only reflect finalised, graded results.
+ *
+ * @returns {Promise<Array<{id,studentId,quizId,quizTitle,isMixed,lessonId,score,totalMcq,submittedAt}>>}
+ */
+async function getAllSubmittedAttemptsWithQuiz() {
+  const rows = await prisma.quizAttempt.findMany({
+    where: { status: "submitted" },
+    orderBy: { submittedAt: "asc" },
+    include: { quiz: { select: { title: true, isMixed: true, lessonId: true } } },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    studentId: row.studentId,
+    quizId: row.quizId,
+    quizTitle: row.quiz.title || "اختبار",
+    isMixed: Boolean(row.quiz.isMixed),
+    lessonId: row.quiz.lessonId || null,
+    attemptNumber: row.attemptNumber,
+    score: row.score,
+    totalMcq: row.totalMcq,
+    submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
+    startedAt: row.startedAt.toISOString(),
+  }));
+}
+
+/**
+ * The distinct set of quiz ids referenced by any submitted attempt.
+ * @param {Array<{quizId:string}>} attempts
+ * @returns {string[]}
+ */
+function quizIdsFromAttempts(attempts) {
+  return [...new Set(attempts.map((a) => a.quizId))];
+}
+
 /**
  * Display name for a student id: users table first, then the test-only
  * overlay, then a short-id fallback.
@@ -910,6 +951,8 @@ const service = {
   grantAdditionalAttempt,
   getAllAttemptsForQuiz,
   getSubmittedResultsForQuiz,
+  getAllSubmittedAttemptsWithQuiz,
+  quizIdsFromAttempts,
   getStudentNameById,
   getStudentNamesByIds,
   getStudentIdsForCourse,

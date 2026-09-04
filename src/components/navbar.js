@@ -147,6 +147,13 @@ export function initNavbar() {
       ? `<li><a href="/students" class="mobile-link ${getActive(["students.html"])}">الطلاب</a></li>`
       : "";
 
+    const scoreboardLink = isTeacher
+      ? `<li><a href="/scoreboard" class="nav-link ${getActive(["scoreboard.html"])}">🏆 لوحة الترتيب</a></li>`
+      : "";
+    const mobileScoreboardLink = isTeacher
+      ? `<li><a href="/scoreboard" class="mobile-link ${getActive(["scoreboard.html"])}">🏆 لوحة الترتيب</a></li>`
+      : "";
+
     const mistakesLink = isStudent
       ? `<li><a href="/student-mistakes" class="nav-link ${getActive(["student-mistakes.html"])}">&#x623;&#x62E;&#x637;&#x627;&#x626;&#x64A;</a></li>`
       : "";
@@ -169,6 +176,7 @@ export function initNavbar() {
           ${mistakesLink}
           ${registrationRequestsLink}
           ${studentsManagementLink}
+          ${scoreboardLink}
         </ul>
         <div class="nav-actions">
           <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
@@ -214,6 +222,7 @@ export function initNavbar() {
         ${mobileMistakesLink}
         ${mobileRegistrationRequestsLink}
         ${mobileStudentsManagementLink}
+        ${mobileScoreboardLink}
       </ul>
       <div class="mobile-auth-container" style="padding: 1rem 0;"></div>
     `;

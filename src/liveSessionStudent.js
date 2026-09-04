@@ -95,7 +95,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (iframeEl) iframeEl.style.display = "none";
       if (meetBoxEl) {
         meetBoxEl.style.display = "flex";
-        if (meetJoinBtnEl) meetJoinBtnEl.href = data.embedUrl;
+        if (meetJoinBtnEl) {
+          meetJoinBtnEl.href = data.embedUrl;
+        }
       }
     } else {
       if (meetBoxEl) meetBoxEl.style.display = "none";
