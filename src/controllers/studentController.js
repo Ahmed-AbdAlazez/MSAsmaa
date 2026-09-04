@@ -278,7 +278,7 @@ const getScoreboard = catchAsync(async (req, res, next) => {
   }
 
   const attempts = await quizService.getAllSubmittedAttemptsWithQuiz();
-  const quizIds = quizService.quizIdsFromAttempts(attempts);
+  const quizIds = await quizService.quizIdsFromAttempts(attempts);
 
   // Quiz metadata (title, possible questions) only for quizzes that actually
   // have submitted results — never computes against empty collections.
