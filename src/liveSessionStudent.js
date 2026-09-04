@@ -88,13 +88,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    if (iframeEl) {
-      if (data.allowCamera) {
-        iframeEl.allow = "camera; microphone; display-capture; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
-      } else {
-        iframeEl.allow = "microphone; display-capture; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+    const meetBoxEl = document.getElementById("live-meet-box");
+    const meetJoinBtnEl = document.getElementById("live-meet-join-btn");
+
+    if (data.provider === "google_meet") {
+      if (iframeEl) iframeEl.style.display = "none";
+      if (meetBoxEl) {
+        meetBoxEl.style.display = "flex";
+        if (meetJoinBtnEl) meetJoinBtnEl.href = data.embedUrl;
       }
-      iframeEl.src = data.embedUrl;
+    } else {
+      if (meetBoxEl) meetBoxEl.style.display = "none";
+      if (iframeEl) {
+        iframeEl.style.display = "block";
+        if (data.allowCamera) {
+          iframeEl.allow = "camera; microphone; display-capture; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+        } else {
+          iframeEl.allow = "microphone; display-capture; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+        }
+        iframeEl.src = data.embedUrl;
+      }
     }
 
     if (loadingEl) loadingEl.style.display = "none";

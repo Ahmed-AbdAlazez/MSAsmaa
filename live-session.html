@@ -150,7 +150,17 @@
       </div>
 
       <div class="player-wrapper">
-        <iframe id="live-iframe" class="player-iframe" allow="microphone; display-capture; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
+        <iframe id="live-iframe" class="player-iframe" style="display:none;" allow="microphone; display-capture; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
+        <div id="live-meet-box" style="display:none; text-align:center; padding:4rem 2rem; background:linear-gradient(135deg, #064e3b 0%, #022c22 100%); border-radius:16px; color:#fff; min-height:450px; justify-content:center; align-items:center; flex-direction:column;">
+          <div style="font-size:3.5rem; margin-bottom:1rem;">🟢</div>
+          <h2 style="color:#fff; font-size:1.6rem; margin-bottom:0.75rem;">غرفة البث المباشر جاهزة (Google Meet)</h2>
+          <p style="color:#a7f3d0; max-width:500px; margin:0 auto 2rem auto; line-height:1.6; font-size:1rem;">
+            تم التأكد من تسجيلك وصلاحية دخولك بنجاح. اضغطي على الزر أدناه للانضمام فوراً للحصة المباشرة مع الأستاذة أسماء مرسال.
+          </p>
+          <a id="live-meet-join-btn" href="#" target="_blank" class="btn btn-primary" style="padding:1rem 2.5rem; font-size:1.15rem; font-weight:800; border-radius:999px; background:#10b981; border:none; box-shadow:0 10px 25px rgba(16,185,129,0.3); text-decoration:none; display:inline-block;">
+            🚀 الانضمام للحصة المباشرة الآن
+          </a>
+        </div>
       </div>
 
       <div style="margin-top: 1rem; text-align: center; font-size: 0.85rem; color: #888;">
