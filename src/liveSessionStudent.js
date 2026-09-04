@@ -96,11 +96,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const meetBoxEl = document.getElementById("live-meet-box");
     const meetJoinBtnEl = document.getElementById("live-meet-join-btn");
 
-    if (data.provider === "google_meet") {
+    if (data.provider === "google_meet" || data.provider === "jitsi") {
       if (iframeEl) iframeEl.style.display = "none";
       if (meetBoxEl) {
         meetBoxEl.style.display = "flex";
-        if (meetJoinBtnEl) meetJoinBtnEl.href = data.embedUrl;
+        if (meetJoinBtnEl) {
+          meetJoinBtnEl.href = data.embedUrl;
+          if (data.provider === "jitsi") {
+            const titleHeader = meetBoxEl.querySelector("h2");
+            if (titleHeader) titleHeader.textContent = "غرفة البث المباشر جاهزة (Jitsi Meet)";
+          }
+        }
       }
     } else {
       if (meetBoxEl) meetBoxEl.style.display = "none";
