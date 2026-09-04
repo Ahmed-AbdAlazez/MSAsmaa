@@ -82,6 +82,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (data.provider === "google_meet") {
         providerBadgeEl.textContent = "Google Meet 🟢";
         providerBadgeEl.className = "provider-badge provider-meet";
+      } else if (data.provider === "jitsi") {
+        providerBadgeEl.textContent = "Jitsi Meet 🟣 (مدمج 100%)";
+        providerBadgeEl.className = "provider-badge provider-meet";
+        providerBadgeEl.style.background = "rgba(147, 51, 234, 0.12)";
+        providerBadgeEl.style.color = "#9333ea";
       } else {
         providerBadgeEl.textContent = "Zoom 🔵";
         providerBadgeEl.className = "provider-badge provider-zoom";

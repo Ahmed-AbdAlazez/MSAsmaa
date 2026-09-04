@@ -1245,11 +1245,12 @@ document.addEventListener("DOMContentLoaded", () => {
       startLiveForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const titleInput = document.querySelector("#live-session-title-input");
+        const providerRadio = document.querySelector('input[name="live-provider-choice"]:checked');
         const allowCameraCheckbox = document.querySelector("#live-allow-camera-checkbox");
         const submitBtn = document.querySelector("#btn-start-live-session");
 
         const title = (titleInput?.value || "").trim();
-        const provider = "google_meet";
+        const provider = providerRadio?.value || "google_meet";
         const allowCamera = Boolean(allowCameraCheckbox?.checked);
 
         if (!title) {
