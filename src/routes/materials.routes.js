@@ -153,14 +153,21 @@ router.get(
 router.get(
   "/materials/:materialId/view",
   requireAuth,
-  requireTeacher,
   catchAsync(async (req, res, next) => {
     const material = await getMaterialById(req.params.materialId);
     if (!material) return next(new AppError("المادة غير موجودة.", 404));
-    if (!(await isTeacherOwnerOfLesson(req.user.id, material.lessonId))) {
-      return next(
-        new AppError("أنت لا تملكين الكورس الذي تتبع له هذه المادة.", 403),
-      );
+
+    const hasAccess =
+      req.user.role === "teacher"
+        ? await isTeacherOwnerOfLesson(req.user.id, material.lessonId)
+        : req.user.role === "student" &&
+          (await isStudentEnrolledInLessonCourse(
+            req.user.id,
+            material.lessonId,
+          ));
+
+    if (!hasAccess) {
+      return next(new AppError("لا تملكين صلاحية عرض ملف PDF هذا.", 403));
     }
 
     try {
