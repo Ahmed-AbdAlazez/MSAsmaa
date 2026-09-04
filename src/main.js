@@ -1256,6 +1256,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const providerName =
               data.session.provider === "google_meet"
                 ? "Google Meet 🟢"
+                : data.session.provider === "jitsi"
+                ? "Jitsi Meet 🟣 (مدمج 100%)"
                 : "Zoom 🔵";
             activeLiveProvider.textContent = `المزود: ${providerName}`;
           }
@@ -1335,7 +1337,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             body: JSON.stringify({ sessionId: currentActiveSessionId }),
           });
-          window.open(`/live-session.html?token=${tokenData.token}`, "_blank");
+          window.location.href = `/live-session.html?token=${tokenData.token}`;
         } catch (err) {
           window.showToast(
             err.message || "تعذر الانضمام للبث كمعلمة.",
