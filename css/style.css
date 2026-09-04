@@ -1548,7 +1548,7 @@ html[dir="rtl"] .scroll-progress-fill {
 /* Floating WhatsApp support button (site-wide persistent widget) */
 .whatsapp-float {
   position: fixed;
-  bottom: 20px;
+  bottom: 88px;
   left: 20px;
   z-index: 900;
   display: flex;
@@ -1580,6 +1580,7 @@ html[dir="rtl"] .scroll-progress-fill {
 
 @media (max-width: 480px) {
   .whatsapp-float {
+    bottom: 84px;
     width: 52px;
     height: 52px;
   }
@@ -2588,6 +2589,19 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   color: var(--color-heading);
 }
 
+.team-phone {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent-dark);
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  transition: color 0.15s ease;
+}
+.team-phone:hover {
+  color: #128c7e;
+  text-decoration: underline;
+}
+
 .team-socials {
   display: flex;
   gap: 0.6rem;
@@ -2628,6 +2642,12 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   color: #ffffff;
   background: #0a66c2;
   border-color: #0a66c2;
+}
+
+.team-social-whatsapp:hover {
+  color: #ffffff;
+  background: #25d366;
+  border-color: #25d366;
 }
 
 @media (max-width: 500px) {

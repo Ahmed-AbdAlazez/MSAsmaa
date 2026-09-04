@@ -914,29 +914,38 @@ async function openResult(quizId, resultId, summaryData = null) {
     document.getElementById("review-body").innerHTML = skeletonRows(3);
   }
 
-  // Opening an ENDED exam from the hub has no resultId yet - ask the
-  // backend for this student's latest submitted attempt first. Its summary
-  // carries the score too, so the banner fills without waiting for review.
+  // Decide which review endpoint to call:
+  //  - known resultId  -> attempt-level review (student submitted).
+  //  - no resultId     -> probe for the latest submitted attempt; if this
+  //    student has one, use its attempt-level review (which already shows
+  //    blank questions as unanswered). If they have NO submitted attempt
+  //    (never entered / exited before submitting), fall back to the
+  //    QUIZ-level review, which after end_time renders every question with
+  //    correct answers and "Not Answered" for the student's side.
+  let reviewPath = null;
   if (!resultId) {
     const attempt = await api("GET", `/api/quizzes/${quizId}/attempt`);
-    if (attempt.ok && attempt.data.result) {
-      resultId = attempt.data.result.resultId;
+    const fromAttempt =
+      attempt.ok && attempt.data && attempt.data.result
+        ? attempt.data.result
+        : null;
+    if (fromAttempt) {
+      resultId = fromAttempt.resultId;
       if (!summaryData) {
-        renderScoreBanner(attempt.data.result);
+        renderScoreBanner(fromAttempt);
         document.getElementById("review-body").innerHTML = skeletonRows(3);
       }
+      reviewPath = `/api/quiz-results/${resultId}/review`;
+    } else {
+      reviewPath = `/api/quizzes/${quizId}/review`;
     }
+  } else {
+    reviewPath = `/api/quiz-results/${resultId}/review`;
   }
 
-  reviewBody.innerHTML = resultId
-    ? skeletonRows(3)
-    : '<p class="muted">لا توجد محاولة مسجلة لهذا الاختبار بعد.</p>';
+  reviewBody.innerHTML = skeletonRows(3);
 
-  const review = resultId
-    ? await api("GET", `/api/quiz-results/${resultId}/review`)
-    : { ok: false, status: 404 };
-
-  if (!resultId) return;
+  const review = await api("GET", reviewPath);
 
   if (review.status === 403) {
     reviewBody.innerHTML = `<div class="skeleton-reveal locked-note">🔒 ${escapeHtml(
@@ -966,10 +975,41 @@ async function openResult(quizId, resultId, summaryData = null) {
  * Review rendering rules (from the platform spec):
  *  - MCQ right   -> ONLY the correct choice green.
  *  - MCQ wrong   -> student pick red AND correct choice green.
- *  - Written     -> student text vs model answer side by side, NO colors.
+ *  - MCQ blank   -> "إجابتك: Not Answered" + the correct answer (no choices).
+ *  - Written     -> student text vs model answer side by side, NO colors;
+ *                   a blank student answer shows "Not Answered".
  */
+const NOT_ANSWERED = "Not Answered";
+
+function correctChoiceText(question) {
+  const correct = (question.choices || []).find(
+    (choice) => choice.id === question.correctChoiceId,
+  );
+  return correct ? correct.text : "";
+}
+
 function reviewQuestionHtml(question) {
   if (question.type === "mcq") {
+    // Unanswered: never render the choice list — show the explicit
+    // "Not Answered" value and the correct answer text instead.
+    if (!question.studentChoiceId) {
+      return `<div class="review-question">
+        <div class="q-text">❓ ${escapeHtml(question.text)}</div>
+        <div class="review-answer-rows">
+          <div class="review-answer-row">
+            <span class="answer-label">إجابتك</span>
+            <span class="answer-value answer-value--na">${NOT_ANSWERED}</span>
+          </div>
+          <div class="review-answer-row">
+            <span class="answer-label">الإجابة الصحيحة</span>
+            <span class="answer-value answer-value--correct">${escapeHtml(
+              correctChoiceText(question),
+            )}</span>
+          </div>
+        </div>
+      </div>`;
+    }
+
     const choices = question.choices
       .map((choice) => {
         let classes = "review-choice";
@@ -995,7 +1035,11 @@ function reviewQuestionHtml(question) {
   return `<div class="review-question">
     <div class="q-text">✍️ ${escapeHtml(question.text)}</div>
     <div class="written-compare">
-      <div class="written-box student"><h5>إجابتك</h5>${escapeHtml(question.studentAnswer || "—")}</div>
+      <div class="written-box student"><h5>إجابتك</h5>${
+        question.studentAnswer
+          ? escapeHtml(question.studentAnswer)
+          : `<span class="not-answered">${NOT_ANSWERED}</span>`
+      }</div>
       <div class="written-box model"><h5>الإجابة النموذجية</h5>${escapeHtml(question.modelAnswer)}</div>
     </div>
   </div>`;

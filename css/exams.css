@@ -489,6 +489,49 @@
 .written-box.model   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(20, 184, 166, 0.35); }
 .written-box h5 { margin-bottom: 0.35rem; font-size: 0.82rem; color: var(--color-text-muted); }
 
+/* Unanswered-question review rows: "إجابتك: Not Answered" + correct answer */
+.review-answer-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.review-answer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--row-hover);
+  border: 1px solid var(--color-border);
+  font-size: 0.95rem;
+}
+.review-answer-row .answer-label {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  min-width: 7.5rem;
+}
+.review-answer-row .answer-value {
+  font-weight: 600;
+}
+.review-answer-row .answer-value--na {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.review-answer-row .answer-value--correct {
+  color: var(--color-accent-dark);
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-sm);
+}
+.written-box .not-answered {
+  color: var(--color-text-muted);
+  font-style: italic;
+  opacity: 0.85;
+}
+
 .locked-note {
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.4);
