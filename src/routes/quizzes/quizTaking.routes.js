@@ -433,7 +433,7 @@ router.post(
     if (questions.length === 0) {
       return res.status(400).json({ error: "الاختبار لا يحتوي أسئلة بعد." });
     }
-    await attachImageUrls(questions);
+    await attachImageUrls(questions, req);
 
     /* ---- RESUME PATH: an unfinished attempt exists ------------------- */
     const inProgress = await findInProgressAttempt(quiz.id, req.user.id);

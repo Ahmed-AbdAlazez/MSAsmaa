@@ -38,6 +38,21 @@ function safePdfName(fileName) {
   return `${base || "lesson-material"}.pdf`;
 }
 
+function safeImageName(fileName, mimeType) {
+  const extensionByMimeType = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+  };
+  const extension = extensionByMimeType[mimeType] || ".img";
+  const parsed = path.parse(String(fileName || "question-image"));
+  const base = parsed.name
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${base || "question-image"}-${Date.now()}${extension}`;
+}
+
 async function uploadPdf(buffer, fileName) {
   const drive = getDriveClient();
   const result = await drive.files.create({
@@ -53,6 +68,21 @@ async function uploadPdf(buffer, fileName) {
   return result.data;
 }
 
+async function uploadQuizImage(buffer, fileName, mimeType) {
+  const drive = getDriveClient();
+  const result = await drive.files.create({
+    requestBody: {
+      name: safeImageName(fileName, mimeType),
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
+      mimeType,
+    },
+    media: { mimeType, body: Readable.from(buffer) },
+    fields: "id,name,mimeType,size,createdTime,modifiedTime",
+    supportsAllDrives: true,
+  });
+  return result.data;
+}
+
 async function getPdfStream(fileId) {
   const drive = getDriveClient();
   const result = await drive.files.get(
@@ -60,6 +90,15 @@ async function getPdfStream(fileId) {
     { responseType: "stream" },
   );
   return result.data;
+}
+
+async function getImageStream(fileId) {
+  const drive = getDriveClient();
+  const result = await drive.files.get(
+    { fileId, alt: "media", supportsAllDrives: true },
+    { responseType: "stream" },
+  );
+  return result;
 }
 
 async function updatePdf(fileId, title) {
@@ -78,4 +117,11 @@ async function deletePdf(fileId) {
   await drive.files.delete({ fileId, supportsAllDrives: true });
 }
 
-module.exports = { uploadPdf, getPdfStream, updatePdf, deletePdf };
+module.exports = {
+  uploadPdf,
+  uploadQuizImage,
+  getPdfStream,
+  getImageStream,
+  updatePdf,
+  deletePdf,
+};

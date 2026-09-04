@@ -25,12 +25,19 @@ const {
   getQuizzesForLesson,
   addQuestionToQuiz,
   getQuestionsForQuiz,
+  getQuestionById,
   getQuizLessons,
 } = require("../../services/quiz.stub.service.js");
 const {
-  uploadQuizImage,
   isAllowedQuizImage,
 } = require("../../services/supabaseStorage.service.js");
+const {
+  isStudentEnrolledInLessonCourse,
+} = require("../../services/enrollment.stub.service.js");
+const {
+  uploadQuizImage,
+  getImageStream,
+} = require("../../services/googleDriveStorage.service.js");
 const {
   createNotificationForApprovedStudents,
 } = require("../../services/notifications.service.js");
@@ -229,8 +236,8 @@ function validateQuestionPayload(body) {
 /**
  * POST /api/quizzes/:quizId/questions â€” add one question.
  * Accepts application/json OR multipart/form-data with an optional `image`
- * file field (jpg/png/webp). The image is stored in Supabase and ONLY its
- * path is saved on the question record.
+ * file field (jpg/png/webp). New images are stored in the existing Drive
+ * materials folder and ONLY their Drive file ID is saved on the question.
  */
 router.post(
   "/quizzes/:quizId/questions",
@@ -258,11 +265,12 @@ router.post(
       // at nothing (same order as the materials feature).
       let imagePath = null;
       if (req.file) {
-        imagePath = await uploadQuizImage(
+        const driveFile = await uploadQuizImage(
           req.file.buffer,
+          req.file.originalname,
           req.file.mimetype,
-          quiz.id,
         );
+        imagePath = driveFile.id;
       }
 
       const question = await addQuestionToQuiz(quiz.id, {
@@ -297,9 +305,54 @@ router.get(
     if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
     const questions = await getQuestionsForQuiz(quiz.id);
-    await attachImageUrls(questions);
+    await attachImageUrls(questions, req);
     return res.json({ quiz, questions });
   },
 );
+
+router.get("/quizzes/questions/:questionId/image", async (req, res) => {
+  try {
+    const token = String(req.query.token || "").trim();
+    if (!token) return res.status(401).end();
+    const { verifyToken } = require("../../utils/jwt");
+    const decoded = await verifyToken(token);
+    req.user = {
+      id: String(decoded.id),
+      role: String(decoded.role || "student").toLowerCase(),
+    };
+
+    const record = await getQuestionById(req.params.questionId);
+    if (!record || !record.question.imagePath) return res.status(404).end();
+
+    let allowed = false;
+    if (req.user.role === "teacher") {
+      allowed = record.quiz.createdByTeacherId === req.user.id;
+    } else if (req.user.role === "student") {
+      const lessonIds = record.quiz.isMixed
+        ? await getQuizLessons(record.quiz.id)
+        : [record.quiz.lessonId];
+      for (const lessonId of lessonIds.filter(Boolean)) {
+        if (await isStudentEnrolledInLessonCourse(req.user.id, lessonId)) {
+          allowed = true;
+          break;
+        }
+      }
+    }
+    if (!allowed || String(record.question.imagePath).includes("/")) {
+      return res.status(403).end();
+    }
+
+    const driveResponse = await getImageStream(record.question.imagePath);
+    res.set({
+      "Content-Type":
+        driveResponse.headers["content-type"] || "application/octet-stream",
+      "Content-Disposition": "inline",
+    });
+    return driveResponse.data.pipe(res);
+  } catch (error) {
+    console.error("[quiz] image stream failed:", error.message);
+    return res.status(401).end();
+  }
+});
 
 module.exports = router;

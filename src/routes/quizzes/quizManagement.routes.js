@@ -33,108 +33,122 @@ const router = express.Router();
  * GET /quizzes (teacher-only)
  * Returns a list of all quizzes created by the current teacher.
  */
-router.get("/quizzes-managed", requireAuth, requireTeacher, async (req, res) => {
-  try {
-    const quizzes = await getTeacherQuizzes(req.user.id);
+router.get(
+  "/quizzes-managed",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    try {
+      const quizzes = await getTeacherQuizzes(req.user.id);
 
-    // Batch-fetch lesson associations for mixed quizzes
-    const mixedQuizIds = quizzes.filter((q) => q.isMixed).map((q) => q.id);
-    const quizLessonsMap = mixedQuizIds.length
-      ? await require("../../services/quiz.stub.service.js").getQuizLessonsBatch(mixedQuizIds)
-      : new Map();
+      // Batch-fetch lesson associations for mixed quizzes
+      const mixedQuizIds = quizzes.filter((q) => q.isMixed).map((q) => q.id);
+      const quizLessonsMap = mixedQuizIds.length
+        ? await require("../../services/quiz.stub.service.js").getQuizLessonsBatch(
+            mixedQuizIds,
+          )
+        : new Map();
 
-    return res.json({
-      quizzes: quizzes.map((q) => {
-        const row = {
-          id: q.id,
-          title: q.title,
-          lessonId: q.lessonId,
-          courseId: q.courseId,
-          isMixed: q.isMixed,
-          questionCount: q.questionCount,
-          startTime: q.startTime,
-          endTime: q.endTime,
-          durationMinutes: q.durationMinutes,
-          createdAt: q.createdAt,
-          canEdit: new Date() < new Date(q.startTime),
-        };
-        if (q.isMixed) {
-          row.lessonIds = quizLessonsMap.get(q.id) || [];
-        }
-        return row;
-      }),
-    });
-  } catch (error) {
-    console.error("[quizManagement] getTeacherQuizzes error:", error);
-    return res.status(500).json({ error: "تعذر تحميل الاختبارات." });
-  }
-});
+      return res.json({
+        quizzes: quizzes.map((q) => {
+          const row = {
+            id: q.id,
+            title: q.title,
+            lessonId: q.lessonId,
+            courseId: q.courseId,
+            isMixed: q.isMixed,
+            questionCount: q.questionCount,
+            startTime: q.startTime,
+            endTime: q.endTime,
+            durationMinutes: q.durationMinutes,
+            createdAt: q.createdAt,
+            canEdit: new Date() < new Date(q.startTime),
+          };
+          if (q.isMixed) {
+            row.lessonIds = quizLessonsMap.get(q.id) || [];
+          }
+          return row;
+        }),
+      });
+    } catch (error) {
+      console.error("[quizManagement] getTeacherQuizzes error:", error);
+      return res.status(500).json({ error: "تعذر تحميل الاختبارات." });
+    }
+  },
+);
 
 /**
  * GET /quizzes/:quizId/full (teacher-only)
  * Returns the FULL quiz with all questions and answers (teacher-only view).
  */
-router.get("/quizzes/:quizId/full", requireAuth, requireTeacher, async (req, res) => {
-  try {
-    const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
-    if (!quiz) {
-      return res.status(404).json({ error: "الاختبار غير موجود." });
+router.get(
+  "/quizzes/:quizId/full",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    try {
+      const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
+      if (!quiz) {
+        return res.status(404).json({ error: "الاختبار غير موجود." });
+      }
+
+      const questions = await getQuestionsForQuiz(quiz.id);
+      await attachImageUrls(questions, req);
+
+      const canEdit = new Date() < new Date(quiz.startTime);
+
+      const result = {
+        quiz: {
+          id: quiz.id,
+          title: quiz.title,
+          lessonId: quiz.lessonId,
+          courseId: quiz.courseId,
+          isMixed: quiz.isMixed,
+          questionCount: quiz.questionCount,
+          startTime: quiz.startTime,
+          endTime: quiz.endTime,
+          durationMinutes: quiz.durationMinutes,
+          createdAt: quiz.createdAt,
+          canEdit,
+          canDelete: true,
+        },
+        questions: questions
+          .sort((a, b) => a.order - b.order)
+          .map((q) => ({
+            id: q.id,
+            order: q.order,
+            type: q.type,
+            text: q.text,
+            imageUrl: q.signedImageUrl || null,
+            ...(q.type === "mcq"
+              ? {
+                  choices: q.choices,
+                  correctChoiceId: q.correctChoiceId,
+                }
+              : {
+                  modelAnswer: q.modelAnswer,
+                }),
+          })),
+      };
+
+      if (quiz.isMixed) {
+        const {
+          getQuizLessons,
+        } = require("../../services/quiz.stub.service.js");
+        result.quiz.lessonIds = await getQuizLessons(quiz.id);
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("[quizManagement] getFullQuiz error:", error);
+      return res.status(500).json({ error: "تعذر تحميل الاختبار." });
     }
-
-    const questions = await getQuestionsForQuiz(quiz.id);
-    await attachImageUrls(questions);
-
-    const canEdit = new Date() < new Date(quiz.startTime);
-
-    const result = {
-      quiz: {
-        id: quiz.id,
-        title: quiz.title,
-        lessonId: quiz.lessonId,
-        courseId: quiz.courseId,
-        isMixed: quiz.isMixed,
-        questionCount: quiz.questionCount,
-        startTime: quiz.startTime,
-        endTime: quiz.endTime,
-        durationMinutes: quiz.durationMinutes,
-        createdAt: quiz.createdAt,
-        canEdit,
-        canDelete: true,
-      },
-      questions: questions
-        .sort((a, b) => a.order - b.order)
-        .map((q) => ({
-          id: q.id,
-          order: q.order,
-          type: q.type,
-          text: q.text,
-          imageUrl: q.signedImageUrl || null,
-          ...(q.type === "mcq"
-            ? {
-                choices: q.choices,
-                correctChoiceId: q.correctChoiceId,
-              }
-            : {
-                modelAnswer: q.modelAnswer,
-              }),
-        })),
-    };
-
-    if (quiz.isMixed) {
-      const { getQuizLessons } = require("../../services/quiz.stub.service.js");
-      result.quiz.lessonIds = await getQuizLessons(quiz.id);
-    }
-
-    return res.json(result);
-  } catch (error) {
-    console.error("[quizManagement] getFullQuiz error:", error);
-    return res.status(500).json({ error: "تعذر تحميل الاختبار." });
-  }
-});
+  },
+);
 
 /**
  * PUT /quizzes/:quizId/questions/:questionId (teacher-only)
- * Update a single question (text, answer, correct choice). 
+ * Update a single question (text, answer, correct choice).
  * Only allowed BEFORE quiz start time.
  */
 router.put(
@@ -143,7 +157,7 @@ router.put(
   requireTeacher,
   async (req, res) => {
     try {
-        const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
+      const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
       if (!quiz) {
         return res.status(404).json({ error: "الاختبار غير موجود." });
       }
@@ -182,7 +196,7 @@ router.put(
       console.error("[quizManagement] updateQuestion error:", error);
       return res.status(500).json({ error: "تعذر تحديث السؤال." });
     }
-  }
+  },
 );
 
 /**
@@ -195,7 +209,7 @@ router.delete(
   requireTeacher,
   async (req, res) => {
     try {
-        const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
+      const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
       if (!quiz) {
         return res.status(404).json({ error: "الاختبار غير موجود." });
       }
@@ -209,7 +223,7 @@ router.delete(
 
       const deleted = await deleteQuestionFromQuiz(
         req.params.quizId,
-        req.params.questionId
+        req.params.questionId,
       );
 
       if (!deleted) {
@@ -223,7 +237,7 @@ router.delete(
       console.error("[quizManagement] deleteQuestion error:", error);
       return res.status(500).json({ error: "تعذر حذف السؤال." });
     }
-  }
+  },
 );
 
 /**
@@ -233,115 +247,131 @@ router.delete(
  * start time (same rule as question edits). Deleting the whole quiz stays
  * possible at ANY time via DELETE below.
  */
-router.put("/quizzes/:quizId", requireAuth, requireTeacher, async (req, res) => {
-  try {
-    const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
-    if (!quiz) {
-      return res.status(404).json({ error: "الاختبار غير موجود." });
-    }
-
-    if (new Date() >= new Date(quiz.startTime)) {
-      return res.status(403).json({
-        error: "لا يمكن تعديل إعدادات الاختبار بعد بدئه. يمكنك حذفه في أي وقت.",
-      });
-    }
-
-    const body = req.body || {};
-    const data = {};
-
-    if (body.title !== undefined) {
-      const title = String(body.title).trim();
-      if (!title) return res.status(400).json({ error: "عنوان الاختبار مطلوب." });
-      data.title = title;
-    }
-    if (body.lessonId !== undefined) {
-      const lessonId = String(body.lessonId).trim();
-      if (!lessonId) return res.status(400).json({ error: "الدرس مطلوب." });
-      data.lessonId = lessonId;
-    }
-
-    // Window: validate as a pair so end always stays after start.
-    let startMs = Date.parse(quiz.startTime);
-    let endMs = Date.parse(quiz.endTime);
-    if (body.startTime !== undefined) {
-      startMs = Date.parse(body.startTime);
-      if (!Number.isFinite(startMs)) {
-        return res.status(400).json({ error: "وقت البدء غير صالح." });
+router.put(
+  "/quizzes/:quizId",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    try {
+      const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
+      if (!quiz) {
+        return res.status(404).json({ error: "الاختبار غير موجود." });
       }
-    }
-    if (body.endTime !== undefined) {
-      endMs = Date.parse(body.endTime);
-      if (!Number.isFinite(endMs)) {
-        return res.status(400).json({ error: "وقت النهاية غير صالح." });
-      }
-    }
-    if (endMs <= startMs) {
-      return res.status(400).json({ error: "وقت النهاية يجب أن يكون بعد وقت البدء." });
-    }
-    data.startTime = new Date(startMs).toISOString();
-    data.endTime = new Date(endMs).toISOString();
 
-    if (body.durationMinutes !== undefined) {
-      const duration = Number(body.durationMinutes);
-      if (!Number.isFinite(duration) || duration <= 0) {
-        return res.status(400).json({ error: "مدة الحل يجب أن تكون عدداً موجباً." });
-      }
-      data.durationMinutes = duration;
-    }
-
-    if (body.questionCount !== undefined) {
-      const questionCount = Number(body.questionCount);
-      if (!Number.isInteger(questionCount) || questionCount < 1) {
-        return res.status(400).json({ error: "عدد الأسئلة غير صالح." });
-      }
-      const actualCount = (await getQuestionsForQuiz(quiz.id)).length;
-      if (questionCount < actualCount) {
-        return res.status(400).json({
-          error: `يوجد ${actualCount} سؤال مضاف بالفعل — لا يمكن جعل العدد أقل منه.`,
+      if (new Date() >= new Date(quiz.startTime)) {
+        return res.status(403).json({
+          error:
+            "لا يمكن تعديل إعدادات الاختبار بعد بدئه. يمكنك حذفه في أي وقت.",
         });
       }
-      data.questionCount = questionCount;
-    }
 
-    const updated = await updateQuizMeta(quiz.id, data);
-    if (!updated) {
-      return res.status(404).json({ error: "الاختبار غير موجود." });
-    }
+      const body = req.body || {};
+      const data = {};
 
-    return res.json({
-      message: "تم تحديث إعدادات الاختبار بنجاح.",
-      quiz: updated,
-    });
-  } catch (error) {
-    console.error("[quizManagement] updateQuizSettings error:", error);
-    return res.status(500).json({ error: "تعذر تحديث إعدادات الاختبار." });
-  }
-});
+      if (body.title !== undefined) {
+        const title = String(body.title).trim();
+        if (!title)
+          return res.status(400).json({ error: "عنوان الاختبار مطلوب." });
+        data.title = title;
+      }
+      if (body.lessonId !== undefined) {
+        const lessonId = String(body.lessonId).trim();
+        if (!lessonId) return res.status(400).json({ error: "الدرس مطلوب." });
+        data.lessonId = lessonId;
+      }
+
+      // Window: validate as a pair so end always stays after start.
+      let startMs = Date.parse(quiz.startTime);
+      let endMs = Date.parse(quiz.endTime);
+      if (body.startTime !== undefined) {
+        startMs = Date.parse(body.startTime);
+        if (!Number.isFinite(startMs)) {
+          return res.status(400).json({ error: "وقت البدء غير صالح." });
+        }
+      }
+      if (body.endTime !== undefined) {
+        endMs = Date.parse(body.endTime);
+        if (!Number.isFinite(endMs)) {
+          return res.status(400).json({ error: "وقت النهاية غير صالح." });
+        }
+      }
+      if (endMs <= startMs) {
+        return res
+          .status(400)
+          .json({ error: "وقت النهاية يجب أن يكون بعد وقت البدء." });
+      }
+      data.startTime = new Date(startMs).toISOString();
+      data.endTime = new Date(endMs).toISOString();
+
+      if (body.durationMinutes !== undefined) {
+        const duration = Number(body.durationMinutes);
+        if (!Number.isFinite(duration) || duration <= 0) {
+          return res
+            .status(400)
+            .json({ error: "مدة الحل يجب أن تكون عدداً موجباً." });
+        }
+        data.durationMinutes = duration;
+      }
+
+      if (body.questionCount !== undefined) {
+        const questionCount = Number(body.questionCount);
+        if (!Number.isInteger(questionCount) || questionCount < 1) {
+          return res.status(400).json({ error: "عدد الأسئلة غير صالح." });
+        }
+        const actualCount = (await getQuestionsForQuiz(quiz.id)).length;
+        if (questionCount < actualCount) {
+          return res.status(400).json({
+            error: `يوجد ${actualCount} سؤال مضاف بالفعل — لا يمكن جعل العدد أقل منه.`,
+          });
+        }
+        data.questionCount = questionCount;
+      }
+
+      const updated = await updateQuizMeta(quiz.id, data);
+      if (!updated) {
+        return res.status(404).json({ error: "الاختبار غير موجود." });
+      }
+
+      return res.json({
+        message: "تم تحديث إعدادات الاختبار بنجاح.",
+        quiz: updated,
+      });
+    } catch (error) {
+      console.error("[quizManagement] updateQuizSettings error:", error);
+      return res.status(500).json({ error: "تعذر تحديث إعدادات الاختبار." });
+    }
+  },
+);
 
 /**
  * DELETE /quizzes/:quizId (teacher-only)
  * Delete the entire quiz and all its questions. ALWAYS allowed (no time gate).
  */
-router.delete("/quizzes/:quizId", requireAuth, requireTeacher, async (req, res) => {
-  try {
+router.delete(
+  "/quizzes/:quizId",
+  requireAuth,
+  requireTeacher,
+  async (req, res) => {
+    try {
       const quiz = await getTeacherQuiz(req.params.quizId, req.user.id);
-    if (!quiz) {
-      return res.status(404).json({ error: "الاختبار غير موجود." });
+      if (!quiz) {
+        return res.status(404).json({ error: "الاختبار غير موجود." });
+      }
+
+      const deleted = await deleteQuiz(req.params.quizId);
+
+      if (!deleted) {
+        return res.status(404).json({ error: "الاختبار غير موجود." });
+      }
+
+      return res.json({
+        message: "تم حذف الاختبار بنجاح.",
+      });
+    } catch (error) {
+      console.error("[quizManagement] deleteQuiz error:", error);
+      return res.status(500).json({ error: "تعذر حذف الاختبار." });
     }
-
-    const deleted = await deleteQuiz(req.params.quizId);
-
-    if (!deleted) {
-      return res.status(404).json({ error: "الاختبار غير موجود." });
-    }
-
-    return res.json({
-      message: "تم حذف الاختبار بنجاح.",
-    });
-  } catch (error) {
-    console.error("[quizManagement] deleteQuiz error:", error);
-    return res.status(500).json({ error: "تعذر حذف الاختبار." });
-  }
-});
+  },
+);
 
 module.exports = router;

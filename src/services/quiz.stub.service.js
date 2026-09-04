@@ -358,6 +358,14 @@ async function getQuestionsForQuiz(quizId) {
   return rows.map(mapQuestion);
 }
 
+async function getQuestionById(questionId) {
+  const row = await prisma.quizQuestion.findUnique({
+    where: { id: String(questionId) },
+    include: { choices: true, quiz: true },
+  });
+  return row ? { question: mapQuestion(row), quiz: mapQuiz(row.quiz) } : null;
+}
+
 /* ------------------------------------------------------------------ *
  * ATTEMPTS (one row per attempt; supports resume + granted retries)
  * ------------------------------------------------------------------ */
@@ -665,7 +673,9 @@ async function getAllSubmittedAttemptsWithQuiz() {
   const rows = await prisma.quizAttempt.findMany({
     where: { status: "submitted" },
     orderBy: { submittedAt: "asc" },
-    include: { quiz: { select: { title: true, isMixed: true, lessonId: true } } },
+    include: {
+      quiz: { select: { title: true, isMixed: true, lessonId: true } },
+    },
   });
   return rows.map((row) => ({
     id: row.id,
@@ -936,6 +946,7 @@ const service = {
   listAllQuizzes,
   addQuestionToQuiz,
   getQuestionsForQuiz,
+  getQuestionById,
   getQuizLessons,
   getQuizLessonsBatch,
   createAttempt,

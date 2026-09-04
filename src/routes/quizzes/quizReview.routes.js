@@ -54,9 +54,10 @@ router.get("/quiz-results/:resultId/review", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "هذه نتيجة لطالب آخر." });
   }
 
-  const quiz = req.user.role === "teacher"
-    ? await getTeacherQuiz(attempt.quizId, req.user.id)
-    : await getQuizById(attempt.quizId);
+  const quiz =
+    req.user.role === "teacher"
+      ? await getTeacherQuiz(attempt.quizId, req.user.id)
+      : await getQuizById(attempt.quizId);
   if (!quiz) return res.status(404).json({ error: "الاختبار غير موجود." });
 
   /* ---- THE TIME GATE --------------------------------------------- */
@@ -78,7 +79,7 @@ router.get("/quiz-results/:resultId/review", requireAuth, async (req, res) => {
 
   /* ---- RELEASED: build the full per-question view ------------------ */
   const questions = await getQuestionsForQuiz(quiz.id);
-  await attachImageUrls(questions); // images render again inside the review
+  await attachImageUrls(questions, req); // images render again inside the review
 
   const reviewQuestions = questions.map((question) => {
     const submittedEntry = attempt.answers[question.id];
@@ -130,8 +131,8 @@ router.get("/quiz-results/:resultId/review", requireAuth, async (req, res) => {
           ? await getStudentNameById(attempt.studentId)
           : undefined,
       attemptNumber: attempt.attemptNumber,
-      score: attempt.score,          // MCQ-based score (unchanged rule)
-      totalMcq: attempt.totalMcq,    // denominator = MCQ count only
+      score: attempt.score, // MCQ-based score (unchanged rule)
+      totalMcq: attempt.totalMcq, // denominator = MCQ count only
       submittedAt: attempt.submittedAt,
       submissionReason: attempt.submissionReason,
       releasedAt: quiz.endTime,

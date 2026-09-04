@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Shared helpers used by every quiz route group. Nothing here talks to the
  * database or to Supabase directly except attachImageUrls (which only builds
- * signed display URLs). Splitting these out keeps each routes file focused on
+ * display URLs). Splitting these out keeps each routes file focused on
  * its own flow (creation / taking / results / leaderboard / review).
  */
 
@@ -30,10 +30,23 @@ async function getCachedSignedUrl(imagePath, expiresIn) {
   // Evict stale entries periodically (every 100 writes)
   if (signedUrlCache.size > 100) {
     for (const [key, val] of signedUrlCache) {
-      if (now - val.createdAt >= SIGNED_URL_CACHE_TTL) signedUrlCache.delete(key);
+      if (now - val.createdAt >= SIGNED_URL_CACHE_TTL)
+        signedUrlCache.delete(key);
     }
   }
   return url;
+}
+
+function getQuizImageUrl(question, request) {
+  if (!question.imagePath) return null;
+  // Existing Supabase paths contain a folder separator. New Drive references
+  // are file IDs and are served through the protected backend endpoint.
+  if (!String(question.imagePath).includes("/")) {
+    const token = request?.get("authorization")?.replace(/^Bearer\s+/i, "");
+    const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
+    return `/api/quizzes/questions/${encodeURIComponent(question.id)}/image${suffix}`;
+  }
+  return null;
 }
 
 /**
@@ -113,9 +126,7 @@ function isAttemptExpired(attempt, quiz) {
  */
 function isWithinQuizWindow(quiz) {
   const now = Date.now();
-  return (
-    now >= Date.parse(quiz.startTime) && now <= Date.parse(quiz.endTime)
-  );
+  return now >= Date.parse(quiz.startTime) && now <= Date.parse(quiz.endTime);
 }
 
 /**
@@ -146,7 +157,10 @@ function isQuizReleased(quiz) {
  */
 function expiryReason(attempt, quiz) {
   const now = Date.now();
-  if (now < Date.parse(attempt.personalDeadline) && now < Date.parse(quiz.endTime)) {
+  if (
+    now < Date.parse(attempt.personalDeadline) &&
+    now < Date.parse(quiz.endTime)
+  ) {
     return null; // nothing expired yet
   }
   // Personal timer ran out no later than the quiz end? Then it "won".
@@ -192,7 +206,7 @@ function sanitizeQuestionForStudent(question) {
 
   if (question.imagePath) {
     safe.imagePath = question.imagePath; // path alone leaks nothing useful
-    safe.imageUrl = question.signedImageUrl || null;
+    safe.imageUrl = question.signedImageUrl || getQuizImageUrl(question);
   }
 
   return safe;
@@ -207,21 +221,25 @@ function sanitizeQuestionForStudent(question) {
  * @param {object[]} questions - Full question records.
  * @returns {Promise<void>}
  */
-async function attachImageUrls(questions) {
+async function attachImageUrls(questions, request) {
   await Promise.all(
     questions.map(async (question) => {
       if (!question.imagePath) return;
+      if (!String(question.imagePath).includes("/")) {
+        question.signedImageUrl = getQuizImageUrl(question, request);
+        return;
+      }
       try {
         question.signedImageUrl = await getCachedSignedUrl(
           question.imagePath,
-          60 * 60
+          60 * 60,
         );
       } catch (error) {
         // A broken/deleted image should not break the whole quiz response.
         console.error("[quiz] image sign failed:", error.message);
         question.signedImageUrl = null;
       }
-    })
+    }),
   );
 }
 
@@ -263,7 +281,7 @@ function generateAttemptOrdering(questions) {
   for (const question of questions) {
     if (question.type === "mcq") {
       choiceOrder[question.id] = shuffledCopy(
-        question.choices.map((choice) => choice.id)
+        question.choices.map((choice) => choice.id),
       );
     }
   }
@@ -293,7 +311,7 @@ function applyAttemptOrdering(questions, ordering) {
         return question;
       }
       const choicesById = new Map(
-        question.choices.map((choice) => [choice.id, choice])
+        question.choices.map((choice) => [choice.id, choice]),
       );
       return {
         ...question,
