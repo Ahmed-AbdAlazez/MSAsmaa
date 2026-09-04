@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     /\/registration-requests(?:\.html)?$/.test(window.location.pathname) ||
     /\/dashboard-teacher(?:\.html)?$/.test(window.location.pathname) ||
     /\/scoreboard(?:\.html)?$/.test(window.location.pathname) ||
+    /\/whiteboard(?:\.html)?$/.test(window.location.pathname) ||
     isStudentsPage;
   if (isTeacherOnlyPage) {
     const role = String(localStorage.getItem("userRole") || "").toLowerCase();

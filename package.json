@@ -33,6 +33,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
     "@napi-rs/canvas": "0.1.80",
     "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.112.3",
@@ -45,9 +46,12 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "pdf-lib": "1.17.1",
-    "pdfjs-dist": "3.11.174"
+    "pdfjs-dist": "3.11.174",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
     "jsdom": "^30.0.1",
     "nodemon": "^3.1.9",

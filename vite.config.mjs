@@ -1,9 +1,14 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 // Express API server (root server.js) runs here during development.
 const API_TARGET = process.env.API_ORIGIN || "http://localhost:3000";
 
 export default defineConfig({
+  plugins: [
+    // Only transform .jsx files so existing .js modules stay untouched.
+    react({ include: "**/*.jsx" }),
+  ],
   server: {
     port: 5173,
     proxy: {
@@ -53,6 +58,7 @@ export default defineConfig({
         "student-mistakes": "student-mistakes.html",
         "live-session": "live-session.html",
         scoreboard: "scoreboard.html",
+        whiteboard: "whiteboard.html",
       },
     },
   },

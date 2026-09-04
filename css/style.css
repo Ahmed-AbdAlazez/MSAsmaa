@@ -4063,4 +4063,68 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   .scoreboard-podium-first { order: 0; }
 }
 
+/* ==========================================================================
+   WHITEBOARD PAGE
+   ========================================================================== */
+.whiteboard-page {
+  padding-top: 0 !important;
+}
+
+.whiteboard-container {
+  max-width: 100%;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 70px);
+}
+
+.whiteboard-page .dashboard-header {
+  padding: 1.25rem 1.5rem 0.75rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.whiteboard-page .dashboard-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.whiteboard-page .dashboard-header .text-muted {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+}
+
+.whiteboard-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.6rem 1.5rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+#whiteboard-root {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.excalidraw-wrapper {
+  height: 100%;
+  width: 100%;
+}
+
+.excalidraw-wrapper .excalidraw {
+  height: 100% !important;
+}
+
+/* Let Excalidraw's own theme adapt to our dark mode via the data-theme attr */
+[data-theme="dark"] .excalidraw {
+  --ui-background: #14212F;
+}
+
+.whiteboard-page .footer {
+  display: none;
+}
+
 
