@@ -1,5 +1,6 @@
 import { initNavbar } from "./components/navbar.js";
 import { initStudentsPage } from "./studentsPage.js";
+import { initScoreboardPage } from "./scoreboardPage.js";
 import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
 import { formatDuration } from "./utils.js";
@@ -22,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const isTeacherOnlyPage =
     /\/registration-requests(?:\.html)?$/.test(window.location.pathname) ||
     /\/dashboard-teacher(?:\.html)?$/.test(window.location.pathname) ||
+    /\/scoreboard(?:\.html)?$/.test(window.location.pathname) ||
     isStudentsPage;
   if (isTeacherOnlyPage) {
     const role = String(localStorage.getItem("userRole") || "").toLowerCase();
@@ -1186,6 +1188,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const studentsSection = document.querySelector("#teacher-students-section");
   if (studentsSection) {
     initStudentsPage({ API_BASE, authHeaders, fetchJson, showToast });
+  }
+
+  const scoreboardPage = document.querySelector("#teacher-scoreboard-page");
+  if (scoreboardPage) {
+    initScoreboardPage({ API_BASE, authHeaders, fetchJson, showToast });
   }
 
   if (document.querySelector("#student-mistakes-page")) {

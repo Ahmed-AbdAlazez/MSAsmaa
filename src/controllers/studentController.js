@@ -225,9 +225,183 @@ const getStudentPerformance = catchAsync(async (req, res, next) => {
   });
 });
 
+/**
+ * GET /api/v1/students/scoreboard - teacher-only cumulative performance board.
+ *
+ * Visible ONLY to the teacher because the whole /api/v1/students router is
+ * mounted behind (protect, restrictTo('TEACHER')) in studentRoutes.js — a
+ * student hitting this endpoint gets a 403 before any data is computed.
+ *
+ * RANKING LOGIC (documented for consistency):
+ *   - A student's score for a given quiz = their BEST submitted attempt
+ *     (grant-retry gives 1..N attempts; only the top one counts, matching the
+ *     existing per-quiz leaderboard rule).
+ *   - totalScore      = sum of best scores across ALL quizzes.
+ *   - totalPossible   = sum of totalMcq (questions) across those quizzes.
+ *     Because quizzes vary in length, the reporter (easier visual
+ *     comparison) is the overall percentage = totalScore / totalPossible.
+ *   - examsCompleted  = number of quizzes the student has at least one
+ *     submitted attempt on (a student who never attempted a quiz simply does
+ *     not contribute to that quiz).
+ *   - avgPercent      = mean of the student's per-quiz best-attempt
+ *     percentages (each quiz weighted equally) — a fairer "class average"
+ *     than the raw total ratio when quiz lengths differ.
+ *   - rank            = competition ranking: highest totalScore first;
+ *     equal totalScores SHARE the same rank and the next rank is skipped
+ *     (1, 2, 2, 4 ...). Ties are broken by name for a stable, deterministic
+ *     display order but the shared numeric rank stays identical.
+ *   - highest / lowest = best and worst per-quiz best-score percentage.
+ *
+ * No data is duplicated or denormalised: this endpoint aggregates live from
+ * the existing quiz_attempts rows, so it always reflects current grades and
+ * never needs a separate table.
+ */
+const getScoreboard = catchAsync(async (req, res, next) => {
+  const students = await prisma.user.findMany({
+    where: { role: 'STUDENT', status: 'APPROVED' },
+    select: {
+      id: true,
+      studentCode: true,
+      name: true,
+      email: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  if (!students.length) {
+    return res.status(200).json({
+      status: 'success',
+      data: { students: [], generatedAt: new Date().toISOString() },
+    });
+  }
+
+  const attempts = await quizService.getAllSubmittedAttemptsWithQuiz();
+  const quizIds = quizService.quizIdsFromAttempts(attempts);
+
+  // Quiz metadata (title, possible questions) only for quizzes that actually
+  // have submitted results — never computes against empty collections.
+  const [quizRows, lessonRows] = await Promise.all([
+    prisma.quiz.findMany({
+      where: { id: { in: quizIds } },
+      select: { id: true, title: true, questionCount: true },
+    }),
+    quizIds.length
+      ? prisma.quizLesson.findMany({
+          where: { quizId: { in: quizIds } },
+          select: { quizId: true, lessonId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  // best submitted score per (student, quiz) + per-quiz possible tally.
+  const bestByStudentQuiz = new Map(); // `${studentId}::${quizId}` -> {score,totalMcq}
+  for (const attempt of attempts) {
+    const key = `${attempt.studentId}::${attempt.quizId}`;
+    const existing = bestByStudentQuiz.get(key);
+    const score = attempt.score || 0;
+    const totalMcq = attempt.totalMcq || 0;
+    if (!existing || score > existing.score) {
+      bestByStudentQuiz.set(key, { score, totalMcq });
+    }
+  }
+
+  const quizById = new Map(quizRows.map((q) => [q.id, q]));
+
+  // Aggregate per student.
+  const rows = students.map((student) => {
+    let totalScore = 0;
+    let totalPossible = 0;
+    let quizzesCompleted = 0;
+    const bestPercents = [];
+
+    for (const key of bestByStudentQuiz.keys()) {
+      if (!key.startsWith(`${student.id}::`)) continue;
+      const { score, totalMcq } = bestByStudentQuiz.get(key);
+      quizzesCompleted += 1;
+      totalScore += score;
+      totalPossible += totalMcq;
+      if (totalMcq > 0) {
+        bestPercents.push(Math.round((score / totalMcq) * 1000) / 10);
+      }
+    }
+
+    const overallPercent =
+      totalPossible > 0
+        ? Math.round((totalScore / totalPossible) * 1000) / 10
+        : null;
+    const avgPercent =
+      bestPercents.length > 0
+        ? Math.round(
+            (bestPercents.reduce((sum, p) => sum + p, 0) / bestPercents.length) *
+              10,
+          ) / 10
+        : null;
+    const highest =
+      bestPercents.length > 0 ? Math.max(...bestPercents) : null;
+    const lowest = bestPercents.length > 0 ? Math.min(...bestPercents) : null;
+
+    return {
+      studentId: student.id,
+      name: student.name,
+      studentCode: student.studentCode,
+      email: student.email,
+      totalScore,
+      totalPossible,
+      overallPercent,
+      avgPercent,
+      examsCompleted: quizzesCompleted,
+      highest,
+      lowest,
+    };
+  });
+
+  // Competition (1224) ranking by totalScore, name tie-break for display.
+  rows.sort(
+    (a, b) =>
+      b.totalScore - a.totalScore ||
+      a.name.localeCompare(b.name, 'ar'),
+  );
+  let currentRank = 1;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (
+      i > 0 &&
+      rows[i].totalScore === rows[i - 1].totalScore
+    ) {
+      // tied with the previous student — share its rank
+      rows[i].rank = rows[i - 1].rank;
+    } else {
+      rows[i].rank = currentRank;
+    }
+    currentRank += 1;
+  }
+
+  // Individual quiz results per student (for the detail view) — only the
+  // student's own submitted attempts, best attempt per quiz.
+  const quizzesSummary = quizRows.map((quiz) => ({
+    quizId: quiz.id,
+    title: quiz.title,
+    questionCount: quiz.questionCount,
+    lessonId: lessonRows
+      .filter((l) => l.quizId === quiz.id)
+      .map((l) => l.lessonId),
+  }));
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      generatedAt: new Date().toISOString(),
+      students: rows,
+      quizzes: quizzesSummary,
+    },
+  });
+});
+
 module.exports = {
   getApprovedStudentCount,
   getApprovedStudents,
   updateStudentStatus,
   getStudentPerformance,
+  getScoreboard,
 };

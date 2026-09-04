@@ -256,6 +256,7 @@ async function validateTokenAndGetEmbed({ token, studentId }) {
     provider: session.provider,
     allowCamera: Boolean(session.allowCamera),
     embedUrl,
+    meetingId: session.meetingId,
     passcode: session.passcode || null,
   };
 }

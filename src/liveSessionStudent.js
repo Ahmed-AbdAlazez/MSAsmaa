@@ -95,21 +95,51 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const meetBoxEl = document.getElementById("live-meet-box");
     const meetJoinBtnEl = document.getElementById("live-meet-join-btn");
+    const jitsiContainerEl = document.getElementById("jitsi-container");
 
-    if (data.provider === "google_meet" || data.provider === "jitsi") {
+    if (data.provider === "jitsi") {
+      if (meetBoxEl) meetBoxEl.style.display = "none";
       if (iframeEl) iframeEl.style.display = "none";
+      if (jitsiContainerEl) {
+        jitsiContainerEl.style.display = "block";
+        jitsiContainerEl.innerHTML = "";
+        const domain = "meet.jit.si";
+        const roomName = data.meetingId || "MsAsmaa_Biology_Live";
+        const options = {
+          roomName: roomName,
+          width: "100%",
+          height: 650,
+          parentNode: jitsiContainerEl,
+          lang: "ar",
+          configOverwrite: {
+            prejoinPageEnabled: false,
+            startWithAudioMuted: true,
+            startWithVideoMuted: !data.allowCamera,
+            disableDeepLinking: true,
+          },
+          interfaceConfigOverwrite: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+          },
+        };
+        if (window.JitsiMeetExternalAPI) {
+          new window.JitsiMeetExternalAPI(domain, options);
+        } else {
+          showError("تعذر تحميل مكتبة Jitsi Meet. يرجى إعادة تحميل الصفحة.");
+        }
+      }
+    } else if (data.provider === "google_meet") {
+      if (iframeEl) iframeEl.style.display = "none";
+      if (jitsiContainerEl) jitsiContainerEl.style.display = "none";
       if (meetBoxEl) {
         meetBoxEl.style.display = "flex";
         if (meetJoinBtnEl) {
           meetJoinBtnEl.href = data.embedUrl;
-          if (data.provider === "jitsi") {
-            const titleHeader = meetBoxEl.querySelector("h2");
-            if (titleHeader) titleHeader.textContent = "غرفة البث المباشر جاهزة (Jitsi Meet)";
-          }
         }
       }
     } else {
       if (meetBoxEl) meetBoxEl.style.display = "none";
+      if (jitsiContainerEl) jitsiContainerEl.style.display = "none";
       if (iframeEl) {
         iframeEl.style.display = "block";
         if (data.allowCamera) {
