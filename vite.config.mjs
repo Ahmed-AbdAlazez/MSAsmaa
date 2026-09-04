@@ -52,6 +52,7 @@ export default defineConfig({
         students: "students.html",
         "student-mistakes": "student-mistakes.html",
         "live-session": "live-session.html",
+        scoreboard: "scoreboard.html",
       },
     },
   },

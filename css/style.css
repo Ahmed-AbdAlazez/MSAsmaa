@@ -3948,4 +3948,97 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   .courses-grid { grid-template-columns: 1fr; }
 }
 
+/* ============================================================================
+   TEACHER SCOREBOARD — teacher-only student performance board (scoreboard.html)
+   ========================================================================== */
+.scoreboard-podium {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+  padding: 1.25rem 0;
+  flex-wrap: wrap;
+}
+.scoreboard-podium-card {
+  flex: 0 1 220px;
+  min-width: 180px;
+  text-align: center;
+  padding: 1.25rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface, #fff);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,.06));
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.scoreboard-podium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md, 0 8px 20px rgba(0,0,0,.12));
+}
+.scoreboard-podium-first {
+  flex-basis: 240px;
+  border-color: #fbbf24;
+  box-shadow: 0 6px 20px rgba(251,191,36,.25);
+}
+.scoreboard-podium-medal { font-size: 2.2rem; line-height: 1; }
+.scoreboard-podium-rank { font-weight: 700; font-size: .85rem; color: var(--color-text-muted); margin: .5rem 0 .25rem; }
+.scoreboard-podium-first .scoreboard-podium-rank { color: #b45309; }
+.scoreboard-podium-name { font-weight: 800; font-size: 1.05rem; color: var(--color-primary-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scoreboard-podium-score { font-weight: 800; color: var(--color-primary); margin-top: .5rem; font-size: 1.1rem; }
+.scoreboard-podium-percent { font-size: .85rem; color: var(--color-text-muted); }
+
+.scoreboard-controls .card { margin-bottom: 1.5rem; }
+
+.scoreboard-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: .85rem;
+}
+.scoreboard-rank-1 { background: #fbbf24; color: #1f2937; }
+.scoreboard-rank-2 { background: #cbd5e1; color: #0f172a; }
+.scoreboard-rank-3 { background: #f59e0b; color: #fff; }
+
+.scoreboard-table th {
+  white-space: nowrap;
+}
+.scoreboard-student-code {
+  font-size: .72rem;
+}
+.scoreboard-podium-row-1 { background: rgba(251,191,36,.08); }
+.scoreboard-podium-row-2 { background: rgba(203,213,225,.15); }
+.scoreboard-podium-row-3 { background: rgba(245,158,11,.08); }
+
+.scoreboard-empty { text-align: center; padding: 1.5rem 0; }
+
+.scoreboard-summary-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: .75rem 1rem;
+  text-align: center;
+}
+.scoreboard-summary-label {
+  font-size: .78rem;
+  color: var(--color-text-muted);
+  margin-bottom: .3rem;
+}
+.scoreboard-summary-value {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-primary-ink);
+}
+
+@media (max-width: 600px) {
+  .scoreboard-podium-card { flex-basis: 100%; min-width: 0; }
+  .scoreboard-podium-first { order: 0; }
+}
+
 
