@@ -2251,6 +2251,39 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
 
+        const isPdfMaterial =
+          !material.mimeType || material.mimeType === "application/pdf";
+        if (isPdfMaterial) {
+          const viewButton = document.createElement("button");
+          viewButton.className = "btn btn-secondary lesson-material-view";
+          viewButton.type = "button";
+          viewButton.textContent = "عرض PDF";
+          viewButton.addEventListener("click", async () => {
+            try {
+              viewButton.disabled = true;
+              viewButton.textContent = "جاري...";
+              const viewResponse = await fetch(
+                `/api/materials/${encodeURIComponent(material.id)}/view`,
+                { headers: authHeaders() },
+              );
+              if (!viewResponse.ok) {
+                const errorData = await viewResponse.json().catch(() => ({}));
+                throw new Error(
+                  errorData.message || errorData.error || "تعذر فتح ملف PDF.",
+                );
+              }
+              const pdfUrl = URL.createObjectURL(await viewResponse.blob());
+              window.open(pdfUrl, "_blank", "noopener");
+              setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+            } catch (error) {
+              showToast(error.message, "danger");
+            } finally {
+              viewButton.disabled = false;
+              viewButton.textContent = "عرض PDF";
+            }
+          });
+          actionsBox.append(viewButton);
+        }
         actionsBox.append(downloadButton);
         row.append(title, actionsBox);
         materialsBox.appendChild(row);
