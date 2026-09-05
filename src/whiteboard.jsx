@@ -105,7 +105,7 @@ function WhiteboardApp() {
       </div>
       <div className="excalidraw-wrapper">
         <Excalidraw
-          ref={excalidrawRef}
+          excalidrawAPI={(api) => { excalidrawRef.current = api; }}
           theme={theme}
           UIOptions={{
             canvasActions: {
