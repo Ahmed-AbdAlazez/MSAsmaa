@@ -4106,11 +4106,13 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 #whiteboard-root {
   flex: 1;
   min-height: 0;
-  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .excalidraw-wrapper {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   width: 100%;
 }
 

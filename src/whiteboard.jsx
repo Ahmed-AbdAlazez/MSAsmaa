@@ -11,6 +11,7 @@ function getTheme() {
 
 function WhiteboardApp() {
   const [theme, setTheme] = useState(getTheme);
+  const [exporting, setExporting] = useState(false);
   const excalidrawRef = useRef(null);
 
   useEffect(() => {
@@ -24,14 +25,29 @@ function WhiteboardApp() {
 
   const handleClear = useCallback(() => {
     const api = excalidrawRef.current;
-    if (api) {
-      api.updateScene({ elements: [] });
-    }
+    if (!api) return;
+
+    const appState = api.getAppState();
+    api.updateScene({
+      elements: [],
+      appState: {
+        ...appState,
+        selectedElementIds: {},
+        selectedGroupIds: {},
+        editingElement: null,
+        editingTextElement: null,
+        editingLinearElement: null,
+      },
+      captureUpdate: "IMMEDIATELY",
+    });
+    // Fresh blank canvas for a new topic/lesson: wipe undo history so old
+    // content can't be brought back by accident.
+    api.history.clear();
   }, []);
 
   const handleExport = useCallback(() => {
     const api = excalidrawRef.current;
-    if (!api) return;
+    if (!api || exporting) return;
 
     const elements = api.getSceneElements();
     if (!elements || elements.length === 0) {
@@ -39,6 +55,7 @@ function WhiteboardApp() {
       return;
     }
 
+    setExporting(true);
     const appState = api.getAppState();
     const files = api.getFiles();
 
@@ -48,41 +65,58 @@ function WhiteboardApp() {
       files,
       mimeType: "image/png",
       quality: 1,
-    }).then((blob) => {
+      maxWidthOrHeight: 2048,
+    })
+      .then((blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "سبورة-" + new Date().toLocaleDateString("ar-EG") + ".png";
+        a.download = "whiteboard-" + Date.now() + ".png";
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
-      });
-  }, [theme]);
-
-  useEffect(() => {
-    const clearBtn = document.getElementById("wb-clear-btn");
-    const exportBtn = document.getElementById("wb-export-btn");
-    if (clearBtn) clearBtn.addEventListener("click", handleClear);
-    if (exportBtn) exportBtn.addEventListener("click", handleExport);
-    return () => {
-      if (clearBtn) clearBtn.removeEventListener("click", handleClear);
-      if (exportBtn) exportBtn.removeEventListener("click", handleExport);
-    };
-  }, [handleClear, handleExport]);
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      })
+      .catch((err) => {
+        console.error("Export failed:", err);
+        alert("تعذر حفظ الصورة — حاولي مرة أخرى.");
+      })
+      .finally(() => setExporting(false));
+  }, [exporting, theme]);
 
   return (
-    <div className="excalidraw-wrapper">
-      <Excalidraw
-        ref={excalidrawRef}
-        theme={theme}
-        UIOptions={{
-          canvasActions: {
-            loadScene: false,
-            saveToActiveFile: false,
-            export: false,
-          },
-        }}
-      />
-    </div>
+    <>
+      <div className="whiteboard-toolbar">
+        <button
+          type="button"
+          className="btn btn-danger btn-sm"
+          onClick={handleClear}
+        >
+          🗑️ مسح الكل
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? "⏳ جاري الحفظ..." : "📥 حفظ كصورة (PNG)"}
+        </button>
+      </div>
+      <div className="excalidraw-wrapper">
+        <Excalidraw
+          ref={excalidrawRef}
+          theme={theme}
+          UIOptions={{
+            canvasActions: {
+              loadScene: false,
+              saveToActiveFile: false,
+              export: false,
+            },
+          }}
+        />
+      </div>
+    </>
   );
 }
 
