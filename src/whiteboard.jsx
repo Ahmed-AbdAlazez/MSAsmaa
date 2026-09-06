@@ -9,6 +9,30 @@ function getTheme() {
     : "light";
 }
 
+function showBoardToast(message, type = "warning", ms = 3500) {
+  if (typeof window.showToast === "function") {
+    window.showToast(message, type);
+    return;
+  }
+
+  const existing = document.querySelector(".whiteboard-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type} show whiteboard-toast`;
+  const icon = type === "danger" ? "✕" : type === "warning" ? "⚠" : "✓";
+  toast.innerHTML = `
+    <span style="font-weight: bold; font-size: 1.2rem;">${icon}</span>
+    <span>${message}</span>
+  `;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 400);
+  }, ms);
+}
+
 function WhiteboardApp() {
   const [theme, setTheme] = useState(getTheme);
   const [exporting, setExporting] = useState(false);
@@ -51,7 +75,7 @@ function WhiteboardApp() {
 
     const elements = api.getSceneElements();
     if (!elements || elements.length === 0) {
-      alert("السبورة فارغة — ارسمي شيئاً أولاً قبل الحفظ.");
+      showBoardToast("لم يتم رسم أي شيء بعد — ارسمي على السبورة ثم احفظيها.", "warning");
       return;
     }
 
@@ -79,7 +103,7 @@ function WhiteboardApp() {
       })
       .catch((err) => {
         console.error("Export failed:", err);
-        alert("تعذر حفظ الصورة — حاولي مرة أخرى.");
+        showBoardToast("تعذر حفظ الصورة — حاولي مرة أخرى.", "danger");
       })
       .finally(() => setExporting(false));
   }, [exporting, theme]);

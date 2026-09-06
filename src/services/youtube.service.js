@@ -28,51 +28,49 @@ function extractYouTubeId(input) {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  // 1. Direct 11-char ID format
-  if (YOUTUBE_ID_REGEX.test(trimmed)) {
-    return trimmed;
-  }
+  // 1. If input contains URL protocol or domain symbols/slashes, treat strictly as URL
+  if (trimmed.includes("://") || trimmed.includes(".") || trimmed.includes("/")) {
+    try {
+      const urlObj = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+      const host = urlObj.hostname.toLowerCase().replace(/^www\./, "").replace(/^m\./, "");
 
-  // 2. Parse URL safely
-  try {
-    const urlObj = new URL(trimmed);
-    const host = urlObj.hostname.toLowerCase().replace(/^www\./, "").replace(/^m\./, "");
+      if (host !== "youtube.com" && host !== "youtu.be" && host !== "youtube-nocookie.com") {
+        return null;
+      }
 
-    // Must belong to youtube.com or youtu.be domain
-    if (host !== "youtube.com" && host !== "youtu.be" && host !== "youtube-nocookie.com") {
+      if (host === "youtube.com" || host === "youtube-nocookie.com") {
+        const vParam = urlObj.searchParams.get("v");
+        if (vParam && YOUTUBE_ID_REGEX.test(vParam)) {
+          return vParam;
+        }
+
+        const pathParts = urlObj.pathname.split("/").filter(Boolean);
+        if (pathParts.length >= 2 && ["embed", "v", "shorts"].includes(pathParts[0])) {
+          const potentialId = pathParts[1];
+          if (YOUTUBE_ID_REGEX.test(potentialId)) {
+            return potentialId;
+          }
+        }
+      }
+
+      if (host === "youtu.be") {
+        const pathParts = urlObj.pathname.split("/").filter(Boolean);
+        if (pathParts.length >= 1) {
+          const potentialId = pathParts[0];
+          if (YOUTUBE_ID_REGEX.test(potentialId)) {
+            return potentialId;
+          }
+        }
+      }
+    } catch (err) {
       return null;
     }
-
-    // Standard watch URL: youtube.com/watch?v=ID
-    if (host === "youtube.com" || host === "youtube-nocookie.com") {
-      const vParam = urlObj.searchParams.get("v");
-      if (vParam && YOUTUBE_ID_REGEX.test(vParam)) {
-        return vParam;
-      }
-
-      // Path-based formats: /embed/ID, /v/ID, /shorts/ID
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      if (pathParts.length >= 2 && ["embed", "v", "shorts"].includes(pathParts[0])) {
-        const potentialId = pathParts[1];
-        if (YOUTUBE_ID_REGEX.test(potentialId)) {
-          return potentialId;
-        }
-      }
-    }
-
-    // Shortened URL: youtu.be/ID
-    if (host === "youtu.be") {
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      if (pathParts.length >= 1) {
-        const potentialId = pathParts[0];
-        if (YOUTUBE_ID_REGEX.test(potentialId)) {
-          return potentialId;
-        }
-      }
-    }
-  } catch (err) {
-    // Malformed URL string
     return null;
+  }
+
+  // 2. Direct 11-character Video ID format (e.g. dQw4w9WgXcQ)
+  if (YOUTUBE_ID_REGEX.test(trimmed)) {
+    return trimmed;
   }
 
   return null;
