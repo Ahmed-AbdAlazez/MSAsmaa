@@ -321,6 +321,95 @@ router.get("/:lessonId/video-status", requireAuth, async (req, res) => {
  * Processing and failed videos are NEVER shown to students — they simply
  * don't appear in the list. Teachers see all statuses in their management view.
  */
+const {
+  validateYouTubeUrl,
+  extractYouTubeId,
+} = require("../services/youtube.service.js");
+
+/**
+ * POST /api/lessons/:lessonId/youtube-video  (teacher only)
+ *
+ * Adds a YouTube video to a lesson.
+ * Validates the YouTube URL/ID server-side, stores the clean 11-char ID in the
+ * database, and sends notifications.
+ */
+router.post("/:lessonId/youtube-video", requireAuth, async (req, res) => {
+  if (req.user.role !== "teacher") {
+    return res.status(403).json({
+      error: "المعلمات فقط يمكنهن إضافة فيديوهات الدروس.",
+    });
+  }
+
+  const { lessonId } = req.params;
+  const rawUrl = (req.body && (req.body.youtubeUrl || req.body.url)) || "";
+  const rawTitle = ((req.body && req.body.title) || "فيديو يوتيوب").trim();
+  const attachmentUrl = ((req.body && req.body.attachmentUrl) || "").trim();
+  const description = ((req.body && req.body.description) || "").trim();
+
+  const validation = validateYouTubeUrl(rawUrl);
+  if (!validation.valid) {
+    return res.status(400).json({
+      error: validation.error,
+    });
+  }
+
+  try {
+    const record = await prisma.lessonVideo.create({
+      data: {
+        lessonId,
+        title: cleanTitlePart(rawTitle),
+        description: cleanTitlePart(description),
+        attachmentUrl: cleanTitlePart(attachmentUrl),
+        videoSource: "youtube",
+        youtubeVideoId: validation.videoId,
+      },
+    });
+
+    // 📢 NOTIFY ALL PARTIES
+    await createNotificationForApprovedStudents({
+      type: "video",
+      title: "فيديو جديد (يوتيوب)",
+      message: `تم إضافة فيديو جديد: ${rawTitle}`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      link: `/lesson-view?lesson=${encodeURIComponent(lessonId)}`,
+    });
+
+    await createNotificationForTeacher(req.user.id, {
+      type: "video_upload",
+      title: "📹 تم إضافة فيديو يوتيوب",
+      message: `تم إضافة الفيديو "${rawTitle}" بنجاح.`,
+      relatedId: lessonId,
+      relatedType: "lesson",
+      link: `/dashboard-teacher?tab=manage-videos&lesson=${encodeURIComponent(lessonId)}`,
+    });
+
+    return res.status(201).json({
+      message: "تم إضافة فيديو يوتيوب بنجاح.",
+      lessonId,
+      videoId: record.id,
+      videoSource: "youtube",
+      youtubeVideoId: validation.videoId,
+      embedUrl: `https://www.youtube.com/embed/${validation.videoId}?rel=0&controls=1`,
+      title: record.title,
+    });
+  } catch (error) {
+    console.error(
+      `[video.routes] YouTube video creation failed for lesson ${lessonId}:`,
+      error
+    );
+    return res.status(500).json({
+      error: "فشل إضافة فيديو يوتيوب. يرجى المحاولة لاحقاً.",
+    });
+  }
+});
+
+/**
+ * GET /api/lessons/:lessonId/videos
+ *
+ * Lists ALL videos of a lesson (both Bunny Stream and YouTube), each with
+ * metadata and playback URLs. Gated by enrollment check.
+ */
 router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   const studentIsEnrolled = await isStudentEnrolledInLessonCourse(
     req.user.id,
@@ -333,22 +422,18 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   }
 
   try {
+    // 1. Fetch Bunny videos
     const items = await findAllVideosByLessonId(req.params.lessonId);
-    
-    // ⚠️ CRITICAL: Filter to only ready videos for students
-    // Status codes: 4 = Finished (ready), 5 = Error, 6 = UploadFailed
-    // Students see ZERO processing and ZERO failed videos
-    const readyVideos = items.filter((video) => video.status === 4);
-    
-    const videoIds = readyVideos.map((video) => video.guid);
+    const readyBunnyVideos = items.filter((video) => video.status === 4);
+    const bunnyVideoIds = readyBunnyVideos.map((video) => video.guid);
 
     const chapters = await prisma.videoChapter.findMany({
-      where: { videoId: { in: videoIds } },
+      where: { videoId: { in: bunnyVideoIds } },
       orderBy: { orderIndex: "asc" },
     });
 
     const chaptersByVideo = {};
-    videoIds.forEach((id) => {
+    bunnyVideoIds.forEach((id) => {
       chaptersByVideo[id] = [];
     });
     chapters.forEach((ch) => {
@@ -358,23 +443,52 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
       chaptersByVideo[ch.videoId].push(ch);
     });
 
+    const bunnyFormatted = readyBunnyVideos.map((video) => ({
+      videoId: video.guid,
+      videoSource: "bunny",
+      bunnyVideoId: video.guid,
+      ...parseTitle(video.title),
+      status: video.status,
+      ready: video.status === 4,
+      encodeProgress: video.encodeProgress,
+      lengthSeconds: video.length,
+      dateUploaded: video.dateUploaded,
+      playbackUrl: generateSignedPlaybackUrl(
+        video.guid,
+        PLAYBACK_URL_LIFETIME_SECONDS,
+      ),
+      expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
+      chapters: chaptersByVideo[video.guid] || [],
+    }));
+
+    // 2. Fetch YouTube videos from database
+    const ytRecords = await prisma.lessonVideo.findMany({
+      where: {
+        lessonId: req.params.lessonId,
+        videoSource: "youtube",
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const ytFormatted = ytRecords.map((yt) => ({
+      videoId: yt.id,
+      id: yt.id,
+      videoSource: "youtube",
+      youtubeVideoId: yt.youtubeVideoId,
+      name: yt.title,
+      description: yt.description || "",
+      attachmentUrl: yt.attachmentUrl || "",
+      status: 4,
+      ready: true,
+      playbackUrl: `https://www.youtube.com/embed/${yt.youtubeVideoId}?rel=0&controls=1`,
+      embedUrl: `https://www.youtube.com/embed/${yt.youtubeVideoId}?rel=0&controls=1`,
+      dateUploaded: yt.createdAt,
+      chapters: [],
+    }));
+
     return res.json({
       lessonId: req.params.lessonId,
-      videos: readyVideos.map((video) => ({
-        videoId: video.guid,
-        ...parseTitle(video.title),
-        status: video.status,
-        ready: video.status === 4,
-        encodeProgress: video.encodeProgress,
-        lengthSeconds: video.length,
-        dateUploaded: video.dateUploaded,
-        playbackUrl: generateSignedPlaybackUrl(
-          video.guid,
-          PLAYBACK_URL_LIFETIME_SECONDS,
-        ),
-        expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
-        chapters: chaptersByVideo[video.guid] || [],
-      })),
+      videos: [...bunnyFormatted, ...ytFormatted],
     });
   } catch (error) {
     console.error(
@@ -388,3 +502,4 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+

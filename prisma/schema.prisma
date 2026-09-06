@@ -295,3 +295,21 @@ model LiveSessionToken {
   @@map("live_session_tokens")
 }
 
+/// Stores lesson video metadata for YouTube and database-backed video entries.
+model LessonVideo {
+  id             String   @id @default(uuid())
+  lessonId       String   @map("lesson_id")
+  title          String
+  description    String?
+  attachmentUrl  String?  @map("attachment_url")
+  videoSource    String   @default("bunny") @map("video_source") // "bunny" | "youtube"
+  bunnyVideoId   String?  @map("bunny_video_id")
+  youtubeVideoId String?  @map("youtube_video_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([lessonId])
+  @@index([lessonId, videoSource])
+  @@map("lesson_videos")
+}
+

@@ -148,11 +148,50 @@ router.patch("/:videoId", requireAuth, requireTeacher, async (req, res) => {
 });
 
 /**
+ * POST /api/videos/validate-youtube
+ * Body: { url: "https://www.youtube.com/watch?v=..." }
+ */
+router.post("/validate-youtube", requireAuth, requireTeacher, async (req, res) => {
+  const { validateYouTubeUrl } = require("../services/youtube.service.js");
+  const rawUrl = (req.body && (req.body.url || req.body.youtubeUrl)) || "";
+  const result = validateYouTubeUrl(rawUrl);
+
+  if (!result.valid) {
+    return res.status(400).json({
+      valid: false,
+      error: result.error,
+    });
+  }
+
+  return res.json({
+    valid: true,
+    videoId: result.videoId,
+    embedUrl: `https://www.youtube.com/embed/${result.videoId}?rel=0&controls=1`,
+    message: "✓ فيديو يوتيوب صالح",
+  });
+});
+
+/**
  * DELETE /api/videos/:videoId — permanent!
  */
 router.delete("/:videoId", requireAuth, requireTeacher, async (req, res) => {
   try {
-    await deleteVideo(req.params.videoId);
+    const { videoId } = req.params;
+
+    // Check if it's a database-backed video record (YouTube or DB video)
+    const dbVideo = await prisma.lessonVideo.findUnique({
+      where: { id: videoId },
+    }).catch(() => null);
+
+    if (dbVideo) {
+      await prisma.lessonVideo.delete({
+        where: { id: videoId },
+      });
+      return res.json({ message: "تم حذف الفيديو بنجاح." });
+    }
+
+    // Fallback: Delete from Bunny Stream
+    await deleteVideo(videoId);
     return res.json({ message: "تم حذف الفيديو بنجاح." });
   } catch (error) {
     console.error("[video-manage] Delete failed:", error);

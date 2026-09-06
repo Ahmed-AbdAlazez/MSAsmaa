@@ -2958,6 +2958,66 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Video Source (Bunny vs YouTube) toggle logic in Teacher Dashboard
+  const videoSourceRadios = document.querySelectorAll('input[name="video-source-choice"]');
+  const containerBunny = document.querySelector("#container-bunny-upload");
+  const containerYouTube = document.querySelector("#container-youtube-upload");
+  const ytUrlInput = document.querySelector("#upload-youtube-url");
+  const ytValidateBtn = document.querySelector("#btn-validate-youtube");
+  const ytFeedback = document.querySelector("#youtube-validation-feedback");
+
+  if (videoSourceRadios.length) {
+    videoSourceRadios.forEach((radio) => {
+      radio.addEventListener("change", () => {
+        const val = radio.value;
+        if (val === "youtube") {
+          if (containerBunny) containerBunny.style.display = "none";
+          if (containerYouTube) containerYouTube.style.display = "block";
+        } else {
+          if (containerBunny) containerBunny.style.display = "block";
+          if (containerYouTube) containerYouTube.style.display = "none";
+        }
+      });
+    });
+  }
+
+  if (ytValidateBtn && ytUrlInput) {
+    ytValidateBtn.addEventListener("click", async () => {
+      const rawUrl = (ytUrlInput.value || "").trim();
+      if (!rawUrl) {
+        showToast("ادخلي رابط فيديو يوتيوب أولاً.", "warning");
+        ytUrlInput.focus();
+        return;
+      }
+      try {
+        ytValidateBtn.disabled = true;
+        ytValidateBtn.textContent = "جاري التحقق...";
+        const res = await fetchJson("/api/videos/validate-youtube", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ url: rawUrl }),
+        });
+
+        if (ytFeedback) {
+          ytFeedback.style.display = "block";
+          ytFeedback.style.color = "var(--color-accent, #10b981)";
+          ytFeedback.textContent = res.message || "✓ فيديو يوتيوب صالح";
+        }
+        showToast("فيديو يوتيوب صالح ويمكنك حفظه الآن.", "success");
+      } catch (err) {
+        if (ytFeedback) {
+          ytFeedback.style.display = "block";
+          ytFeedback.style.color = "#ef4444";
+          ytFeedback.textContent = err.message || "رابط يوتيوب غير صالح.";
+        }
+        showToast(err.message || "رابط يوتيوب غير صالح.", "danger");
+      } finally {
+        ytValidateBtn.disabled = false;
+        ytValidateBtn.textContent = "التحقق من الفيديو";
+      }
+    });
+  }
+
   if (uploadBtn) {
     uploadBtn.addEventListener("click", async () => {
       const titleInput = document.querySelector("#upload-title");
@@ -2966,9 +3026,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const progressBar = document.querySelector("#upload-progress-bar");
       const statusText = document.querySelector("#upload-status-text");
 
+      const selectedSource = document.querySelector('input[name="video-source-choice"]:checked')?.value || "bunny";
+
       const lessonId = lessonSelect ? lessonSelect.value : "";
       const videoName = (titleInput?.value || "").trim();
-      const file = fileInput?.files[0];
 
       if (!lessonId) {
         showToast("اختاري الفصل والدرس أولاً.", "warning");
@@ -2979,15 +3040,60 @@ document.addEventListener("DOMContentLoaded", () => {
         titleInput.focus();
         return;
       }
-      if (!file) {
-        showToast("من فضلك اختاري ملف الفيديو أولاً", "warning");
+
+      // Only teachers may upload
+      if ((localStorage.getItem("userRole") || "student") !== "teacher") {
+        showToast("إضافة الفيديوهات متاح لحساب المعلمة فقط.", "danger");
         return;
       }
 
-      // Only teachers may upload (UI hint only — the backend enforces the
-      // real role from the JWT).
-      if ((localStorage.getItem("userRole") || "student") !== "teacher") {
-        showToast("رفع الفيديوهات متاح لحساب المعلمة فقط.", "danger");
+      // 🔴 YOUTUBE FLOW
+      if (selectedSource === "youtube") {
+        const rawYtUrl = (ytUrlInput?.value || "").trim();
+        if (!rawYtUrl) {
+          showToast("ادخلي رابط فيديو يوتيوب.", "warning");
+          if (ytUrlInput) ytUrlInput.focus();
+          return;
+        }
+
+        try {
+          uploadBtn.disabled = true;
+          if (progressArea) progressArea.style.display = "block";
+          if (progressBar) progressBar.style.width = "50%";
+          if (statusText) statusText.textContent = "جاري حفظ فيديو يوتيوب...";
+          UploadFloat.show("جاري حفظ فيديو يوتيوب");
+
+          const res = await fetchJson(`/api/lessons/${lessonId}/youtube-video`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({
+              title: videoName,
+              youtubeUrl: rawYtUrl,
+            }),
+          });
+
+          if (progressBar) progressBar.style.width = "100%";
+          if (statusText) statusText.textContent = "تم إضافة فيديو يوتيوب بنجاح ✔";
+          UploadFloat.done("تم إضافة فيديو يوتيوب بنجاح ✔");
+          showToast("تم إضافة فيديو يوتيوب بنجاح!", "success");
+
+          if (titleInput) titleInput.value = "";
+          if (ytUrlInput) ytUrlInput.value = "";
+          if (ytFeedback) ytFeedback.style.display = "none";
+        } catch (error) {
+          showToast(error.message, "danger");
+          if (statusText) statusText.textContent = "فشل إضافة فيديو يوتيوب.";
+          UploadFloat.fail("فشل إضافة فيديو يوتيوب.");
+        } finally {
+          uploadBtn.disabled = false;
+        }
+        return;
+      }
+
+      // 🐰 BUNNY STREAM FLOW (UNCHANGED)
+      const file = fileInput?.files[0];
+      if (!file) {
+        showToast("من فضلك اختاري ملف الفيديو أولاً", "warning");
         return;
       }
 

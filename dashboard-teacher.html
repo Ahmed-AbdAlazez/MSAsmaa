@@ -124,6 +124,18 @@
       <!-- Video Upload Section -->
       <h2 class="dashboard-section-title" style="margin-bottom: 1.5rem;">رفع فيديوهات الشرح 🎬</h2>
       <div class="card" style="margin-bottom: 2.5rem;">
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">مصدر الفيديو (Video Source)</label>
+          <div style="display:flex; gap:1.25rem; align-items:center; flex-wrap:wrap; padding-top:0.2rem;">
+            <label style="display:flex; align-items:center; gap:0.4rem; font-weight:600; cursor:pointer; font-size:0.9rem;">
+              <input type="radio" name="video-source-choice" value="bunny" checked> Bunny Stream 🐰
+            </label>
+            <label style="display:flex; align-items:center; gap:0.4rem; font-weight:600; cursor:pointer; font-size:0.9rem;">
+              <input type="radio" name="video-source-choice" value="youtube"> YouTube 🔴
+            </label>
+          </div>
+        </div>
+
         <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
           <div style="flex:1; min-width:220px;">
             <label for="upload-chapter" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">الفصل (الباب)</label>
@@ -141,11 +153,22 @@
             <input id="upload-title" type="text" placeholder="شرح الدعامة في النبات"
               style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
-          <div style="flex:2; min-width:220px;">
+          <div id="container-bunny-upload" style="flex:2; min-width:220px;">
             <label for="upload-file" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">ملف الفيديو *</label>
             <input id="upload-file" type="file" accept="video/*"
               style="width:100%; padding:0.45rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
           </div>
+        </div>
+
+        <!-- YouTube Video URL Input Container -->
+        <div id="container-youtube-upload" style="display:none; margin-top:1rem;">
+          <label for="upload-youtube-url" style="display:block; font-weight:700; margin-bottom:0.4rem; font-size:0.9rem;">رابط فيديو يوتيوب (YouTube Video URL) *</label>
+          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+            <input id="upload-youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=XXXXXXXXXXX"
+              style="flex:1; min-width:280px; padding:0.6rem 0.75rem; border:1px solid var(--color-primary-light); border-radius:var(--radius-md); font-family:inherit;">
+            <button id="btn-validate-youtube" type="button" class="btn btn-secondary" style="min-width:150px;">التحقق من الفيديو</button>
+          </div>
+          <div id="youtube-validation-feedback" style="margin-top:0.5rem; font-size:0.85rem; font-weight:600; display:none;"></div>
         </div>
 
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1.25rem;">
