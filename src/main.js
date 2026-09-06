@@ -3080,6 +3080,10 @@ document.addEventListener("DOMContentLoaded", () => {
           if (titleInput) titleInput.value = "";
           if (ytUrlInput) ytUrlInput.value = "";
           if (ytFeedback) ytFeedback.style.display = "none";
+
+          try {
+            sessionStorage.removeItem(`lessonCache:videos:${lessonId}`);
+          } catch (_) {}
         } catch (error) {
           showToast(error.message, "danger");
           if (statusText) statusText.textContent = "فشل إضافة فيديو يوتيوب.";

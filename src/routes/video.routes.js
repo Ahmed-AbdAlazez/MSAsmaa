@@ -222,10 +222,27 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
     let lessonVideoId = await getLessonVideoId(req.params.lessonId);
 
     if (!lessonVideoId) {
-      lessonVideoId = await findVideoByLessonId(req.params.lessonId);
+      lessonVideoId = await findVideoByLessonId(req.params.lessonId).catch(() => null);
     }
 
     if (!lessonVideoId) {
+      // Check if a YouTube video exists in the database for this lesson
+      const ytRecord = await prisma.lessonVideo.findFirst({
+        where: { lessonId: req.params.lessonId, videoSource: "youtube" },
+        orderBy: { createdAt: "desc" },
+      }).catch(() => null);
+
+      if (ytRecord) {
+        return res.json({
+          lessonId: req.params.lessonId,
+          videoId: ytRecord.id,
+          videoSource: "youtube",
+          youtubeVideoId: ytRecord.youtubeVideoId,
+          expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
+          playbackUrl: `https://www.youtube.com/embed/${ytRecord.youtubeVideoId}?rel=0&controls=1`,
+        });
+      }
+
       // 404, not 403: the user IS allowed to watch, there just isn't a video
       // uploaded yet.
       return res.status(404).json({
@@ -423,7 +440,10 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
 
   try {
     // 1. Fetch Bunny videos
-    const items = await findAllVideosByLessonId(req.params.lessonId);
+    const items = await findAllVideosByLessonId(req.params.lessonId).catch((err) => {
+      console.warn(`[video.routes] Bunny fetch failed for ${req.params.lessonId}:`, err.message);
+      return [];
+    });
     const readyBunnyVideos = items.filter((video) => video.status === 4);
     const bunnyVideoIds = readyBunnyVideos.map((video) => video.guid);
 
