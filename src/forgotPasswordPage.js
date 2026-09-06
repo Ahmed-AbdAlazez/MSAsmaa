@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL;
+const rawApiUrl = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE = (typeof rawApiUrl === 'string' && rawApiUrl.includes('vercel.app')) ? '/api/v1' : rawApiUrl;
 
 function showToast(message, type = 'success') {
   if (typeof window.showToast === 'function') return window.showToast(message, type);

@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>
+    // Auto-redirect from vercel.app to custom domain
+    if (window.location.hostname.endsWith('vercel.app')) {
+      window.location.replace('https://ms-asmaa-mercal.com' + window.location.pathname + window.location.search + window.location.hash);
+    }
+  </script>
+  <script>
     // Theme bootstrap: runs before first paint so there is no flash of the
     // wrong theme. Stored choice wins; otherwise follow the OS preference.
     (function () {

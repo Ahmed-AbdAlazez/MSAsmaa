@@ -17,7 +17,9 @@
 // Quiz routes are mounted at /api, while VITE_API_URL may include /api/v1
 // for the auth API. Strip only that version suffix so requests resolve to
 // the deployed quiz endpoints without producing /api/api/v1 URLs.
-const API = String(import.meta.env.VITE_API_URL || "").replace(
+const rawApiUrl = import.meta.env.VITE_API_URL || "/api/v1";
+const cleanApiUrl = (typeof rawApiUrl === "string" && rawApiUrl.includes("vercel.app")) ? "/api/v1" : rawApiUrl;
+const API = String(cleanApiUrl || "").replace(
   /\/api\/v1\/?$/,
   "",
 );

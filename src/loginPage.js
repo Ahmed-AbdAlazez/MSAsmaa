@@ -10,7 +10,8 @@
  * sign-up tab control instead of a dialog.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL;
+const rawApiUrl = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE = (typeof rawApiUrl === 'string' && rawApiUrl.includes('vercel.app')) ? '/api/v1' : rawApiUrl;
 
 const normalizeCode = (value = '') => value.trim().toUpperCase();
 const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);

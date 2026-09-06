@@ -581,7 +581,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // AUTH API: real backend (source of truth). Set at build time via env:
   //   VITE_API_URL
   // Auth calls are therefore ${API_BASE}/auth/login and ${API_BASE}/auth/signup.
-  const API_BASE = import.meta.env.VITE_API_URL;
+  const rawApiUrl = import.meta.env.VITE_API_URL || '/api/v1';
+  const API_BASE = (typeof rawApiUrl === 'string' && rawApiUrl.includes('vercel.app')) ? '/api/v1' : rawApiUrl;
 
   /**
    * JWT helpers. The token comes from POST ${API_BASE}/auth/login and is sent
