@@ -1,0 +1,296 @@
+/* ==========================================================================
+   custom-yt-player.css — Custom Platform Video Player Theme & Controls
+   --------------------------------------------------------------------------
+   Applies exclusively to YouTube-sourced videos (videoSource === "youtube").
+   Design system matches "منصة المرسال" branding (Dark slate background,
+   brand green accents, glassmorphism control bar, custom progress bar).
+   ========================================================================== */
+
+.custom-yt-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #0b1329;
+  border-radius: var(--radius-lg, 16px);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  font-family: inherit;
+}
+
+/* Container in browser Fullscreen mode */
+.custom-yt-container:fullscreen,
+.custom-yt-container:-webkit-full-screen {
+  border-radius: 0;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Video Wrapper & Iframe Shield */
+.custom-yt-video-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  overflow: hidden;
+}
+
+/* Disable pointer events on the YouTube iframe so mouse clicks hit our shield */
+.custom-yt-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+  transform: scale(1.02); /* Slight overscale to hide video border artifacts */
+}
+
+/* Click Shield Layer: catches clicks over the video area to toggle Play/Pause */
+.custom-yt-click-shield {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* Platform Watermark Badge */
+.custom-yt-watermark {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 20;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Center Big Play/Pause/Loading Overlay Button */
+.custom-yt-center-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 25;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.2s ease;
+}
+
+.custom-yt-big-play-btn {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--color-accent, #10b981);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.custom-yt-big-play-btn:hover {
+  transform: scale(1.1);
+  background-color: #059669;
+}
+
+.custom-yt-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--color-accent, #10b981);
+  border-radius: 50%;
+  animation: customYtSpin 0.8s linear infinite;
+}
+
+@keyframes customYtSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Custom Platform Control Bar */
+.custom-yt-controls-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: linear-gradient(0deg, rgba(11, 19, 41, 0.95) 0%, rgba(11, 19, 41, 0.75) 70%, transparent 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 0.6rem 1rem 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Hide controls on inactivity when playing */
+.custom-yt-container.playing.idle .custom-yt-controls-bar {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.custom-yt-container.playing.idle .custom-yt-watermark {
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+/* Progress Bar Row */
+.custom-yt-progress-container {
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.custom-yt-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+  transition: height 0.15s ease;
+}
+
+.custom-yt-progress-container:hover .custom-yt-progress-track {
+  height: 8px;
+}
+
+.custom-yt-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-accent, #10b981) 0%, #34d399 100%);
+  border-radius: 999px;
+  transition: width 0.1s linear;
+}
+
+/* Control Buttons Row */
+.custom-yt-buttons-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #fff;
+}
+
+.custom-yt-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Generic Control Button */
+.custom-yt-btn {
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.custom-yt-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-accent, #10b981);
+}
+
+.custom-yt-btn:active {
+  transform: scale(0.92);
+}
+
+/* Time Display */
+.custom-yt-time {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.85);
+  direction: ltr;
+}
+
+/* Volume Slider */
+.custom-yt-volume-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.custom-yt-volume-slider {
+  width: 65px;
+  height: 4px;
+  accent-color: var(--color-accent, #10b981);
+  cursor: pointer;
+}
+
+/* Speed Dropdown Selector */
+.custom-yt-speed-select {
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+}
+
+.custom-yt-speed-select option {
+  background: #0f172a;
+  color: #fff;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .custom-yt-volume-slider {
+    width: 45px;
+  }
+  .custom-yt-watermark {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .custom-yt-big-play-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+  }
+  .custom-yt-controls-bar {
+    padding: 0.5rem 0.75rem 0.6rem 0.75rem;
+  }
+}

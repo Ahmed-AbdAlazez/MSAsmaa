@@ -4,6 +4,7 @@ import { initScoreboardPage } from "./scoreboardPage.js";
 import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
 import { formatDuration } from "./utils.js";
+import { renderCustomYouTubePlayer } from "./components/customYouTubePlayer.js";
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
 // 'storage' event fires only in other tabs/documents, so flipping dark
 // mode on one page instantly updates all the others without a reload.
@@ -2053,14 +2054,19 @@ document.addEventListener("DOMContentLoaded", () => {
     let lessonVideos = [];
     let currentVideoIdx = 0;
 
-    /** Swaps the mock overlay for the Bunny embed player iframe. */
+    /** Swaps the mock overlay for the player (Custom YouTube or Bunny embed). */
     const loadIframe = (videoEntry) => {
       if (!playerBox) return;
-      playerBox.innerHTML =
-        `<iframe src="${videoEntry.playbackUrl}" ` +
-        'style="width:100%; height:100%; border:0;" ' +
-        'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
-        'allowfullscreen loading="lazy"></iframe>';
+      if (videoEntry && videoEntry.videoSource === "youtube") {
+        renderCustomYouTubePlayer(playerBox, videoEntry);
+      } else {
+        // Bunny Stream player (100% UNCHANGED)
+        playerBox.innerHTML =
+          `<iframe src="${videoEntry.playbackUrl}" ` +
+          'style="width:100%; height:100%; border:0;" ' +
+          'allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" ' +
+          'allowfullscreen loading="lazy"></iframe>';
+      }
     };
 
     let targetSeekTime = null;
