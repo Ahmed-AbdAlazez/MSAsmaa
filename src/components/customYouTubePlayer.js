@@ -70,8 +70,7 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
     <div class="custom-yt-watermark">🧬 منصة المرسال</div>
 
     <div class="custom-yt-center-overlay" id="yt-center-overlay">
-      <div class="custom-yt-loading-spinner" id="yt-spinner"></div>
-      <button class="custom-yt-big-play-btn" id="yt-big-play-btn" style="display:none;" aria-label="تشغيل">▶</button>
+      <button class="custom-yt-big-play-btn" id="yt-big-play-btn" style="display:flex;" aria-label="تشغيل">▶</button>
     </div>
 
     <div class="custom-yt-controls-bar" id="yt-controls-bar">
@@ -157,7 +156,6 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
     },
     events: {
       onReady: () => {
-        if (spinner) spinner.style.display = "none";
         if (bigPlayBtn) bigPlayBtn.style.display = "flex";
 
         if (player.getDuration) {
@@ -177,8 +175,6 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
           container.classList.remove("playing", "idle");
           if (bigPlayBtn) bigPlayBtn.style.display = "flex";
           if (playPauseBtn) playPauseBtn.textContent = "▶";
-        } else if (e.data === YT.PlayerState.BUFFERING) {
-          if (spinner) spinner.style.display = "block";
         }
       },
     },

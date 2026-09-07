@@ -117,20 +117,6 @@
   background-color: #059669;
 }
 
-.custom-yt-loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid rgba(255, 255, 255, 0.2);
-  border-top-color: var(--color-accent, #10b981);
-  border-radius: 50%;
-  animation: customYtSpin 0.8s linear infinite;
-}
-
-@keyframes customYtSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 /* Custom Platform Control Bar */
 .custom-yt-controls-bar {
   position: absolute;
