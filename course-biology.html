@@ -21,9 +21,38 @@
   </script>
   <title>منهج الأحياء - الصف الثالث الثانوي | منصة المرسال</title>
   <meta name="description"
-    content="تصفح فصول ووحدات منهج الأحياء المعتمد للصف الثالث الثانوي (علمي علوم). دروس تفاعلية وشرح تفصيلي مع الأستاذة أسماء مرسال.">
+    content="تصفح فصول ووحدات منهج الأحياء المعتمد للصف الثالث الثانوي (علمي علوم). دروس تفاعلية وشرح تفصيلي بالفيديو مع الأستاذة أسماء مرسال في دمياط ومصر.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://ms-asmaa-mercal.com/course-biology">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
   <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="منصة المرسال">
+  <meta property="og:title" content="منهج الأحياء - الصف الثالث الثانوي | منصة المرسال">
+  <meta property="og:description"
+    content="منهج الأحياء المعتمد للصف الثالث الثانوي (علمي علوم): شرح فيديو لكل درس، ملخصات وامتحانات أونلاين مع الأستاذة أسماء مرسال.">
+  <meta property="og:url" content="https://ms-asmaa-mercal.com/course-biology">
+  <meta property="og:image" content="https://ms-asmaa-mercal.com/ms.main.png">
+  <meta property="og:image:alt" content="منهج الأحياء للصف الثالث الثانوي - منصة المرسال">
+  <meta property="og:locale" content="ar_EG">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="منهج الأحياء - الصف الثالث الثانوي | منصة المرسال">
+  <meta name="twitter:description"
+    content="منهج الأحياء المعتمد للصف الثالث الثانوي (علمي علوم): شرح فيديو لكل درس مع الأستاذة أسماء مرسال.">
+  <meta name="twitter:image" content="https://ms-asmaa-mercal.com/ms.main.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://ms-asmaa-mercal.com/" },
+      { "@type": "ListItem", "position": 2, "name": "الكورسات", "item": "https://ms-asmaa-mercal.com/courses" },
+      { "@type": "ListItem", "position": 3, "name": "منهج الأحياء - الصف الثالث الثانوي" }
+    ]
+  }
+  </script>
   <link rel="stylesheet" href="css/style.css">
   <script>
     // Auth bootstrap: runs before first paint so logged-in users never catch
@@ -35,19 +64,6 @@
         document.documentElement.setAttribute("data-auth", a ? "in" : "out");
       } catch (e) {
         document.documentElement.setAttribute("data-auth", "out");
-      }
-    })();
-  </script>
-  <script>
-    // Block direct visits before the protected page body can render.
-    (function () {
-      try {
-        if (!localStorage.getItem("token")) {
-          sessionStorage.setItem("course-login-required", "1");
-          window.location.replace("/login");
-        }
-      } catch (e) {
-        window.location.replace("/login");
       }
     })();
   </script>
@@ -64,11 +80,43 @@
       <div class="section-header" style="text-align: right; margin-bottom: 3rem;">
         <span class="section-tag">الصف الثالث الثانوي - علمي علوم</span>
         <h1 class="section-title">منهج علم الأحياء المعتمد</h1>
-        <p class="section-subtitle" style="margin-right: 0; margin-left: auto;">المنهج مقسم لسبع وحدات — افتح أي وحدة واضغط "تصفح الدروس" تبدأ من أول درس على طول.</p>
+        <p class="section-subtitle" style="margin-right: 0; margin-left: auto;">المنهج مقسم لسبع وحدات — افتح أي وحدة واضغط "تصفح الدروس" تبدأ من أول درس على طول. فيديوهات الشرح والامتحانات متاحة للطالبات المسجلات.</p>
+      </div>
+
+      <!-- Public sign-in hint (auto-hidden for logged-in users) -->
+      <div class="card course-login-hint js-login-trigger" style="margin-bottom: 2.5rem;">
+        <p><strong>تذكّر:</strong> فيديوهات شرح الدروس وملخصات PDF والامتحانات متاحة للطالبات المسجلات فقط — المنهج كامل معروض أمامك، وسجّلنا شغّال على طول.</p>
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+          <a href="/login?mode=signup" class="btn btn-primary btn-sm">إنشاء حساب جديد</a>
+          <a href="/login" class="btn btn-secondary btn-sm">تسجيل الدخول</a>
+        </div>
       </div>
 
       <!-- Unit card grid (rendered from window.CURRICULUM.biology) -->
       <div id="curriculum-grid" class="unit-grid"></div>
+
+      <!-- Public course overview + internal links -->
+      <section class="seo-local-section" style="padding-top: 3rem;">
+        <div class="section-header" style="text-align: right; margin-bottom: 2rem;">
+          <span class="section-tag">عن منهج الأحياء</span>
+          <h2 class="section-title">سبع وحدات تغطي منهج الأحياء بالكامل</h2>
+        </div>
+        <p style="line-height: 1.9; color: var(--color-text-main);">منهج الأحياء للصف الثالث الثانوي (علمي علوم) يبدأ بالتركيب والوظيفة في الكائنات الحية والدعامة والحركة، مرورًا بالتنسيق الهرموني، التكاثر، المناعة، ثم الحمض النووي DNA وتخليق البروتين، وينتهي بوحدات الجيولوجيا وعلوم الأرض. على منصة المرسال نقدم شرحًا بالفيديو لكل درس، مع ملاحظات المعلمة، بنك أسئلة، وامتحانات شاملة تحاكي امتحان الثانوية العامة.</p>
+        <div class="seo-local-grid">
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">🧬</span>
+            <h3>كورس الأحياء الكامل بالتفصيل</h3>
+            <p>لتفاصيل الكورس وطريقة الدراسة وأسلوب الشرح، تابعي صفحة كورس الأحياء للثانوية العامة.</p>
+            <a class="btn btn-secondary btn-sm" href="/courses/thanaweya-amma-biology">تفاصيل كورس الأحياء</a>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">📝</span>
+            <h3>مراجعة وليلة الامتحان</h3>
+            <p>لا تتركي المراجعة لآخر لحظة — ابدئي بخطة مراجعة مرتبة لكل فصل من منهج الأحياء.</p>
+            <a class="btn btn-secondary btn-sm" href="/biology-revision">خطة المراجعة النهائية</a>
+          </article>
+        </div>
+      </section>
 
       <div style="display: none;">
       <!-- Term 1 Section -->
@@ -277,6 +325,15 @@
           <h4 class="footer-links-title">أقسام المنهج</h4>
           <ul class="footer-links">
             <li><a href="/course-biology" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="/courses/thanaweya-amma-biology" class="footer-link">كورس الأحياء للثانوية العامة</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">تعلمي معنا</h4>
+          <ul class="footer-links">
+            <li><a href="/biology-teacher-damietta" class="footer-link">مدرّسة الأحياء في دمياط</a></li>
+            <li><a href="/biology-revision" class="footer-link">مراجعة الأحياء للثانوية العامة</a></li>
+            <li><a href="/biology-faq" class="footer-link">أسئلة شائعة عن الكورس</a></li>
           </ul>
         </div>
       </div>

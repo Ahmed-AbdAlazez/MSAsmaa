@@ -359,7 +359,7 @@ router.post("/:lessonId/youtube-video", requireAuth, async (req, res) => {
 
   const { lessonId } = req.params;
   const rawUrl = (req.body && (req.body.youtubeUrl || req.body.url)) || "";
-  const rawTitle = ((req.body && req.body.title) || "فيديو يوتيوب").trim();
+  const rawTitle = ((req.body && req.body.title) || "فيديو جديد").trim();
   const attachmentUrl = ((req.body && req.body.attachmentUrl) || "").trim();
   const description = ((req.body && req.body.description) || "").trim();
 
@@ -385,7 +385,7 @@ router.post("/:lessonId/youtube-video", requireAuth, async (req, res) => {
     // 📢 NOTIFY ALL PARTIES
     await createNotificationForApprovedStudents({
       type: "video",
-      title: "فيديو جديد (يوتيوب)",
+      title: "فيديو جديد",
       message: `تم إضافة فيديو جديد: ${rawTitle}`,
       relatedId: lessonId,
       relatedType: "lesson",
@@ -394,7 +394,7 @@ router.post("/:lessonId/youtube-video", requireAuth, async (req, res) => {
 
     await createNotificationForTeacher(req.user.id, {
       type: "video_upload",
-      title: "📹 تم إضافة فيديو يوتيوب",
+      title: "📹 تم إضافة فيديو جديد",
       message: `تم إضافة الفيديو "${rawTitle}" بنجاح.`,
       relatedId: lessonId,
       relatedType: "lesson",

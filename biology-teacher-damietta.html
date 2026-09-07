@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Theme bootstrap: runs before first paint so there is no flash of the
+    // wrong theme. Stored choice wins; otherwise follow the OS preference.
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <title>مدرّسة أحياء للثانوية العامة في دمياط | الأستاذة أسماء مرسال</title>
+  <meta name="description" content="دروس أحياء أونلاين للثانوية العامة في دمياط مع الأستاذة أسماء مرسال: شرح كامل لمنهج الصف الثالث الثانوي بالفيديو، ملخصات، امتحانات ومراجعات نهائية عبر منصة المرسال.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://ms-asmaa-mercal.com/biology-teacher-damietta">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="منصة المرسال">
+  <meta property="og:title" content="مدرّسة أحياء للثانوية العامة في دمياط | الأستاذة أسماء مرسال">
+  <meta property="og:description" content="دروس أحياء أونلاين للثانوية العامة في دمياط: شرح كامل لمنهج الصف الثالث الثانوي بالفيديو، ملخصات، امتحانات ومراجعات نهائية مع الأستاذة أسماء مرسال.">
+  <meta property="og:url" content="https://ms-asmaa-mercal.com/biology-teacher-damietta">
+  <meta property="og:image" content="https://ms-asmaa-mercal.com/ms.main.png">
+  <meta property="og:image:alt" content="الأستاذة أسماء مرسال - مدرّسة الأحياء للثانوية العامة في دمياط">
+  <meta property="og:locale" content="ar_EG">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="مدرّسة أحياء للثانوية العامة في دمياط | الأستاذة أسماء مرسال">
+  <meta name="twitter:description" content="دروس أحياء أونلاين للثانوية العامة في دمياط ومصر مع الأستاذة أسماء مرسال عبر منصة المرسال.">
+  <meta name="twitter:image" content="https://ms-asmaa-mercal.com/ms.main.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    "@id": "https://ms-asmaa-mercal.com/#organization",
+    "name": "منصة المرسال",
+    "alternateName": ["منصة الأستاذة أسماء مرسال", "MS Asmaa"],
+    "url": "https://ms-asmaa-mercal.com/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://ms-asmaa-mercal.com/assets/favicon.png",
+      "width": 256,
+      "height": 256
+    },
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "دمياط",
+      "addressRegion": "دمياط",
+      "addressCountry": "EG"
+    },
+    "areaServed": [
+      { "@type": "City", "name": "دمياط" },
+      { "@type": "Country", "name": "مصر" }
+    ],
+    "founder": {
+      "@type": "Person",
+      "@id": "#teacher",
+      "name": "الأستاذة أسماء مرسال",
+      "jobTitle": "مدرّسة أحياء للثانوية العامة"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "customer support",
+      "telephone": "+201009537600",
+      "areaServed": "EG",
+      "availableLanguage": ["Arabic", "English"]
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": "https://ms-asmaa-mercal.com/biology-teacher-damietta#teacher",
+    "name": "أسماء مرسال",
+    "alternateName": "الأستاذة أسماء مرسال",
+    "jobTitle": "مدرّسة أحياء للثانوية العامة",
+    "worksFor": { "@id": "https://ms-asmaa-mercal.com/#organization" },
+    "knowsLanguage": ["Arabic", "English"],
+    "areaServed": [
+      { "@type": "City", "name": "دمياط" },
+      { "@type": "Country", "name": "مصر" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://ms-asmaa-mercal.com/" },
+      { "@type": "ListItem", "position": 2, "name": "مدرّسة الأحياء في دمياط" }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Auth bootstrap: runs before first paint so logged-in users never catch
+    // even one frame of the logged-out CTA buttons.
+    (function () {
+      try {
+        var a = !!localStorage.getItem("token");
+        document.documentElement.setAttribute("data-auth", a ? "in" : "out");
+      } catch (e) {
+        document.documentElement.setAttribute("data-auth", "out");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Navigation Bar (static, logged-out friendly) -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </a>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+          <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+        </button>
+        <span id="auth-cta">
+          <a href="/login" class="btn-login-minimal">تسجيل الدخول</a>
+          <a href="/login?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+        </span>
+        <button class="nav-toggle" id="nav-toggle" aria-label="فتح القائمة">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <div class="mobile-drawer" id="mobile-drawer">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </div>
+      <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+        <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+      </button>
+      <button class="mobile-drawer-close" id="drawer-close" aria-label="إغلاق القائمة">✕</button>
+    </div>
+    <ul class="mobile-links">
+      <li><a href="/" class="mobile-link">الرئيسية</a></li>
+      <li><a href="/courses" class="mobile-link">الكورسات</a></li>
+      <li><a href="/course-biology" class="mobile-link">منهج الأحياء - 3 ثانوي</a></li>
+      <li><a href="/biology-revision" class="mobile-link">مراجعة الأحياء</a></li>
+      <li><a href="/biology-faq" class="mobile-link">أسئلة شائعة</a></li>
+    </ul>
+    <div class="mobile-auth-minimal">
+      <a href="/login" class="btn btn-primary btn-full">تسجيل الدخول</a>
+      <a href="/login?mode=signup" class="btn btn-light btn-full">حساب جديد</a>
+    </div>
+  </div>
+
+  <main style="padding: 3rem 0; flex: 1;">
+    <div class="container" style="max-width: 960px;">
+
+      <!-- Page Header -->
+      <header class="section-header" style="text-align: right; margin-bottom: 2.5rem;">
+        <span class="section-tag">دمياط · الثانوية العامة · أونلاين</span>
+        <h1 class="section-title">مدرّسة أحياء للثانوية العامة في دمياط</h1>
+        <p class="section-subtitle" style="margin-right: 0; margin-left: auto;">الأستاذة أسماء مرسال تقدّم شرحًا متكاملًا لمنهج الأحياء للصف الثالث الثانوي (علمي علوم) عبر منصة المرسال — فيديوهات شرح لكل درس، ملخصات، بنك أسئلة، امتحانات شاملة، ومراجعات نهائية، وكل ذلك أونلاين من أي مكان في دمياط أو عموم محافظات مصر.</p>
+      </header>
+
+      <section class="seo-local-section" style="padding-top: 0.5rem;">
+        <div class="seo-local-grid">
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">🧑‍🏫</span>
+            <h2 style="font-size: 1.05rem;">من هي الأستاذة أسماء مرسال؟</h2>
+            <p>الأستاذة أسماء مرسال مدرّسة مادة الأحياء للصف الثالث الثانوي، وتشرف على منصة المرسال التعليمية التي تغطي منهج الأحياء كاملًا للشعبة العلمية (علمي علوم): شرح بالفيديو لكل درس، مع ملاحظات، تطبيقات، وامتحانات، وطريقة متابعة أخطاء الطلاب واحدًا واحدًا حتى الوصول لأعلى درجة في الامتحان.</p>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">📍</span>
+            <h2 style="font-size: 1.05rem;">مدرّسة الأحياء في مدينة دمياط</h2>
+            <p>تستهدف المنصة طلاب الثانوية العامة في محافظة دمياط ومدينة دمياط وفروعها، وكذلك الطلاب خارج المحافظة. أسلوب التعليم أونلاين يريح الطلاب في دمياط من عناء التنقل ويوفر لهم متابعة يومية من البيت: شاهدِ الشرح، حمّلي الملخص، وحلّي الامتحان في نفس الوقت.</p>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">🧬</span>
+            <h2 style="font-size: 1.05rem;">كورس الأحياء للثانوية العامة</h2>
+            <p>كورس واحد متكامل يغطي وحدات المنهج السبع: الدعامة والحركة، التنسيق الهرموني، التكاثر، المناعة، الحمض النووي DNA، الأحماض النووية وتخليق البروتين، والجيولوجيا وعلوم الأرض. اطلعي على <a href="/courses/thanaweya-amma-biology">تفاصيل كورس الأحياء الكامل</a>.</p>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">🎓</span>
+            <h2 style="font-size: 1.05rem;">لمن هذا الكورس؟</h2>
+            <p>لكل طالبة وطالب في الصف الثالث الثانوي — شعبة علمي علوم — يرغب في فهم الأحياء من جذوره والتفوق في امتحان الثانوية العامة. منهجنا مبني على المنهج المصري المعتمد ويناسب جميع مستويات الطلاب.</p>
+          </article>
+        </div>
+      </section>
+
+      <section style="margin-top: 2.5rem;">
+        <h2>كيف تدرسين الأحياء أونلاين من دمياط؟</h2>
+        <p style="line-height: 1.9; color: var(--color-text-main);">الدراسة على منصة المرسال بسيطة وخطواتها واضحة:</p>
+        <ol class="seo-steps">
+          <li><strong>إنشاء حساب:</strong> سجّلي دخولك أو أنشئي حسابًا جديدًا من <a href="/login?mode=signup">صفحة التسجيل</a>.</li>
+          <li><strong>تصفّح المنهج:</strong> اختاري الوحدة والدرس الذي تريدينه من <a href="/course-biology">صفحة منهج الأحياء للصف الثالث الثانوي</a>.</li>
+          <li><strong>ادرسي بالترتيب:</strong> شاهد فيديو الشرح، اقرأ ملخص الدرس، ثم اختبري نفسك بامتحان قصير في نهاية كل درس.</li>
+          <li><strong>راجعي أخطاءك:</strong> كل خطأ في الإجابات يظهر لك مع إجابته الصحيحة حتى لا يتكرر.</li>
+          <li><strong>احضري الحصص المباشرة:</strong> للمراجعة والشرح التفاعلي مع الأستاذة أسماء مرسال.</li>
+        </ol>
+      </section>
+
+      <section style="margin-top: 2.5rem;">
+        <h2>لماذا يختار طلاب دمياط منصة المرسال؟</h2>
+        <div class="seo-local-grid">
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">📚</span>
+            <h3 style="font-size: 1rem;">شرح كامل للمنهج</h3>
+            <p>كل دروس المنهج السبع وحدات مشروحة بالفيديو مع ملخص PDF لكل درس.</p>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">📝</span>
+            <h3 style="font-size: 1rem;">امتحانات وبنك أسئلة</h3>
+            <p>اختبارات قصيرة بعد كل درس وامتحانات شاملة تشبه امتحان الثانوية العامة.</p>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">✅</span>
+            <h3 style="font-size: 1rem;">تصحيح الأخطاء</h3>
+            <p>متابعة فورية لكل غلطة ومعرفة الإجابة الصحيحة في وقتها.</p>
+          </article>
+          <article class="seo-local-card">
+            <span class="seo-local-ico" aria-hidden="true">🔴</span>
+            <h3 style="font-size: 1rem;">متابعة مباشرة</h3>
+            <p>بث مباشر للمراجعات والشرح الإضافي والرد على أسئلة الطلاب.</p>
+          </article>
+        </div>
+      </section>
+
+      <section style="margin-top: 2.5rem; display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start;">
+        <h2>ابدئي الآن من دمياط أو أي مدينة في مصر</h2>
+        <p style="line-height: 1.9; color: var(--color-text-main); margin: 0;">لا تحتاجين إلى حضور مكاني أو التنقل — المنصة أونلاين بالكامل. أنشئي حسابك وابدئي من أول وحدة في المنهج، أو اقرئي <a href="/biology-revision">خطة المراجعة النهائية للأحياء</a> و<a href="/biology-faq">الأسئلة الشائعة عن الكورس</a> أولًا.</p>
+        <a href="/login?mode=signup" class="btn btn-primary">إنشاء حساب والبدء في الكورس</a>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>🧬 منصة المرسال</h3>
+          <p>منصة الأستاذة أسماء مرسال لتدريس مادة الأحياء للصف الثالث الثانوي في دمياط ومصر. شرح لكل درس، ملخصات، وبنك أسئلة، ومتابعة أخطائك توصلك للدرجة الكاملة في الامتحان.</p>
+        </div>
+        <div>
+          <h4 class="footer-links-title">أقسام المنهج</h4>
+          <ul class="footer-links">
+            <li><a href="/course-biology" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="/courses/thanaweya-amma-biology" class="footer-link">كورس الأحياء للثانوية العامة</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">تعلمي معنا</h4>
+          <ul class="footer-links">
+            <li><a href="/biology-teacher-damietta" class="footer-link">مدرّسة الأحياء في دمياط</a></li>
+            <li><a href="/biology-revision" class="footer-link">مراجعة الأحياء للثانوية العامة</a></li>
+            <li><a href="/biology-faq" class="footer-link">أسئلة شائعة عن الكورس</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var drawer = document.getElementById("mobile-drawer");
+      var overlay = document.getElementById("drawer-overlay");
+      function close() {
+        if (drawer) drawer.classList.remove("open");
+        if (overlay) overlay.classList.remove("show");
+      }
+      document.getElementById("nav-toggle").addEventListener("click", function () {
+        if (drawer) drawer.classList.add("open");
+        if (overlay) overlay.classList.add("show");
+      });
+      if (overlay) overlay.addEventListener("click", close);
+      document.getElementById("drawer-close").addEventListener("click", close);
+      var themeBtn = document.getElementById("theme-toggle");
+      if (themeBtn) themeBtn.addEventListener("click", function () {
+        var cur = document.documentElement.getAttribute("data-theme");
+        var next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        try { localStorage.setItem("theme", next); } catch (e) {}
+      });
+      try {
+        if (localStorage.getItem("token")) {
+          var role = localStorage.getItem("userRole") || "";
+          var cta = document.getElementById("auth-cta");
+          if (cta) cta.innerHTML = '<a href="' + (role === "teacher" ? "/dashboard-teacher" : "/courses") + '" class="btn-login-minimal">ادخلي للكورس</a>';
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

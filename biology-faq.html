@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Theme bootstrap: runs before first paint so there is no flash of the
+    // wrong theme. Stored choice wins; otherwise follow the OS preference.
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <title>أسئلة شائعة عن كورس الأحياء | منصة المرسال</title>
+  <meta name="description" content="إجابات على الأسئلة الشائعة حول كورس الأحياء للثانوية العامة (علمي علوم) على منصة المرسال: ماذا يقدم الكورس، كيف أدرس أونلاين، هل توجد امتحانات ومراجعات، وكيف تتابع المعلمة أخطائي؟">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://ms-asmaa-mercal.com/biology-faq">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=2">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="منصة المرسال">
+  <meta property="og:title" content="أسئلة شائعة عن كورس الأحياء | منصة المرسال">
+  <meta property="og:description" content="إجابات على الأسئلة الشائعة حول كورس الأحياء للثانوية العامة: ماذا يقدم الكورس، كيف أدرس أونلاين، وهل توجد امتحانات ومراجعات؟">
+  <meta property="og:url" content="https://ms-asmaa-mercal.com/biology-faq">
+  <meta property="og:image" content="https://ms-asmaa-mercal.com/ms.main.png">
+  <meta property="og:image:alt" content="أسئلة شائعة عن كورس الأحياء - منصة المرسال">
+  <meta property="og:locale" content="ar_EG">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="أسئلة شائعة عن كورس الأحياء | منصة المرسال">
+  <meta name="twitter:description" content="إجابات على الأسئلة الشائعة حول كورس الأحياء للثانوية العامة على منصة المرسال.">
+  <meta name="twitter:image" content="https://ms-asmaa-mercal.com/ms.main.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "ماذا يقدم كورس الأحياء على منصة المرسال؟",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "يقدم الكورس شرحًا بالفيديو لكل درس من منهج الأحياء للصف الثالث الثانوي (علمي علوم)، مع ملخصات PDF، بنك أسئلة وامتحانات قصيرة وشاملة، ومراجعة نهائية، وحصص مباشرة. تغطية كاملة لوحدات المنهج السبع من الدعامة والحركة حتى الجيولوجيا."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "هل أستطيع دراسة الأحياء أونلاين من دمياط دون حضور مكاني؟",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "نعم، المنصة تعمل أونلاين بالكامل وتستهدف طلاب الثانوية العامة في محافظة دمياط وجميع محافظات مصر، فتشاهد الشرح وتحمّل الملخصات وتحل الامتحانات من البيت دون أي تنقل."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "لمن هذا الكورس؟",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "لطلاب الصف الثالث الثانوي بشعبة علمي علوم الذين يرغبون في فهم مادة الأحياء والتفوق في امتحان الثانوية العامة، بمنهج مبني على المناهج الرسمية المصرية."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "هل تتوفر امتحانات وبنك أسئلة في الكورس؟",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "نعم، يوجد اختبار قصير بعد كل درس وامتحانات شاملة بنهاية فترات الدراسة، بأسلوب أسئلة امتحان الثانوية العامة في مصر، مع تصحيح فوري وإظهار الإجابة الصحيحة."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "كيف أتعامل مع أخطائي أثناء المذاكرة؟",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "المنصة تسجل أخطاءك في الاختبارات وتريك إجابتك والإجابة الصحيحة في نفس مكان السؤال، فتعرف سبب الغلطة وتصححها فورًا وتتجنبها في الامتحان."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "كيف أبدأ الدراسة على منصة المرسال؟",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "أنشئ حسابًا جديدًا أو سجّل دخولك، ثم تصفح منهج الأحياء من صفحة الكورس وابدأ من الوحدة الأولى، أو اتبع خطة المراجعة النهائية إذا كنت في فترة ما قبل الامتحان."
+        }
+      }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://ms-asmaa-mercal.com/" },
+      { "@type": "ListItem", "position": 2, "name": "أسئلة شائعة عن الكورس" }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Auth bootstrap
+    (function () {
+      try {
+        var a = !!localStorage.getItem("token");
+        document.documentElement.setAttribute("data-auth", a ? "in" : "out");
+      } catch (e) {
+        document.documentElement.setAttribute("data-auth", "out");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Navigation Bar (static, logged-out friendly) -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </a>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+          <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+        </button>
+        <span id="auth-cta">
+          <a href="/login" class="btn-login-minimal">تسجيل الدخول</a>
+          <a href="/login?mode=signup" class="btn-signup-minimal">حساب جديد</a>
+        </span>
+        <button class="nav-toggle" id="nav-toggle" aria-label="فتح القائمة">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <div class="mobile-drawer" id="mobile-drawer">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <span class="brand-icon">🧬</span>
+        <span>المرسال</span>
+      </div>
+      <button class="theme-toggle" type="button" aria-label="تبديل الوضع الليلي" title="تبديل الوضع الليلي/النهاري">
+        <span class="ti-sun">☀️</span><span class="ti-moon">🌙</span>
+      </button>
+      <button class="mobile-drawer-close" id="drawer-close" aria-label="إغلاق القائمة">✕</button>
+    </div>
+    <ul class="mobile-links">
+      <li><a href="/" class="mobile-link">الرئيسية</a></li>
+      <li><a href="/courses" class="mobile-link">الكورسات</a></li>
+      <li><a href="/course-biology" class="mobile-link">منهج الأحياء - 3 ثانوي</a></li>
+      <li><a href="/biology-revision" class="mobile-link">مراجعة الأحياء</a></li>
+      <li><a href="/biology-faq" class="mobile-link">أسئلة شائعة</a></li>
+    </ul>
+    <div class="mobile-auth-minimal">
+      <a href="/login" class="btn btn-primary btn-full">تسجيل الدخول</a>
+      <a href="/login?mode=signup" class="btn btn-light btn-full">حساب جديد</a>
+    </div>
+  </div>
+
+  <main style="padding: 3rem 0; flex: 1;">
+    <div class="container" style="max-width: 860px;">
+
+      <!-- Page Header -->
+      <header class="section-header" style="text-align: right; margin-bottom: 2.5rem;">
+        <span class="section-tag">الأسئلة الشائعة</span>
+        <h1 class="section-title">أسئلة شائعة عن كورس الأحياء</h1>
+        <p class="section-subtitle" style="margin-right: 0; margin-left: auto;">إجابات مباشرة على أكثر الأسئلة تكرارًا حول كورس الأحياء للثانوية العامة على منصة المرسال. لم تجدي سؤالك؟ تواصلي معنا من داخل المنصة.</p>
+      </header>
+
+      <section class="seo-faq">
+        <article class="seo-local-card">
+          <h2>ماذا يقدم كورس الأحياء على منصة المرسال؟</h2>
+          <p>كورس متكامل لطلاب الصف الثالث الثانوي (علمي علوم): فيديوهات شرح لكل درس، ملخصات PDF، بنك أسئلة وامتحانات قصيرة وشاملة، مراجعة نهائية، وحصص مباشرة، بتغطية كاملة لوحدات المنهج السبع.</p>
+        </article>
+        <article class="seo-local-card">
+          <h2>هل أستطيع دراسة الأحياء أونلاين من دمياط دون حضور مكاني؟</h2>
+          <p>نعم، المنصة أونلاين بالكامل وتستهدف طلاب الثانوية العامة في محافظة دمياط وجميع محافظات مصر، فتشاهد الشرح وتحمّل الملخصات وتحل الامتحانات من البيت دون أي تنقل.</p>
+        </article>
+        <article class="seo-local-card">
+          <h2>لمن هذا الكورس؟</h2>
+          <p>لطلاب الصف الثالث الثانوي بشعبة علمي علوم الراغبين في فهم مادة الأحياء والتفوق في امتحان الثانوية العامة، بمنهج مبني على المناهج الرسمية المصرية.</p>
+        </article>
+        <article class="seo-local-card">
+          <h2>هل تتوفر امتحانات وبنك أسئلة في الكورس؟</h2>
+          <p>نعم، يوجد اختبار قصير بعد كل درس وامتحانات شاملة بنهاية فترات الدراسة، بأسلوب أسئلة امتحان الثانوية العامة في مصر، مع تصحيح فوري وإظهار الإجابة الصحيحة.</p>
+        </article>
+        <article class="seo-local-card">
+          <h2>كيف أتعامل مع أخطائي أثناء المذاكرة؟</h2>
+          <p>المنصة تسجل أخطاءك في الاختبارات وتريك إجابتك والإجابة الصحيحة في نفس مكان السؤال، فتصحح الغلطة فورًا وتتجنب تكرارها في الامتحان.</p>
+        </article>
+        <article class="seo-local-card">
+          <h2>كيف أبدأ الدراسة على منصة المرسال؟</h2>
+          <p>أنشئ حسابًا جديدًا أو سجّل دخولك، ثم تصفح <a href="/course-biology">منهج الأحياء للصف الثالث الثانوي</a> وابدأ من الوحدة الأولى، أو اتبع <a href="/biology-revision">خطة المراجعة النهائية</a> إن كنت في فترة ما قبل الامتحان.</p>
+        </article>
+      </section>
+
+      <section style="margin-top: 2.5rem; display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start;">
+        <h2>خطوتك التالية</h2>
+        <p style="line-height: 1.9; color: var(--color-text-main); margin: 0;">تعرفي على <a href="/courses/thanaweya-amma-biology">تفاصيل كورس الأحياء</a>، وعلى <a href="/biology-teacher-damietta">مدرّسة الأحياء في دمياط</a>، ثم <a href="/login?mode=signup">أنشئي حسابك</a> وابدئي رحلتك نحو الدرجة النهائية.</p>
+        <a href="/login?mode=signup" class="btn btn-primary">ابدئي التعلم الآن</a>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>🧬 منصة المرسال</h3>
+          <p>منصة الأستاذة أسماء مرسال لتدريس مادة الأحياء للصف الثالث الثانوي في دمياط ومصر. شرح لكل درس، ملخصات، وبنك أسئلة، ومتابعة أخطائك توصلك للدرجة الكاملة في الامتحان.</p>
+        </div>
+        <div>
+          <h4 class="footer-links-title">أقسام المنهج</h4>
+          <ul class="footer-links">
+            <li><a href="/course-biology" class="footer-link">الأحياء - الصف الثالث الثانوي</a></li>
+            <li><a href="/courses/thanaweya-amma-biology" class="footer-link">كورس الأحياء للثانوية العامة</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-links-title">تعلمي معنا</h4>
+          <ul class="footer-links">
+            <li><a href="/biology-teacher-damietta" class="footer-link">مدرّسة الأحياء في دمياط</a></li>
+            <li><a href="/biology-revision" class="footer-link">مراجعة الأحياء للثانوية العامة</a></li>
+            <li><a href="/biology-faq" class="footer-link">أسئلة شائعة عن الكورس</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>جميع الحقوق محفوظة © 2026 منصة المرسال.</p>
+        <p>تحت إشراف الأستاذة أسماء مرسال.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var drawer = document.getElementById("mobile-drawer");
+      var overlay = document.getElementById("drawer-overlay");
+      function close() {
+        if (drawer) drawer.classList.remove("open");
+        if (overlay) overlay.classList.remove("show");
+      }
+      document.getElementById("nav-toggle").addEventListener("click", function () {
+        if (drawer) drawer.classList.add("open");
+        if (overlay) overlay.classList.add("show");
+      });
+      if (overlay) overlay.addEventListener("click", close);
+      document.getElementById("drawer-close").addEventListener("click", close);
+      var themeBtn = document.getElementById("theme-toggle");
+      if (themeBtn) themeBtn.addEventListener("click", function () {
+        var cur = document.documentElement.getAttribute("data-theme");
+        var next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        try { localStorage.setItem("theme", next); } catch (e) {}
+      });
+      try {
+        if (localStorage.getItem("token")) {
+          var role = localStorage.getItem("userRole") || "";
+          var cta = document.getElementById("auth-cta");
+          if (cta) cta.innerHTML = '<a href="' + (role === "teacher" ? "/dashboard-teacher" : "/courses") + '" class="btn-login-minimal">ادخلي للكورس</a>';
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

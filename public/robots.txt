@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Private / authenticated areas — never crawl or index
+Disallow: /api
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /dashboard-teacher
+Disallow: /registration-requests
+Disallow: /students
+Disallow: /student-mistakes
+Disallow: /scoreboard
+Disallow: /live-session
+Disallow: /whiteboard
+Disallow: /lesson-view
+Disallow: /lessons
+Disallow: /exams
+
+Sitemap: https://ms-asmaa-mercal.com/sitemap.xml
