@@ -124,6 +124,7 @@
   left: 0;
   right: 0;
   z-index: 30;
+  direction: ltr;
   background: linear-gradient(0deg, rgba(11, 19, 41, 0.95) 0%, rgba(11, 19, 41, 0.75) 70%, transparent 100%);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
