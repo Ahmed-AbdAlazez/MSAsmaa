@@ -5,7 +5,7 @@ const { hashPassword, comparePassword } = require('../utils/password');
 const { signToken } = require('../utils/jwt');
 const crypto = require('crypto');
 
-const STUDENT_CODE_PATTERN = /^[BS][0-9]+$/;
+const STUDENT_CODE_PATTERN = /^[0-9]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 const isStrongPassword = (value) =>

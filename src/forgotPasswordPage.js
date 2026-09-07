@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return showToast('يرجى إدخال Gmail صحيح.', 'warning');
     }
-    if (!/^[BS][0-9]+$/.test(studentCode)) {
-      return showToast('كود الطالب غير صحيح. يجب أن يبدأ بـ B أو S متبوعًا بأرقام.', 'warning');
+    if (!/^[0-9]+$/.test(studentCode)) {
+      return showToast('كود الطالب غير صحيح. يجب أن يتكون من أرقام فقط.', 'warning');
     }
     try {
       const response = await fetch(`${API_BASE}/auth/forgot-password`, {
