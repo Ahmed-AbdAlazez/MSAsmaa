@@ -29,7 +29,7 @@ router.get("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
     );
     if (!studentIsEnrolled) {
       return res.status(403).json({
-        error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
+        error: "أنت غير مسجل في الكورس الذي يتبع له هذا الدرس.",
       });
     }
 
@@ -49,7 +49,7 @@ router.get("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
 router.post("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
-      return res.status(403).json({ error: "المعلمة فقط يمكنها إضافة ملاحظات." });
+      return res.status(403).json({ error: "المعلم فقط يمكنه إضافة ملاحظات." });
     }
 
     const { lessonId } = req.params;
@@ -77,7 +77,7 @@ router.post("/lessons/:lessonId/notes", requireAuth, async (req, res) => {
 router.patch("/notes/:noteId", requireAuth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
-      return res.status(403).json({ error: "المعلمة فقط يمكنها تعديل الملاحظات." });
+      return res.status(403).json({ error: "المعلم فقط يمكنه تعديل الملاحظات." });
     }
 
     const { noteId } = req.params;
@@ -103,7 +103,7 @@ router.patch("/notes/:noteId", requireAuth, async (req, res) => {
 router.delete("/notes/:noteId", requireAuth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
-      return res.status(403).json({ error: "المعلمة فقط يمكنها حذف الملاحظات." });
+      return res.status(403).json({ error: "المعلم فقط يمكنه حذف الملاحظات." });
     }
 
     const { noteId } = req.params;

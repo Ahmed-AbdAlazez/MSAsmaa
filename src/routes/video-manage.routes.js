@@ -94,7 +94,7 @@ async function reorderChapters(videoId) {
 function requireTeacher(req, res, next) {
   if (req.user.role !== "teacher") {
     return res.status(403).json({
-      error: "المعلمات فقط يمكنهن إدارة فيديوهات الدروس.",
+      error: "المعلم فقط يمكنه إدارة فيديوهات الدروس.",
     });
   }
   next();

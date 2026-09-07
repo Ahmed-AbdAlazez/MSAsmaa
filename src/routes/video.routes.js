@@ -88,7 +88,7 @@ router.post("/:lessonId/video", requireAuth, async (req, res) => {
   // are ALLOWED to upload. Students must never reach the code below.
   if (req.user.role !== "teacher") {
     return res.status(403).json({
-      error: "المعلمات فقط يمكنهن رفع فيديوهات الدروس.",
+      error: "المعلم فقط يمكنه رفع فيديوهات الدروس.",
     });
   }
 
@@ -210,7 +210,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
 
   if (!studentIsEnrolled) {
     return res.status(403).json({
-      error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
+      error: "أنت غير مسجل في الكورس الذي يتبع له هذا الدرس.",
     });
   }
 
@@ -353,7 +353,7 @@ const {
 router.post("/:lessonId/youtube-video", requireAuth, async (req, res) => {
   if (req.user.role !== "teacher") {
     return res.status(403).json({
-      error: "المعلمات فقط يمكنهن إضافة فيديوهات الدروس.",
+      error: "المعلم فقط يمكنه إضافة فيديوهات الدروس.",
     });
   }
 
@@ -434,7 +434,7 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
   );
   if (!studentIsEnrolled) {
     return res.status(403).json({
-      error: "أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.",
+      error: "أنت غير مسجل في الكورس الذي يتبع له هذا الدرس.",
     });
   }
 

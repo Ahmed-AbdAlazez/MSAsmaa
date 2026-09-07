@@ -15,7 +15,7 @@ const requireAuthenticatedUser = (req, res, next) => {
   if (req.user.role !== "student" && req.user.role !== "teacher") {
     return res
       .status(403)
-      .json({ error: "الطلاب والمعلمات فقط يمكنهم الوصول إلى الإشعارات." });
+      .json({ error: "الطلاب والمعلمون فقط يمكنهم الوصول إلى الإشعارات." });
   }
   return next();
 };
@@ -149,7 +149,7 @@ router.post("/notifications/quiz", requireAuth, async (req, res) => {
   if (req.user.role !== "teacher") {
     return res
       .status(403)
-      .json({ error: "المعلمات فقط يمكنهن نشر إشعارات الاختبارات." });
+      .json({ error: "المعلم فقط يمكنه نشر إشعارات الاختبارات." });
   }
 
   const { title } = req.body || {};

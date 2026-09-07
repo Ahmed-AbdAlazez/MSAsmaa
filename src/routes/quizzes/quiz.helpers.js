@@ -57,7 +57,7 @@ function getQuizImageUrl(question, request) {
 function requireTeacher(request, response, next) {
   if (!request.user || request.user.role !== "teacher") {
     return response.status(403).json({
-      error: "المعلمات فقط يمكنهن القيام بهذا الإجراء.",
+      error: "المعلم فقط يمكنه القيام بهذا الإجراء.",
     });
   }
   return next();

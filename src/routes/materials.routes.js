@@ -102,7 +102,7 @@ router.get(
       !(await isStudentEnrolledInLessonCourse(req.user.id, req.params.lessonId))
     ) {
       return next(
-        new AppError("أنت غير مسجلة في الكورس الذي يتبع له هذا الدرس.", 403),
+        new AppError("أنت غير مسجل في الكورس الذي يتبع له هذا الدرس.", 403),
       );
     }
     const materials = await getMaterialsForLesson(req.params.lessonId);
@@ -123,7 +123,7 @@ router.get(
       !(await isStudentEnrolledInLessonCourse(req.user.id, material.lessonId))
     ) {
       return next(
-        new AppError("أنت غير مسجلة في الكورس الذي تتبع له هذه المادة.", 403),
+        new AppError("أنت غير مسجل في الكورس الذي تتبع له هذه المادة.", 403),
       );
     }
     try {
@@ -167,7 +167,7 @@ router.get(
           ));
 
     if (!hasAccess) {
-      return next(new AppError("لا تملكين صلاحية عرض ملف PDF هذا.", 403));
+      return next(new AppError("لا تملك صلاحية عرض ملف PDF هذا.", 403));
     }
 
     try {
@@ -220,7 +220,7 @@ router.patch(
     if (!material) return next(new AppError("المادة غير موجودة.", 404));
     if (!(await isTeacherOwnerOfLesson(req.user.id, material.lessonId)))
       return next(
-        new AppError("أنت لا تملكين الكورس الذي تتبع له هذه المادة.", 403),
+        new AppError("أنت لا تملك الكورس الذي تتبع له هذه المادة.", 403),
       );
     await updateMaterialTitle(material.id, title);
     return res.json({
@@ -240,7 +240,7 @@ router.delete(
     if (!material) return next(new AppError("المادة غير موجودة.", 404));
     if (!(await isTeacherOwnerOfLesson(req.user.id, material.lessonId)))
       return next(
-        new AppError("أنت لا تملكين الكورس الذي تتبع له هذه المادة.", 403),
+        new AppError("أنت لا تملك الكورس الذي تتبع له هذه المادة.", 403),
       );
     await deleteMaterial(material.id);
     return res.json({ message: "تم حذف المادة بنجاح." });

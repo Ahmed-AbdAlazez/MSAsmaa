@@ -19,7 +19,7 @@ const router = express.Router();
 
 function requireTeacher(req, res, next) {
   if (req.user.role !== "teacher") {
-    return res.status(403).json({ error: "المعلمات فقط يمكنهن إدارة البث المباشر." });
+    return res.status(403).json({ error: "المعلم فقط يمكنه إدارة البث المباشر." });
   }
   return next();
 }
