@@ -166,7 +166,7 @@ router.post("/validate-youtube", requireAuth, requireTeacher, async (req, res) =
   return res.json({
     valid: true,
     videoId: result.videoId,
-    embedUrl: `https://www.youtube.com/embed/${result.videoId}?rel=0&controls=1`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${result.videoId}?rel=0&controls=1&modestbranding=1&iv_load_policy=3`,
     message: "✓ فيديو يوتيوب صالح",
   });
 });

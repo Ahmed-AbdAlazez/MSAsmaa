@@ -239,7 +239,7 @@ router.get("/:lessonId/video-url", requireAuth, async (req, res) => {
           videoSource: "youtube",
           youtubeVideoId: ytRecord.youtubeVideoId,
           expiresInSeconds: PLAYBACK_URL_LIFETIME_SECONDS,
-          playbackUrl: `https://www.youtube.com/embed/${ytRecord.youtubeVideoId}?rel=0&controls=1`,
+          playbackUrl: `https://www.youtube-nocookie.com/embed/${ytRecord.youtubeVideoId}?rel=0&controls=1&modestbranding=1&iv_load_policy=3`,
         });
       }
 
@@ -407,7 +407,7 @@ router.post("/:lessonId/youtube-video", requireAuth, async (req, res) => {
       videoId: record.id,
       videoSource: "youtube",
       youtubeVideoId: validation.videoId,
-      embedUrl: `https://www.youtube.com/embed/${validation.videoId}?rel=0&controls=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${validation.videoId}?rel=0&controls=1&modestbranding=1&iv_load_policy=3`,
       title: record.title,
     });
   } catch (error) {
@@ -500,8 +500,8 @@ router.get("/:lessonId/videos", requireAuth, async (req, res) => {
       attachmentUrl: yt.attachmentUrl || "",
       status: 4,
       ready: true,
-      playbackUrl: `https://www.youtube.com/embed/${yt.youtubeVideoId}?rel=0&controls=1`,
-      embedUrl: `https://www.youtube.com/embed/${yt.youtubeVideoId}?rel=0&controls=1`,
+      playbackUrl: `https://www.youtube-nocookie.com/embed/${yt.youtubeVideoId}?rel=0&controls=1&modestbranding=1&iv_load_policy=3`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${yt.youtubeVideoId}?rel=0&controls=1&modestbranding=1&iv_load_policy=3`,
       dateUploaded: yt.createdAt,
       chapters: [],
     }));

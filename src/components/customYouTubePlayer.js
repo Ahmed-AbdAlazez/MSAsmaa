@@ -185,6 +185,7 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
   const YT = await ensureYouTubeApi();
 
   player = new YT.Player(ytTargetId, {
+    host: "https://www.youtube-nocookie.com",
     videoId: videoEntry.youtubeVideoId,
     playerVars: {
       autoplay: 0,
@@ -193,8 +194,8 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
       playsinline: 1,     // Inline play on iOS
       fs: 0,              // Disable native YouTube fullscreen button
       disablekb: 1,       // Disable YouTube keyboard shortcuts
-      modestbranding: 1,  // Hide YouTube logo in control bar
-      iv_load_policy: 3,  // Hide annotations
+      modestbranding: 1,  // Hide YouTube logo in control bar / reduce branding
+      iv_load_policy: 3,  // Hide annotations / title info overlays
     },
     events: {
       onReady: () => {
