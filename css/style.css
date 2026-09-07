@@ -4181,4 +4181,22 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
   }
 }
 
+.seo-steps {
+  margin: 1rem 0 1.5rem;
+  padding-right: 1.25rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.seo-steps li {
+  color: var(--color-text-muted);
+  line-height: 1.9;
+  font-size: 0.95rem;
+}
+
+.seo-steps li::marker {
+  color: var(--color-primary, var(--color-heading));
+  font-weight: 700;
+}
+
 

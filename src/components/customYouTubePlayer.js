@@ -308,11 +308,16 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
     qualitySelect.addEventListener("change", (e) => {
       if (!player) return;
       const q = e.target.value;
+      if (typeof player.setPlaybackQuality === "function") {
+        player.setPlaybackQuality(q);
+      }
       if (typeof player.setPlaybackQualityRange === "function") {
         player.setPlaybackQualityRange(q, q);
       }
-      if (typeof player.setPlaybackQuality === "function") {
-        player.setPlaybackQuality(q);
+      // Re-seek to current time to force YouTube engine to flush buffer & load new quality stream
+      if (typeof player.getCurrentTime === "function" && typeof player.seekTo === "function") {
+        const currentTime = player.getCurrentTime();
+        player.seekTo(currentTime, true);
       }
     });
   }
