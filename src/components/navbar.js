@@ -28,7 +28,7 @@ export function initNavbar() {
     if (!waBtn) {
       waBtn = document.createElement("a");
       waBtn.className = "whatsapp-float";
-      waBtn.href = "https://wa.me/201009537600";
+      waBtn.href = "https://wa.me/201014125617";
       waBtn.target = "_blank";
       waBtn.rel = "noopener noreferrer";
       waBtn.setAttribute("aria-label", "تواصل معنا عبر واتساب");
