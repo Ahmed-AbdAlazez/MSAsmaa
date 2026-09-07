@@ -93,6 +93,15 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
         </div>
 
         <div class="custom-yt-controls-group">
+          <select class="custom-yt-speed-select" id="yt-quality-select" title="جودة الفيديو">
+            <option value="auto" selected>تلقائي</option>
+            <option value="hd1080">1080p</option>
+            <option value="hd720">720p</option>
+            <option value="large">480p</option>
+            <option value="medium">360p</option>
+            <option value="small">240p</option>
+            <option value="tiny">144p</option>
+          </select>
           <select class="custom-yt-speed-select" id="yt-speed-select" title="سرعة التشغيل">
             <option value="0.5">0.5x</option>
             <option value="0.75">0.75x</option>
@@ -118,6 +127,7 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
   const timeDuration = container.querySelector("#yt-time-duration");
   const progressContainer = container.querySelector("#yt-progress-container");
   const progressFill = container.querySelector("#yt-progress-fill");
+  const qualitySelect = container.querySelector("#yt-quality-select");
   const speedSelect = container.querySelector("#yt-speed-select");
   const fullscreenBtn = container.querySelector("#yt-fullscreen-btn");
 
@@ -138,6 +148,38 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
 
   container.addEventListener("mousemove", resetIdleTimer);
   container.addEventListener("touchstart", resetIdleTimer, { passive: true });
+
+  const populateQualityOptions = () => {
+    if (!player || typeof player.getAvailableQualityLevels !== "function" || !qualitySelect) return;
+    const levels = player.getAvailableQualityLevels();
+    if (!levels || !levels.length) return;
+
+    const labelMap = {
+      highres: "4K/HD",
+      hd1440: "1440p",
+      hd1080: "1080p",
+      hd720: "720p",
+      large: "480p",
+      medium: "360p",
+      small: "240p",
+      tiny: "144p",
+      auto: "تلقائي",
+    };
+
+    let html = `<option value="auto">تلقائي</option>`;
+    levels.forEach((lvl) => {
+      if (lvl !== "auto") {
+        const label = labelMap[lvl] || lvl;
+        html += `<option value="${lvl}">${label}</option>`;
+      }
+    });
+
+    const currentVal = qualitySelect.value;
+    qualitySelect.innerHTML = html;
+    if (levels.includes(currentVal)) {
+      qualitySelect.value = currentVal;
+    }
+  };
 
   // Load YouTube API and instantiate player
   const YT = await ensureYouTubeApi();
@@ -162,10 +204,14 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
           timeDuration.textContent = formatTime(player.getDuration());
         }
 
+        populateQualityOptions();
+
         // Start progress update interval
         updateInterval = setInterval(updateProgress, 100);
       },
       onStateChange: (e) => {
+        populateQualityOptions();
+
         if (e.data === YT.PlayerState.PLAYING) {
           container.classList.add("playing");
           if (bigPlayBtn) bigPlayBtn.style.display = "none";
@@ -253,6 +299,20 @@ export async function renderCustomYouTubePlayer(container, videoEntry) {
       } else {
         player.unMute();
         muteBtn.textContent = "🔊";
+      }
+    });
+  }
+
+  // Video Quality/Resolution Selector
+  if (qualitySelect) {
+    qualitySelect.addEventListener("change", (e) => {
+      if (!player) return;
+      const q = e.target.value;
+      if (typeof player.setPlaybackQualityRange === "function") {
+        player.setPlaybackQualityRange(q, q);
+      }
+      if (typeof player.setPlaybackQuality === "function") {
+        player.setPlaybackQuality(q);
       }
     });
   }
