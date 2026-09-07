@@ -51,7 +51,6 @@ export default defineConfig({
         courses: "courses.html",
         "courses/thanaweya-amma-biology": "courses/thanaweya-amma-biology.html",
         "biology-teacher-damietta": "biology-teacher-damietta.html",
-        "biology-revision": "biology-revision.html",
         "biology-faq": "biology-faq.html",
         lessons: "lessons.html",
         "lesson-view": "lesson-view.html",

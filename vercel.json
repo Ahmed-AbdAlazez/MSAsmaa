@@ -17,7 +17,6 @@
     { "source": "/course-biology", "destination": "/course-biology.html" },
     { "source": "/courses/thanaweya-amma-biology", "destination": "/courses/thanaweya-amma-biology.html" },
     { "source": "/biology-teacher-damietta", "destination": "/biology-teacher-damietta.html" },
-    { "source": "/biology-revision", "destination": "/biology-revision.html" },
     { "source": "/biology-faq", "destination": "/biology-faq.html" },
     { "source": "/lessons", "destination": "/lessons.html" },
     { "source": "/lesson-view", "destination": "/lesson-view.html" },
