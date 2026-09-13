@@ -58,7 +58,7 @@ function isDriveReauthorizationError(error) {
   );
 }
 
-function getDriveClient() {
+function getDriveAuth() {
   const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim();
   const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
   const redirectUri = (
@@ -76,6 +76,11 @@ function getDriveClient() {
   auth.setCredentials({
     refresh_token: refreshToken,
   });
+  return auth;
+}
+
+function getDriveClient() {
+  const auth = getDriveAuth();
   return google.drive({ version: "v3", auth });
 }
 
@@ -113,6 +118,42 @@ async function uploadPdf(buffer, fileName) {
     },
     media: { mimeType: "application/pdf", body: Readable.from(buffer) },
     fields: "id,name,mimeType,size,createdTime,modifiedTime",
+    supportsAllDrives: true,
+  });
+  return result.data;
+}
+
+async function createPdfUploadSession(fileName, sizeBytes) {
+  const auth = getDriveAuth();
+  const response = await auth.request({
+    url: "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": "application/pdf",
+      "X-Upload-Content-Length": String(sizeBytes),
+    },
+    data: JSON.stringify({
+      name: safePdfName(fileName),
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
+      mimeType: "application/pdf",
+    }),
+  });
+
+  const uploadUrl =
+    response.headers?.location || response.headers?.get?.("location");
+  if (!uploadUrl) {
+    throw new Error("Google Drive did not return a resumable upload URL.");
+  }
+
+  return { uploadUrl, fileName: safePdfName(fileName) };
+}
+
+async function getPdfMetadata(fileId) {
+  const drive = getDriveClient();
+  const result = await drive.files.get({
+    fileId,
+    fields: "id,name,mimeType,size,parents",
     supportsAllDrives: true,
   });
   return result.data;
@@ -204,6 +245,8 @@ async function deletePdf(fileId) {
 
 module.exports = {
   uploadPdf,
+  createPdfUploadSession,
+  getPdfMetadata,
   uploadQuizImage,
   getPdfStream,
   getImageStream,

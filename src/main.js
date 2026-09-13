@@ -582,8 +582,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // AUTH API: real backend (source of truth). Set at build time via env:
   //   VITE_API_URL
   // Auth calls are therefore ${API_BASE}/auth/login and ${API_BASE}/auth/signup.
-  const rawApiUrl = import.meta.env.VITE_API_URL || '/api/v1';
-  const API_BASE = (typeof rawApiUrl === 'string' && rawApiUrl.includes('vercel.app')) ? '/api/v1' : rawApiUrl;
+  const rawApiUrl = import.meta.env.VITE_API_URL || "/api/v1";
+  const API_BASE =
+    typeof rawApiUrl === "string" && rawApiUrl.includes("vercel.app")
+      ? "/api/v1"
+      : rawApiUrl;
 
   /**
    * JWT helpers. The token comes from POST ${API_BASE}/auth/login and is sent
@@ -1289,7 +1292,9 @@ document.addEventListener("DOMContentLoaded", () => {
       startLiveForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const titleInput = document.querySelector("#live-session-title-input");
-        const providerRadio = document.querySelector('input[name="live-provider-choice"]:checked');
+        const providerRadio = document.querySelector(
+          'input[name="live-provider-choice"]:checked',
+        );
         const submitBtn = document.querySelector("#btn-start-live-session");
 
         const title = (titleInput?.value || "").trim();
@@ -2842,18 +2847,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
 
-    // Auth: JWT Bearer token from the shared helper (no client-trusted role
-    // headers — the backend decides who may upload).
-    // ------------------------------------------------------------------
-    const result = await new Promise((resolve, reject) => {
+    const maxPdfSizeBytes = 20 * 1024 * 1024;
+    if (pdfFile.size <= 0 || pdfFile.size > maxPdfSizeBytes) {
+      showToast("يجب أن يكون حجم ملف PDF 20 ميجابايت أو أقل.", "warning");
+      return null;
+    }
+
+    const uploadSession = await fetchJson(
+      `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-session`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          fileName: pdfFile.name,
+          mimeType: "application/pdf",
+          sizeBytes: pdfFile.size,
+          title: formDataTitle,
+        }),
+      },
+    );
+
+    const driveUpload = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `/api/lessons/${encodeURIComponent(lessonId)}/materials`,
-      );
-      Object.entries(authHeaders()).forEach(([key, value]) =>
-        xhr.setRequestHeader(key, value),
-      );
+      xhr.open("PUT", uploadSession.uploadUrl);
+      xhr.setRequestHeader("Content-Type", "application/pdf");
 
       if (typeof onProgress === "function") {
         xhr.upload.addEventListener("progress", (e) => {
@@ -2867,17 +2884,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(JSON.parse(xhr.responseText || "{}"));
         } else {
-          let errorBody = {};
-          try {
-            errorBody = JSON.parse(xhr.responseText || "{}");
-          } catch (_) {
-            // The server may return a non-JSON proxy error.
-          }
-          reject(
-            new Error(
-              errorBody.message || errorBody.error || "فشل رفع ملف PDF.",
-            ),
-          );
+          reject(new Error("فشل رفع ملف PDF إلى Google Drive."));
         }
       });
 
@@ -2885,11 +2892,20 @@ document.addEventListener("DOMContentLoaded", () => {
         reject(new Error("انقطع الاتصال أثناء رفع ملف PDF.")),
       );
 
-      const formData = new FormData();
-      formData.append("title", formDataTitle);
-      formData.append("file", pdfFile);
-      xhr.send(formData);
+      xhr.send(pdfFile);
     });
+
+    const result = await fetchJson(
+      `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          fileId: driveUpload.id,
+          uploadToken: uploadSession.uploadToken,
+        }),
+      },
+    );
 
     // Invalidate the lesson-view cache for this lesson so the next visit
     // fetches a fresh list that includes the new PDF (otherwise the cached
@@ -2965,7 +2981,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Video Source (Bunny vs YouTube) toggle logic in Teacher Dashboard
-  const videoSourceRadios = document.querySelectorAll('input[name="video-source-choice"]');
+  const videoSourceRadios = document.querySelectorAll(
+    'input[name="video-source-choice"]',
+  );
   const containerBunny = document.querySelector("#container-bunny-upload");
   const containerYouTube = document.querySelector("#container-youtube-upload");
   const ytUrlInput = document.querySelector("#upload-youtube-url");
@@ -3032,7 +3050,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const progressBar = document.querySelector("#upload-progress-bar");
       const statusText = document.querySelector("#upload-status-text");
 
-      const selectedSource = document.querySelector('input[name="video-source-choice"]:checked')?.value || "bunny";
+      const selectedSource =
+        document.querySelector('input[name="video-source-choice"]:checked')
+          ?.value || "bunny";
 
       const lessonId = lessonSelect ? lessonSelect.value : "";
       const videoName = (titleInput?.value || "").trim();
@@ -3069,17 +3089,21 @@ document.addEventListener("DOMContentLoaded", () => {
           if (statusText) statusText.textContent = "جاري حفظ فيديو يوتيوب...";
           UploadFloat.show("جاري حفظ فيديو يوتيوب");
 
-          const res = await fetchJson(`/api/lessons/${lessonId}/youtube-video`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...authHeaders() },
-            body: JSON.stringify({
-              title: videoName,
-              youtubeUrl: rawYtUrl,
-            }),
-          });
+          const res = await fetchJson(
+            `/api/lessons/${lessonId}/youtube-video`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...authHeaders() },
+              body: JSON.stringify({
+                title: videoName,
+                youtubeUrl: rawYtUrl,
+              }),
+            },
+          );
 
           if (progressBar) progressBar.style.width = "100%";
-          if (statusText) statusText.textContent = "تم إضافة فيديو يوتيوب بنجاح ✔";
+          if (statusText)
+            statusText.textContent = "تم إضافة فيديو يوتيوب بنجاح ✔";
           UploadFloat.done("تم إضافة فيديو يوتيوب بنجاح ✔");
           showToast("تم إضافة فيديو يوتيوب بنجاح!", "success");
 
