@@ -36,6 +36,49 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // --- Shared "active live session" fetcher --------------------------------
+  // The global student banner AND the teacher dashboard both read
+  // GET /live/active; on dashboard-teacher that produced two identical
+  // network calls per page load. One in-flight promise + a short TTL
+  // collapses them into a single request, while `force` stays available for
+  // actions that must see a fresh answer (teacher start/end session buttons).
+  let activeLiveInFlight = null;
+  let activeLiveCache = null;
+  let activeLiveFetchedAt = 0;
+  const ACTIVE_LIVE_TTL_MS = 10_000;
+
+  async function fetchActiveLiveSession(force = false) {
+    if (!localStorage.getItem("token")) return null;
+    // A request is already on the wire — share it (freshest possible data),
+    // regardless of `force`. `force` only bypasses the cached result.
+    if (activeLiveInFlight) return activeLiveInFlight;
+    if (
+      !force &&
+      activeLiveCache &&
+      Date.now() - activeLiveFetchedAt < ACTIVE_LIVE_TTL_MS
+    ) {
+      return activeLiveCache;
+    }
+    activeLiveInFlight = fetchJson(`${API_BASE}/live/active`, {
+      headers: authHeaders(),
+    })
+      .then((data) => {
+        activeLiveCache = data && data.session ? data.session : null;
+        activeLiveFetchedAt = Date.now();
+        return activeLiveCache;
+      })
+      .catch((error) => {
+        activeLiveCache = null;
+        activeLiveFetchedAt = Date.now();
+        console.warn("[live] Failed to fetch active session:", error);
+        return null;
+      })
+      .finally(() => {
+        activeLiveInFlight = null;
+      });
+    return activeLiveInFlight;
+  }
+
   // --- Active Live Session Banner for Students ---
   async function checkGlobalActiveLiveBanner() {
     // Don't show banner on the live session page itself or for logged out users
@@ -45,14 +88,8 @@ document.addEventListener("DOMContentLoaded", () => {
     )
       return;
     try {
-      const data = await fetchJson(`${API_BASE}/live/active`, {
-        headers: authHeaders(),
-      }).catch(() => null);
-      if (
-        data &&
-        data.session &&
-        !document.getElementById("global-live-banner")
-      ) {
+      const session = await fetchActiveLiveSession();
+      if (session && !document.getElementById("global-live-banner")) {
         const banner = document.createElement("div");
         banner.id = "global-live-banner";
         banner.style.cssText =
@@ -63,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <span style="display:inline-block; width:8px; height:8px; background:#ef4444; border-radius:50%; animation: pulse-red 1.5s infinite;"></span>
               بث مباشر الآن
             </div>
-            <div style="font-weight:700; font-size:0.95rem; margin-top:0.2rem; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(data.session.title || "درس مباشر")}</div>
+            <div style="font-weight:700; font-size:0.95rem; margin-top:0.2rem; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(session.title || "درس مباشر")}</div>
           </div>
           <button id="btn-global-join-live" class="btn btn-primary btn-sm" style="white-space:nowrap;">انضم للبث 🚀</button>
         `;
@@ -79,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   "Content-Type": "application/json",
                   ...authHeaders(),
                 },
-                body: JSON.stringify({ sessionId: data.session.id }),
+                body: JSON.stringify({ sessionId: session.id }),
               });
               window.location.href = `/live-session.html?token=${tokenData.token}`;
             } catch (err) {
@@ -1018,7 +1055,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof onProgress === "function") {
           onProgress(
             total
-              ? Math.min(100, Math.round((uploadedBytes / total) * 100))
+              ? Math.min(99, Math.round((uploadedBytes / total) * 100))
               : 0,
             null,
           );
@@ -1042,7 +1079,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           xhr.upload.addEventListener("progress", (e) => {
             if (e.lengthComputable) {
-              uploadedBytes = Math.min(start + e.loaded, total);
+              uploadedBytes = Math.min(start + e.loaded, total - 1);
               reportProgress();
               persist();
             }
@@ -1446,9 +1483,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const totalStudents = document.querySelector("#teacher-total-students");
     const activeQuizzes = document.querySelector("#teacher-active-quizzes");
+    // Share the teacher dashboard's quizzes GET with quizManagement.js through
+    // a window-level promise so the summary card and the quiz-management panel
+    // never duplicate the same request on one page. Whichever module runs
+    // first creates it; the other awaits the same in-flight request.
+    window.__teacherQuizzesPromise || (window.__teacherQuizzesPromise = fetchJson("/api/quizzes-managed", { headers: authHeaders() }));
     Promise.all([
       fetchJson(`${API_BASE}/students/count`, { headers: authHeaders() }),
-      fetchJson("/api/quizzes-managed", { headers: authHeaders() }),
+      window.__teacherQuizzesPromise,
     ])
       .then(([studentData, quizData]) => {
         if (totalStudents) {
@@ -1481,17 +1523,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function checkActiveLiveSession() {
       try {
-        const data = await fetchJson(`${API_BASE}/live/active`, {
-          headers: authHeaders(),
-        });
-        if (data && data.session) {
-          currentActiveSessionId = data.session.id;
+        // force=true so the teacher controls always reflect the latest
+        // start/end state (the global banner query still counts this as ONE
+        // network call via the shared in-flight promise).
+        const session = await fetchActiveLiveSession(true);
+        if (session) {
+          currentActiveSessionId = session.id;
           if (activeLiveCard) activeLiveCard.style.display = "block";
           if (activeLiveTitle)
-            activeLiveTitle.textContent = data.session.title || "بث مباشر نشط";
+            activeLiveTitle.textContent = session.title || "بث مباشر نشط";
           if (activeLiveProvider) {
             const providerName =
-              data.session.provider === "google_meet"
+              session.provider === "google_meet"
                 ? "Google Meet 🟢"
                 : "Zoom 🔵";
             activeLiveProvider.textContent = `المزود: ${providerName}`;
@@ -1712,6 +1755,15 @@ document.addEventListener("DOMContentLoaded", () => {
   let notificationsInFlight = null;
   const NOTIFICATIONS_CACHE_TTL = 30_000; // 30 seconds
 
+  // Unread-count is computed with the same in-flight + TTL pattern as the
+  // list above. Without it, updateNotificationBadge() fired a separate
+  // /unread-count call from BOTH page-load entry points (initializeQuizExperience
+  // and updateAuthUI), i.e. two identical requests per student page load.
+  let cachedUnreadCount = null;
+  let unreadFetchedAt = 0;
+  let unreadInFlight = null;
+  const UNREAD_CACHE_TTL = 30_000;
+
   const fetchNotifications = async () => {
     const userId = localStorage.getItem("userId");
     console.log("[notifications] fetchNotifications called - userId:", userId);
@@ -1787,25 +1839,59 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   };
 
-  const updateNotificationBadge = async () => {
+  const updateNotificationBadge = async (force = false) => {
+    // No user id → no bell to update; skipping also prevents pointless 401s on
+    // anonymous pages and unused requests on teacher pages (bell is student-only).
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    const computeUnread = async () => {
+      try {
+        const data = await fetchJson(`${API_BASE}/notifications/unread-count`, {
+          headers: authHeaders(),
+        });
+        return Number(data.count) || 0;
+      } catch (error) {
+        console.warn(
+          "[notifications] unread-count API failed, falling back to list:",
+          error,
+        );
+        // Fall back to the already-fetched list (cachedNotifications may be
+        // empty if the list call also never succeeded → 0, which is safe).
+        return cachedNotifications.filter(
+          (item) => !(item.isRead ?? item.read),
+        ).length;
+      }
+    };
+
     let unreadCount = 0;
     try {
-      console.log("[notifications] Fetching unread count from API...");
-      const data = await fetchJson(`${API_BASE}/notifications/unread-count`, {
-        headers: authHeaders(),
-      });
-      unreadCount = Number(data.count) || 0;
-      console.log("[notifications] Unread count:", unreadCount);
-    } catch (error) {
-      console.error(
-        "[notifications] Failed to get unread count, falling back to fetch:",
-        error,
-      );
-      const notifications = await fetchNotifications();
-      unreadCount = notifications.filter(
-        (item) => !(item.isRead ?? item.read),
-      ).length;
+      if (!force && cachedUnreadCount != null && Date.now() - unreadFetchedAt < UNREAD_CACHE_TTL) {
+        // Serve the cached count and refresh quietly in the background — the
+        // bell number stays fresh without blocking on the network.
+        unreadCount = cachedUnreadCount;
+        computeUnread()
+          .then((fresh) => {
+            cachedUnreadCount = fresh;
+            unreadFetchedAt = Date.now();
+          })
+          .catch(() => {});
+      } else {
+        if (!force && unreadInFlight) {
+          unreadCount = await unreadInFlight;
+        } else {
+          unreadInFlight = computeUnread().finally(() => {
+            unreadInFlight = null;
+          });
+          unreadCount = await unreadInFlight;
+        }
+        cachedUnreadCount = unreadCount;
+        unreadFetchedAt = Date.now();
+      }
+    } catch (_) {
+      unreadCount = 0;
     }
+
     document.querySelectorAll(".notification-count").forEach((badge) => {
       badge.textContent = unreadCount;
       badge.hidden = unreadCount === 0;
@@ -1879,7 +1965,8 @@ document.addEventListener("DOMContentLoaded", () => {
             method: "PATCH",
             headers: authHeaders(),
           });
-          await updateNotificationBadge();
+          // force: we just changed read state — the cached count is stale.
+          await updateNotificationBadge(true);
           if (link) {
             window.location.href = link;
           }
@@ -2082,7 +2169,8 @@ document.addEventListener("DOMContentLoaded", () => {
             headers: authHeaders(),
           });
           await renderNotificationsMenu();
-          await updateNotificationBadge();
+          // force: read-all just changed every row — don't serve a stale count.
+          await updateNotificationBadge(true);
         } catch (error) {
           console.error("[notifications] Failed to mark all read:", error);
         }
@@ -2117,9 +2205,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Warm the notification cache in the background so the bell opens
     // instantly; the render itself happens on click (loadNotificationsIntoMenu)
-    // so we never paint twice and never get a blink.
-    fetchNotifications().catch(() => {});
-    updateNotificationBadge();
+    // so we never paint twice and never get a blink. STUDENT-ONLY: the bell is
+    // disabled for teachers and there is no bell when logged out, so those
+    // pages must not issue these requests (previously a 401 per anonymous view
+    // and two unused calls on every teacher page).
+    if (userRole === "student") {
+      fetchNotifications().catch(() => {});
+      updateNotificationBadge();
+    }
   };
 
   document.addEventListener("click", (event) => {

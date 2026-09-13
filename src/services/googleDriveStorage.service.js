@@ -58,7 +58,19 @@ function isDriveReauthorizationError(error) {
   );
 }
 
+/**
+ * Cached OAuth2 client. Building a fresh client per request duplicated the
+ * access-token/refresh-token lifecycle on every Drive call (views,
+ * downloads, upload session pings). The client interns its token and queues
+ * concurrent refreshes internally, so reusing one instance is cheaper AND
+ * still safe on serverless warm instances. A process-local credential change
+ * requires a cold start to pick up, which is already how env vars behave.
+ */
+let cachedDriveAuth = null;
+
 function getDriveAuth() {
+  if (cachedDriveAuth) return cachedDriveAuth;
+
   const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim();
   const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
   const redirectUri = (
@@ -76,6 +88,7 @@ function getDriveAuth() {
   auth.setCredentials({
     refresh_token: refreshToken,
   });
+  cachedDriveAuth = auth;
   return auth;
 }
 
@@ -155,7 +168,17 @@ async function uploadPdf(buffer, fileName) {
 
 async function createPdfUploadSession(fileName, sizeBytes) {
   const auth = getDriveAuth();
+  const drive = google.drive({ version: "v3", auth });
   const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+  const generatedIds = await drive.files.generateIds({
+    count: 1,
+    space: "drive",
+    type: "files",
+  });
+  const fileId = generatedIds.data?.ids?.[0] || null;
+  if (!fileId) {
+    throw new Error("Google Drive did not generate a file id.");
+  }
   
   const makeRequest = async (parentsArr) => {
     return await auth.request({
@@ -167,6 +190,7 @@ async function createPdfUploadSession(fileName, sizeBytes) {
         "X-Upload-Content-Length": String(sizeBytes),
       },
       data: JSON.stringify({
+        id: fileId,
         name: safePdfName(fileName),
         parents: parentsArr,
         mimeType: "application/pdf",
@@ -191,7 +215,6 @@ async function createPdfUploadSession(fileName, sizeBytes) {
   if (!uploadUrl) {
     throw new Error("Google Drive did not return a resumable upload URL.");
   }
-  const fileId = response.data?.id || null;
 
   return { uploadUrl, fileId, fileName: safePdfName(fileName) };
 }
