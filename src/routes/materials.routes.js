@@ -20,7 +20,6 @@ const {
   getPdfMetadata,
   deletePdf,
   isDriveReauthorizationError,
-  createResumableUploadSession,
   ensurePublicReadable,
   getPdfViewUrl,
   getPdfDownloadUrl,
@@ -121,6 +120,98 @@ function bestEffortShare(fileId) {
   );
 }
 
+async function completeDirectUpload(req, res, next) {
+  let uploadClaims;
+  try {
+    uploadClaims = verifyMaterialUploadToken(req.body?.uploadToken);
+  } catch (_) {
+    return next(new AppError("Upload session is invalid or expired.", 400));
+  }
+
+  if (
+    uploadClaims.id !== req.user.id ||
+    uploadClaims.role !== req.user.role ||
+    uploadClaims.lessonId !== String(req.params.lessonId)
+  ) {
+    return next(new AppError("You are not allowed to complete this upload.", 403));
+  }
+  if (!(await ensureTeacherOwnsLesson(req, next))) return;
+
+  const fileId = String(
+    req.body?.fileId || req.body?.driveFileId || uploadClaims.fileId || "",
+  ).trim();
+  if (!fileId) return next(new AppError("Google Drive file id is required.", 400));
+  if (uploadClaims.fileId && fileId !== uploadClaims.fileId) {
+    return next(new AppError("Uploaded file does not match this upload session.", 403));
+  }
+
+  let driveFile;
+  try {
+    driveFile = await getPdfMetadata(fileId);
+  } catch (error) {
+    console.error(
+      "[materials] Google Drive upload verification failed:",
+      error.message,
+    );
+    return next(new AppError("Could not verify uploaded PDF in Google Drive.", 500));
+  }
+
+  const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+  const actualSize = Number(driveFile.size);
+  const validFile =
+    driveFile.id === fileId &&
+    driveFile.mimeType === "application/pdf" &&
+    /\.pdf$/i.test(driveFile.name || "") &&
+    Number.isSafeInteger(actualSize) &&
+    actualSize > 0 &&
+    actualSize <= MAX_PDF_SIZE_BYTES &&
+    (!uploadClaims.sizeBytes || actualSize === Number(uploadClaims.sizeBytes)) &&
+    (!folderId ||
+      !Array.isArray(driveFile.parents) ||
+      driveFile.parents.includes(folderId));
+
+  if (!validFile) {
+    return next(new AppError("Uploaded PDF is invalid.", 400));
+  }
+
+  await bestEffortShare(fileId);
+
+  const existingMaterial = await getMaterialByDriveFileId(fileId);
+  if (existingMaterial) {
+    if (existingMaterial.lessonId !== String(req.params.lessonId)) {
+      return next(new AppError("You are not allowed to complete this upload.", 403));
+    }
+    return res.status(201).json({
+      message: "PDF material uploaded successfully.",
+      lessonId: req.params.lessonId,
+      material: { id: existingMaterial.id, title: existingMaterial.title },
+    });
+  }
+
+  let material;
+  try {
+    material = await saveMaterialRecord(
+      req.params.lessonId,
+      uploadClaims.title || driveFile.name,
+      driveFile,
+    );
+  } catch (error) {
+    await deletePdf(fileId).catch((cleanupError) =>
+      console.error(
+        "[materials] Orphaned Drive PDF cleanup failed:",
+        cleanupError.message,
+      ),
+    );
+    throw error;
+  }
+
+  return res.status(201).json({
+    message: "PDF material uploaded successfully.",
+    lessonId: req.params.lessonId,
+    material: { id: material.id, title: material.title },
+  });
+}
+
 router.post(
   "/lessons/:lessonId/materials/upload-session",
   requireAuth,
@@ -192,6 +283,9 @@ router.post(
 
     const fileId = String(req.body?.fileId || uploadClaims.fileId || "").trim();
     if (!fileId) return next(new AppError("معرف ملف Google Drive مطلوب.", 400));
+    if (uploadClaims.fileId && fileId !== uploadClaims.fileId) {
+      return next(new AppError("Uploaded file does not match this upload session.", 403));
+    }
 
     let driveFile;
     try {
@@ -205,10 +299,18 @@ router.post(
     }
 
     const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+    const actualSize = Number(driveFile.size);
     const validFile =
       driveFile.id === fileId &&
       driveFile.mimeType === "application/pdf" &&
-      /\.pdf$/i.test(driveFile.name || "");
+      /\.pdf$/i.test(driveFile.name || "") &&
+      Number.isSafeInteger(actualSize) &&
+      actualSize > 0 &&
+      actualSize <= MAX_PDF_SIZE_BYTES &&
+      (!uploadClaims.sizeBytes || actualSize === Number(uploadClaims.sizeBytes)) &&
+      (!folderId ||
+        !Array.isArray(driveFile.parents) ||
+        driveFile.parents.includes(folderId));
 
     if (!validFile) {
       return next(new AppError("ملف PDF المرفوع غير صالح.", 400));
@@ -259,9 +361,29 @@ router.post(
   requireTeacher,
   catchAsync(async (req, res, next) => {
     const fileName = String(req.body?.fileName || req.body?.title || "material.pdf").trim();
+    const mimeType = String(req.body?.mimeType || "application/pdf").trim().toLowerCase();
     try {
-      const { uploadUrl, fileId } = await createResumableUploadSession(fileName);
-      return res.json({ uploadUrl, fileId });
+      if (!(await ensureTeacherOwnsLesson(req, next))) return;
+      const sizeBytes = validatePdfUploadDetails(
+        fileName,
+        mimeType,
+        req.body?.sizeBytes || MAX_PDF_SIZE_BYTES,
+      );
+      const session = await createPdfUploadSession(fileName, sizeBytes);
+      const uploadToken = signMaterialUploadToken({
+        id: req.user.id,
+        role: req.user.role,
+        lessonId: String(req.params.lessonId),
+        fileName: session.fileName,
+        fileId: session.fileId,
+        title: String(req.body?.title || fileName).replace(/\s+/g, " ").trim(),
+        sizeBytes,
+      });
+      return res.json({
+        uploadUrl: session.uploadUrl,
+        fileId: session.fileId,
+        uploadToken,
+      });
     } catch (error) {
       console.error("[materials] Failed to create direct upload URL:", error.message);
       return next(new AppError("فشل إنشاء رابط الرفع المباشر إلى Google Drive. يرجى التأكد من التوثيق.", 500));
@@ -274,6 +396,10 @@ router.post(
   requireAuth,
   requireTeacher,
   catchAsync(async (req, res, next) => {
+    if (req.body?.uploadToken) {
+      return completeDirectUpload(req, res, next);
+    }
+    return next(new AppError("Upload token is required to confirm a PDF upload.", 400));
     const { driveFileId, title, fileName, sizeBytes } = req.body || {};
     if (!driveFileId) {
       return next(new AppError("معرف ملف Google Drive (driveFileId) مطلوب.", 400));

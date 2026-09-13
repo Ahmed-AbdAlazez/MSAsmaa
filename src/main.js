@@ -973,13 +973,13 @@ document.addEventListener("DOMContentLoaded", () => {
   /** Asks a Google Drive resumable session where it stopped.
    *  -> { completed:true, fileId } when the file is already fully uploaded
    *  -> { completed:false, lastByte } otherwise (first missing byte). */
-  const queryDriveProgress = (uploadUrl) =>
+  const queryDriveProgress = (uploadUrl, totalBytes) =>
     new Promise((res) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadUrl);
       xhr.timeout = 30000;
       xhr.setRequestHeader("Content-Type", "application/pdf");
-      xhr.setRequestHeader("Content-Range", "bytes */*");
+      xhr.setRequestHeader("Content-Range", `bytes */${totalBytes || "*"}`);
       xhr.addEventListener("load", () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           let fileId = null;
@@ -1088,7 +1088,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Resume-aware start: ask Drive where it actually is so a retry (or a
         // click after a drop / page reload) continues instead of restarting.
         try {
-          const probe = await queryDriveProgress(uploadUrl);
+          const probe = await queryDriveProgress(uploadUrl, total);
           if (probe.completed) {
             uploadedBytes = total;
             reportProgress();
@@ -1132,7 +1132,7 @@ document.addEventListener("DOMContentLoaded", () => {
               if (attempts >= DRIVE_MAX_RETRIES) {
                 let q = null;
                 for (let i = 0; i < 3 && !q; i++) {
-                  q = await queryDriveProgress(uploadUrl).catch(() => null);
+                  q = await queryDriveProgress(uploadUrl, total).catch(() => null);
                   if (!q) await new Promise((r) => setTimeout(r, 1200));
                 }
                 if (q && (q.completed || q.lastByte > 0)) {
@@ -1166,7 +1166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Every byte was accepted by Drive but the final 200 was never seen:
         // re-ask to fetch the file id.
         try {
-          const done = await queryDriveProgress(uploadUrl);
+          const done = await queryDriveProgress(uploadUrl, total);
           if (done.completed && done.fileId) return resolve({ id: done.fileId });
         } catch (_) {}
         return resolve({});
@@ -3109,47 +3109,32 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!uploadUrl) {
-        try {
-          const sessionRes = await fetchJson(
-            `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-session`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json", ...authHeaders() },
-              body: JSON.stringify({
-                fileName: pdfFile.name,
-                mimeType: "application/pdf",
-                sizeBytes: pdfFile.size,
-                title: formDataTitle,
-              }),
-            },
-          );
-          if (sessionRes && sessionRes.uploadUrl) {
-            uploadUrl = sessionRes.uploadUrl;
-            uploadToken = sessionRes.uploadToken;
-            sessionFileId = sessionRes.fileId;
-            startByte = 0;
-          }
-        } catch (_) {
-          const urlRes = await fetchJson(
-            `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json", ...authHeaders() },
-              body: JSON.stringify({
-                fileName: pdfFile.name,
-                title: formDataTitle,
-              }),
-            },
-          );
-          if (urlRes && urlRes.uploadUrl) {
-            uploadUrl = urlRes.uploadUrl;
-            sessionFileId = urlRes.fileId;
-            startByte = 0;
-          }
+        const sessionRes = await fetchJson(
+          `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-session`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({
+              fileName: pdfFile.name,
+              mimeType: "application/pdf",
+              sizeBytes: pdfFile.size,
+              title: formDataTitle,
+            }),
+          },
+        );
+        if (sessionRes && sessionRes.uploadUrl && sessionRes.uploadToken) {
+          uploadUrl = sessionRes.uploadUrl;
+          uploadToken = sessionRes.uploadToken;
+          sessionFileId = sessionRes.fileId;
+          startByte = 0;
         }
       }
 
-      if (uploadUrl) {
+      if (!uploadUrl || !uploadToken) {
+        throw new Error("Google Drive upload session was not created.");
+      }
+
+      if (uploadUrl && uploadToken) {
         // Save now so even a hard kill (close tab / power loss) can resume.
         persist(startByte);
 
@@ -3164,54 +3149,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const targetFileId = driveUpload?.id || sessionFileId;
 
-        let result;
-        if (uploadToken && targetFileId) {
-          try {
-            result = await fetchJson(
-              `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...authHeaders() },
-                body: JSON.stringify({
-                  fileId: targetFileId,
-                  uploadToken,
-                }),
-              },
-            );
-          } catch (_) {
-            // Token may have expired while a long upload was on-hold;
-            // the confirm endpoint finalizes with just the Drive file id.
-            if (targetFileId) {
-              result = await fetchJson(
-                `/api/lessons/${encodeURIComponent(lessonId)}/materials/confirm`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", ...authHeaders() },
-                  body: JSON.stringify({
-                    driveFileId: targetFileId,
-                    title: formDataTitle,
-                    fileName: pdfFile.name,
-                    sizeBytes: pdfFile.size,
-                  }),
-                },
-              );
-            }
-          }
-        } else if (targetFileId) {
-          result = await fetchJson(
-            `/api/lessons/${encodeURIComponent(lessonId)}/materials/confirm`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json", ...authHeaders() },
-              body: JSON.stringify({
-                driveFileId: targetFileId,
-                title: formDataTitle,
-                fileName: pdfFile.name,
-                sizeBytes: pdfFile.size,
-              }),
-            },
-          );
+        if (!targetFileId) {
+          throw new Error("Google Drive did not return a file id after upload.");
         }
+
+        const result = await fetchJson(
+          `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({
+              fileId: targetFileId,
+              uploadToken,
+            }),
+          },
+        );
 
         if (result) {
           try {
@@ -3227,68 +3179,12 @@ document.addEventListener("DOMContentLoaded", () => {
         "[materials] Direct upload failed:",
         directError.message,
       );
-      if (pdfFile.size > 4.5 * 1024 * 1024) {
-        showToast(
-          directError.message ||
-            "انقطع الاتصال أثناء رفع الملف إلى Google Drive.",
-          "danger",
-        );
-        return null;
-      }
+      showToast(
+        directError.message || "Could not upload the PDF directly to Google Drive.",
+        "danger",
+      );
+      return null;
     }
-
-    // Fallback: Standard Proxy Upload
-    const result = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `/api/lessons/${encodeURIComponent(lessonId)}/materials`,
-      );
-      Object.entries(authHeaders()).forEach(([key, value]) =>
-        xhr.setRequestHeader(key, value),
-      );
-
-      if (typeof onProgress === "function") {
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            onProgress(Math.round((e.loaded / e.total) * 100), null);
-          }
-        });
-      }
-
-      const formData = new FormData();
-      formData.append("file", pdfFile);
-      if (formDataTitle) {
-        formData.append("title", formDataTitle);
-      }
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText || "{}"));
-        } else {
-          try {
-            const errRes = JSON.parse(xhr.responseText || "{}");
-            reject(new Error(errRes.error || errRes.message || "فشل رفع الملف"));
-          } catch (_) {
-            reject(new Error("فشل رفع ملف PDF إلى Google Drive."));
-          }
-        }
-      });
-
-      xhr.addEventListener("error", () =>
-        reject(new Error("انقطع الاتصال أثناء رفع ملف PDF.")),
-      );
-
-      xhr.send(formData);
-    });
-
-    try {
-      sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
-    } catch (_) {}
-
-    pdfInput.value = "";
-    showToast("تم رفع ملف PDF للدرس بنجاح.", "success");
-    return result;
   };
 
   if (uploadMaterialBtn) {
