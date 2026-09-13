@@ -1136,7 +1136,7 @@ document.addEventListener("DOMContentLoaded", () => {
               if (attempts >= DRIVE_MAX_RETRIES) {
                 let q = null;
                 for (let i = 0; i < 3 && !q; i++) {
-                  q = await queryDriveProgress(uploadUrl).catch(() => null);
+                  q = await queryDriveProgress(uploadUrl, total).catch(() => null);
                   if (!q) await new Promise((r) => setTimeout(r, 1200));
                 }
                 if (q && q.completed) {
@@ -1175,7 +1175,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Every byte was accepted by Drive but the final 200 was never seen:
         // re-ask to fetch the file id.
         try {
-          const done = await queryDriveProgress(uploadUrl);
+          const done = await queryDriveProgress(uploadUrl, total);
           if (done.completed && done.fileId) return resolve({ id: done.fileId });
         } catch (_) {}
         return resolve({});
@@ -3058,6 +3058,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
+    const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 60000) => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetchJson(url, { ...options, signal: controller.signal });
+      } catch (error) {
+        if (controller.signal.aborted || (error && error.name === "AbortError")) {
+          throw new Error("انتهت مهلة حفظ ملف PDF بعد الرفع. حاولي مرة أخرى.");
+        }
+        throw error;
+      } finally {
+        window.clearTimeout(timer);
+      }
+    };
 
     // Direct Browser-to-Cloud Upload Flow (bypasses Vercel 4.5MB limit)
     try {
@@ -3162,7 +3176,11 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error("Google Drive did not return a file id after upload.");
         }
 
-        const result = await fetchJson(
+        if (typeof onProgress === "function") {
+          onProgress(100, "تم رفع الملف، جاري حفظه في الدرس...");
+        }
+
+        const result = await fetchJsonWithTimeout(
           `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
           {
             method: "POST",
@@ -3188,11 +3206,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "[materials] Direct upload failed:",
         directError.message,
       );
-      showToast(
-        directError.message || "Could not upload the PDF directly to Google Drive.",
-        "danger",
-      );
-      return null;
+      throw directError;
     }
   };
 
