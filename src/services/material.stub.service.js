@@ -33,6 +33,9 @@ async function getMaterialsForLesson(lessonId) {
   const rows = await prisma.lessonMaterial.findMany({
     where: { lessonId: String(lessonId) },
     orderBy: { createdAt: "desc" },
+    // Both consumers (student list + teacher manage list) only render these
+    // columns; streaming full rows just for id/title wastes Neon->Vercel.
+    select: { id: true, lessonId: true, title: true, createdAt: true, sizeBytes: true },
   });
   return rows.map(toRecord);
 }
@@ -51,31 +54,40 @@ async function getMaterialByDriveFileId(driveFileId) {
   return toRecord(row);
 }
 
-async function updateMaterialTitle(materialId, newTitle) {
-  const current = await prisma.lessonMaterial.findUnique({
-    where: { id: String(materialId) },
-  });
-  if (!current) return null;
+async function updateMaterialTitle(materialId, newTitle, knownDriveFileId) {
+  const driveFileId = knownDriveFileId || (await getMaterialDriveFileId(materialId));
+  if (!driveFileId) return null;
 
-  const driveFile = await updatePdf(current.driveFileId, newTitle);
+  const driveFile = await updatePdf(driveFileId, newTitle);
   const row = await prisma.lessonMaterial.update({
-    where: { id: current.id },
+    where: { id: String(materialId) },
     data: {
       title: String(newTitle).trim(),
-      fileName: driveFile.name || current.fileName,
+      fileName: driveFile.name || "lesson-material.pdf",
     },
   });
   return toRecord(row);
 }
 
-async function deleteMaterial(materialId) {
-  const current = await prisma.lessonMaterial.findUnique({
-    where: { id: String(materialId) },
-  });
-  if (!current) return false;
-  await deletePdf(current.driveFileId);
-  await prisma.lessonMaterial.delete({ where: { id: current.id } });
+async function deleteMaterial(materialId, knownDriveFileId) {
+  const driveFileId = knownDriveFileId || (await getMaterialDriveFileId(materialId));
+  if (!driveFileId) return false;
+  await deletePdf(driveFileId);
+  await prisma.lessonMaterial.delete({ where: { id: String(materialId) } });
   return true;
+}
+
+/**
+ * Resolves a material's Drive file id, or null when the row does not exist.
+ * Routes that already fetched the material (PATCH/DELETE need its
+ * driveFileId for ownership checks) pass it in to dodge a second read.
+ */
+async function getMaterialDriveFileId(materialId) {
+  const row = await prisma.lessonMaterial.findUnique({
+    where: { id: String(materialId) },
+    select: { driveFileId: true },
+  });
+  return row ? row.driveFileId : null;
 }
 
 // Lesson ownership is still a single-teacher platform, matching video management.

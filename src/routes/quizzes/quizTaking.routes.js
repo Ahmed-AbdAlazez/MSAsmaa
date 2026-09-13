@@ -53,6 +53,8 @@ const {
   finalizeAttempt,
   countSubmittedAttempts,
   getAllowedAttemptCount,
+  getAllowedAttemptCountsForStudent,
+  isQuestionInQuiz,
 } = require("../../services/quiz.stub.service.js");
 const {
   isStudentEnrolledInLessonCourse,
@@ -260,9 +262,15 @@ router.get(
     }
 
     const result = {};
+    // One batched allowance query for every quiz the student touched instead
+    // of one lookup per quiz (the N+1 in the original feed).
+    const allowedMap = await getAllowedAttemptCountsForStudent(
+      req.user.id,
+      [...byQuiz.keys()],
+    );
     for (const [quizId, quizAttempts] of byQuiz.entries()) {
       const used = quizAttempts.filter((a) => a.status === "submitted").length;
-      const allowed = await getAllowedAttemptCount(quizId, req.user.id);
+      const allowed = allowedMap.get(quizId) ?? 1;
       const inProgress = quizAttempts.find((a) => a.status === "in_progress");
       const latestSubmitted =
         quizAttempts
@@ -340,6 +348,10 @@ router.get("/quizzes/for-lesson/:lessonId", requireAuth, async (req, res) => {
       if (!byQuiz.has(a.quizId)) byQuiz.set(a.quizId, []);
       byQuiz.get(a.quizId).push(a);
     }
+    const allowedMap = await getAllowedAttemptCountsForStudent(
+      req.user.id,
+      exams.map((exam) => exam.id),
+    );
     for (const exam of exams) {
       const quizAttempts = byQuiz.get(exam.id) || [];
       const inProgress = quizAttempts.find((a) => a.status === "in_progress");
@@ -352,7 +364,7 @@ router.get("/quizzes/for-lesson/:lessonId", requireAuth, async (req, res) => {
         );
       const latestSubmitted = submitted[0] || null;
       const used = quizAttempts.filter((a) => a.status === "submitted").length;
-      const allowed = await getAllowedAttemptCount(exam.id, req.user.id);
+      const allowed = allowedMap.get(exam.id) ?? 1;
 
       attempts[exam.id] = {
         status: inProgress
@@ -393,17 +405,18 @@ router.post(
     // (a) Enrollment — for mixed quizzes, check course enrollment (not lesson-level);
     // for single-lesson quizzes, check lesson-level enrollment as before.
     if (quiz.isMixed) {
-      // Mixed quiz: enrolled in ANY of the covered lessons = OK
-      const {
-        isStudentEnrolledInLessonCourse,
-      } = require("../../services/enrollment.stub.service.js");
-      let enrolled = false;
-      for (const lid of await getQuizLessons(quiz.id)) {
-        if (await isStudentEnrolledInLessonCourse(req.user.id, lid)) {
-          enrolled = true;
-          break;
-        }
-      }
+      // Mixed quiz: enrolled in ANY of the covered lessons = OK.
+      // isStudentEnrolledInLessonCourse is keyed on the USER (role/status),
+      // not the lesson, so one enrolment read covers every covered lesson —
+      // the loop previously re-read the same user row once per lesson, which
+      // made the exam-start burst pay N sequential DB reads for one answer.
+      const coveredLessons = await getQuizLessons(quiz.id);
+      const enrolled = coveredLessons.length
+        ? await isStudentEnrolledInLessonCourse(
+            req.user.id,
+            coveredLessons[0],
+          )
+        : false;
       if (!enrolled) {
         return res.status(403).json({
           error: "يجب أن تكوني مسجلة في كورس الأحياء للمشاركة في هذا الاختبار.",
@@ -600,8 +613,9 @@ router.post(
     const questionId = String((req.body && req.body.questionId) || "");
     const value = String((req.body && req.body.value) ?? "");
 
-    const questions = await getQuestionsForQuiz(quiz.id);
-    if (!questions.some((question) => question.id === questionId)) {
+    // Hot autosave path: validate with a single cheap COUNT instead of
+    // loading every question + choice of the quiz just to check one id.
+    if (!(await isQuestionInQuiz(quiz.id, questionId))) {
       return res.status(400).json({ error: "سؤال غير معروف." });
     }
 

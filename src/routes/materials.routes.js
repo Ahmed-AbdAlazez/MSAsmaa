@@ -585,7 +585,7 @@ router.patch(
       return next(
         new AppError("أنت لا تملك الكورس الذي تتبع له هذه المادة.", 403),
       );
-    await updateMaterialTitle(material.id, title);
+    await updateMaterialTitle(material.id, title, material.fileId);
     return res.json({
       message: "تم حفظ التعديلات بنجاح.",
       materialId: material.id,
@@ -605,7 +605,7 @@ router.delete(
       return next(
         new AppError("أنت لا تملك الكورس الذي تتبع له هذه المادة.", 403),
       );
-    await deleteMaterial(material.id);
+    await deleteMaterial(material.id, material.fileId);
     return res.json({ message: "تم حذف المادة بنجاح." });
   }),
 );

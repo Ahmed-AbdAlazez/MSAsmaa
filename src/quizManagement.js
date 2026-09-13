@@ -97,8 +97,23 @@ let currentFilterMode = "by-lesson"; // "by-lesson" | "mixed"
 async function loadTeacherQuizzes() {
   const listContainer = document.getElementById("quiz-management-list");
   if (listContainer) listContainer.innerHTML = skeletonCards(2);
-  const { ok, data } = await apiCall("GET", "/api/quizzes-managed");
-  if (!ok) {
+
+  let data;
+  try {
+    // Reuse the dashboard's shared quizzes fetch (created by main.js the
+    // first time it runs) so one page load never fires two identical GETs.
+    if (!window.__teacherQuizzesPromise) {
+      window.__teacherQuizzesPromise = (async () => {
+        const { ok, data: payload } = await apiCall(
+          "GET",
+          "/api/quizzes-managed",
+        );
+        if (!ok) throw new Error("Failed to load quizzes");
+        return payload;
+      })();
+    }
+    data = await window.__teacherQuizzesPromise;
+  } catch (error) {
     if (listContainer)
       listContainer.innerHTML = skeletonError(
         "تعذر تحميل الاختبارات، حاولي مرة أخرى.",
@@ -106,10 +121,14 @@ async function loadTeacherQuizzes() {
       );
     listContainer
       ?.querySelector(".skeleton-retry-btn")
-      ?.addEventListener("click", loadTeacherQuizzes);
+      ?.addEventListener("click", () => {
+        window.__teacherQuizzesPromise = null;
+        loadTeacherQuizzes();
+      });
     showToast("تعذر تحميل الاختبارات.", "danger");
     return false;
   }
+
   quizzesState = data.quizzes || [];
   return true;
 }

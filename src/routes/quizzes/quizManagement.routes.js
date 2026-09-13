@@ -19,6 +19,7 @@ const { requireAuth } = require("../../middleware/auth.middleware.js");
 const { requireTeacher, attachImageUrls } = require("./quiz.helpers.js");
 const {
   getQuestionsForQuiz,
+  getQuestionCountForQuiz,
   deleteQuiz,
   deleteQuestionFromQuiz,
   updateQuestion,
@@ -318,7 +319,7 @@ router.put(
         if (!Number.isInteger(questionCount) || questionCount < 1) {
           return res.status(400).json({ error: "عدد الأسئلة غير صالح." });
         }
-        const actualCount = (await getQuestionsForQuiz(quiz.id)).length;
+        const actualCount = await getQuestionCountForQuiz(quiz.id);
         if (questionCount < actualCount) {
           return res.status(400).json({
             error: `يوجد ${actualCount} سؤال مضاف بالفعل — لا يمكن جعل العدد أقل منه.`,

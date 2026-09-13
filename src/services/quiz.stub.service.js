@@ -148,6 +148,27 @@ function mapAttempt(row) {
 
 const ATTEMPT_INCLUDE = { answers: true };
 
+/**
+ * Column projection for read-heavy attempt listings. Matches mapAttempt's
+ * surface area EXCEPT answers/ordering, which only the solve flow needs —
+ * leaderboards, results views and the scoreboard aggregate on numbers and
+ * never touch per-question answers, so projecting them merely streams bytes
+ * from Neon to Vercel for nothing. mapAttempt tolerates the omission.
+ */
+const ATTEMPT_LEAN_SELECT = {
+  id: true,
+  quizId: true,
+  studentId: true,
+  attemptNumber: true,
+  status: true,
+  startedAt: true,
+  personalDeadline: true,
+  submittedAt: true,
+  submissionReason: true,
+  score: true,
+  totalMcq: true,
+};
+
 /* ------------------------------------------------------------------ *
  * QUIZZES
  * ------------------------------------------------------------------ */
@@ -364,6 +385,32 @@ async function getQuestionById(questionId) {
     include: { choices: true, quiz: true },
   });
   return row ? { question: mapQuestion(row), quiz: mapQuiz(row.quiz) } : null;
+}
+
+/**
+ * Number of questions currently stored for a quiz (cheap COUNT, no rows).
+ * Used where only the total matters (e.g. quiz-edit question-count checks).
+ * @param {string} quizId
+ * @returns {Promise<number>}
+ */
+async function getQuestionCountForQuiz(quizId) {
+  return prisma.quizQuestion.count({
+    where: { quizId: String(quizId) },
+  });
+}
+
+/**
+ * Cheap existence check: is this question part of this quiz? Avoids loading
+ * every question+choice just to validate one id on the hot autosave path.
+ * @param {string} quizId
+ * @param {string} questionId
+ * @returns {Promise<boolean>}
+ */
+async function isQuestionInQuiz(quizId, questionId) {
+  const count = await prisma.quizQuestion.count({
+    where: { quizId: String(quizId), id: String(questionId) },
+  });
+  return count > 0;
 }
 
 /* ------------------------------------------------------------------ *
@@ -601,6 +648,27 @@ async function getAllowedAttemptCounts(quizId, studentIds) {
 }
 
 /**
+ * Batch allowed-attempt counts for ONE student across MANY quizzes.
+ * Single query instead of N — powers the hub/my-attempts and for-lesson feeds.
+ * @param {string} studentId
+ * @param {string[]} quizIds
+ * @returns {Promise<Map<string, number>>} quizId -> allowed attempts
+ */
+async function getAllowedAttemptCountsForStudent(studentId, quizIds) {
+  if (!quizIds.length) return new Map();
+  const rows = await prisma.quizExtraAttempt.findMany({
+    where: {
+      studentId: String(studentId),
+      quizId: { in: quizIds.map(String) },
+    },
+  });
+  const extraMap = new Map(rows.map((r) => [r.quizId, r.extraCount]));
+  return new Map(
+    quizIds.map((id) => [String(id), 1 + (extraMap.get(String(id)) || 0)]),
+  );
+}
+
+/**
  * Teacher grants ONE additional attempt to a student for a quiz (persistent;
  * calling twice grants two). Returns the new total allowance.
  * @param {string} quizId
@@ -638,7 +706,7 @@ async function getAllAttemptsForQuiz(quizId) {
   const rows = await prisma.quizAttempt.findMany({
     where: { quizId: String(quizId) },
     orderBy: { startedAt: "asc" },
-    include: ATTEMPT_INCLUDE,
+    select: ATTEMPT_LEAN_SELECT,
   });
   return rows.map(mapAttempt);
 }
@@ -653,7 +721,7 @@ async function getSubmittedResultsForQuiz(quizId) {
   const rows = await prisma.quizAttempt.findMany({
     where: { quizId: String(quizId), status: "submitted" },
     orderBy: { startedAt: "asc" },
-    include: ATTEMPT_INCLUDE,
+    select: ATTEMPT_LEAN_SELECT,
   });
   return rows.map(mapAttempt);
 }
@@ -673,6 +741,16 @@ async function getAllSubmittedAttemptsWithQuiz() {
   const rows = await prisma.quizAttempt.findMany({
     where: { status: "submitted" },
     orderBy: { submittedAt: "asc" },
+    select: {
+      id: true,
+      studentId: true,
+      quizId: true,
+      attemptNumber: true,
+      score: true,
+      totalMcq: true,
+      submittedAt: true,
+      startedAt: true,
+    },
     include: {
       quiz: { select: { title: true, isMixed: true, lessonId: true } },
     },
@@ -947,6 +1025,8 @@ const service = {
   addQuestionToQuiz,
   getQuestionsForQuiz,
   getQuestionById,
+  getQuestionCountForQuiz,
+  isQuestionInQuiz,
   getQuizLessons,
   getQuizLessonsBatch,
   createAttempt,
@@ -959,6 +1039,7 @@ const service = {
   countSubmittedAttempts,
   getAllowedAttemptCount,
   getAllowedAttemptCounts,
+  getAllowedAttemptCountsForStudent,
   grantAdditionalAttempt,
   getAllAttemptsForQuiz,
   getSubmittedResultsForQuiz,
