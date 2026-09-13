@@ -44,6 +44,13 @@ async function getMaterialById(materialId) {
   return toRecord(row);
 }
 
+async function getMaterialByDriveFileId(driveFileId) {
+  const row = await prisma.lessonMaterial.findUnique({
+    where: { driveFileId: String(driveFileId) },
+  });
+  return toRecord(row);
+}
+
 async function updateMaterialTitle(materialId, newTitle) {
   const current = await prisma.lessonMaterial.findUnique({
     where: { id: String(materialId) },
@@ -80,6 +87,7 @@ module.exports = {
   saveMaterialRecord,
   getMaterialsForLesson,
   getMaterialById,
+  getMaterialByDriveFileId,
   updateMaterialTitle,
   deleteMaterial,
   isTeacherOwnerOfLesson,

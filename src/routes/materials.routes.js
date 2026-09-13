@@ -1,4 +1,5 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const { requireAuth } = require("../middleware/auth.middleware.js");
 const {
@@ -8,13 +9,17 @@ const {
   saveMaterialRecord,
   getMaterialsForLesson,
   getMaterialById,
+  getMaterialByDriveFileId,
   updateMaterialTitle,
   deleteMaterial,
   isTeacherOwnerOfLesson,
 } = require("../services/material.stub.service.js");
 const {
   uploadPdf,
+  createPdfUploadSession,
+  getPdfMetadata,
   getPdfStream,
+  deletePdf,
   isDriveReauthorizationError,
   createResumableUploadSession,
 } = require("../services/googleDriveStorage.service.js");
@@ -28,6 +33,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_PDF_SIZE_BYTES },
 });
+
+const UPLOAD_TOKEN_TTL = "15m";
 
 function requireTeacher(req, res, next) {
   if (req.user.role !== "teacher") {
@@ -61,6 +68,191 @@ function cleanTitle(req) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+function getUploadTokenSecret() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured in environment variables");
+  }
+  return process.env.JWT_SECRET;
+}
+
+function signMaterialUploadToken(payload) {
+  return jwt.sign(payload, getUploadTokenSecret(), {
+    expiresIn: UPLOAD_TOKEN_TTL,
+  });
+}
+
+function verifyMaterialUploadToken(token) {
+  return jwt.verify(token, getUploadTokenSecret());
+}
+
+function validatePdfUploadDetails(fileName, mimeType, sizeBytes) {
+  const parsedSize = Number(sizeBytes);
+  if (
+    mimeType !== "application/pdf" ||
+    !/\.pdf$/i.test(String(fileName || "")) ||
+    !Number.isSafeInteger(parsedSize) ||
+    parsedSize <= 0 ||
+    parsedSize > MAX_PDF_SIZE_BYTES
+  ) {
+    throw new AppError("يُسمح فقط بملفات PDF بحجم 20 ميجابايت أو أقل.", 400);
+  }
+  return parsedSize;
+}
+
+async function ensureTeacherOwnsLesson(req, next) {
+  if (!(await isTeacherOwnerOfLesson(req.user.id, req.params.lessonId))) {
+    next(new AppError("أنت لا تملك الكورس الذي يتبع له هذا الدرس.", 403));
+    return false;
+  }
+  return true;
+}
+
+router.post(
+  "/lessons/:lessonId/materials/upload-session",
+  requireAuth,
+  requireTeacher,
+  catchAsync(async (req, res, next) => {
+    if (!(await ensureTeacherOwnsLesson(req, next))) return;
+
+    const fileName = String(req.body?.fileName || "").trim();
+    const mimeType = String(req.body?.mimeType || "")
+      .trim()
+      .toLowerCase();
+    const sizeBytes = validatePdfUploadDetails(
+      fileName,
+      mimeType,
+      req.body?.sizeBytes,
+    );
+    const title = String(req.body?.title || fileName)
+      .replace(/\s+/g, " ")
+      .trim();
+
+    try {
+      const session = await createPdfUploadSession(fileName, sizeBytes);
+      const uploadToken = signMaterialUploadToken({
+        id: req.user.id,
+        role: req.user.role,
+        lessonId: String(req.params.lessonId),
+        fileName: session.fileName,
+        title,
+        sizeBytes,
+      });
+      return res.json({
+        uploadUrl: session.uploadUrl,
+        uploadToken,
+      });
+    } catch (error) {
+      console.error(
+        "[materials] Google Drive upload session failed:",
+        error.message,
+      );
+      return next(
+        new AppError("تعذر تجهيز رفع ملف PDF إلى Google Drive.", 500),
+      );
+    }
+  }),
+);
+
+router.post(
+  "/lessons/:lessonId/materials/complete-upload",
+  requireAuth,
+  requireTeacher,
+  catchAsync(async (req, res, next) => {
+    let uploadClaims;
+    try {
+      uploadClaims = verifyMaterialUploadToken(req.body?.uploadToken);
+    } catch (_) {
+      return next(new AppError("جلسة رفع ملف PDF غير صالحة أو منتهية.", 400));
+    }
+
+    if (
+      uploadClaims.id !== req.user.id ||
+      uploadClaims.role !== req.user.role ||
+      uploadClaims.lessonId !== String(req.params.lessonId)
+    ) {
+      return next(new AppError("لا تملك صلاحية إكمال رفع هذا الملف.", 403));
+    }
+    if (!(await ensureTeacherOwnsLesson(req, next))) return;
+
+    const fileId = String(req.body?.fileId || "").trim();
+    if (!fileId) return next(new AppError("معرف ملف Google Drive مطلوب.", 400));
+
+    let driveFile;
+    try {
+      driveFile = await getPdfMetadata(fileId);
+    } catch (error) {
+      console.error(
+        "[materials] Google Drive upload verification failed:",
+        error.message,
+      );
+      return next(new AppError("تعذر التحقق من ملف PDF في Google Drive.", 500));
+    }
+
+    const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+    const actualSize = Number(driveFile.size);
+    const validFile =
+      driveFile.id === fileId &&
+      driveFile.name === uploadClaims.fileName &&
+      driveFile.mimeType === "application/pdf" &&
+      /\.pdf$/i.test(driveFile.name || "") &&
+      Array.isArray(driveFile.parents) &&
+      driveFile.parents.includes(folderId) &&
+      Number.isSafeInteger(actualSize) &&
+      actualSize === Number(uploadClaims.sizeBytes) &&
+      actualSize <= MAX_PDF_SIZE_BYTES;
+
+    if (!validFile) {
+      if (
+        Array.isArray(driveFile.parents) &&
+        driveFile.parents.includes(folderId)
+      ) {
+        await deletePdf(fileId).catch((error) =>
+          console.error(
+            "[materials] Invalid Drive PDF cleanup failed:",
+            error.message,
+          ),
+        );
+      }
+      return next(new AppError("ملف PDF المرفوع غير صالح.", 400));
+    }
+
+    const existingMaterial = await getMaterialByDriveFileId(fileId);
+    if (existingMaterial) {
+      if (existingMaterial.lessonId !== String(req.params.lessonId)) {
+        return next(new AppError("لا تملك صلاحية إكمال رفع هذا الملف.", 403));
+      }
+      return res.status(201).json({
+        message: "تم رفع مادة PDF بنجاح.",
+        lessonId: req.params.lessonId,
+        material: { id: existingMaterial.id, title: existingMaterial.title },
+      });
+    }
+
+    let material;
+    try {
+      material = await saveMaterialRecord(
+        req.params.lessonId,
+        uploadClaims.title,
+        driveFile,
+      );
+    } catch (error) {
+      await deletePdf(fileId).catch((cleanupError) =>
+        console.error(
+          "[materials] Orphaned Drive PDF cleanup failed:",
+          cleanupError.message,
+        ),
+      );
+      throw error;
+    }
+
+    return res.status(201).json({
+      message: "تم رفع مادة PDF بنجاح.",
+      lessonId: req.params.lessonId,
+      material: { id: material.id, title: material.title },
+    });
+  }),
+);
 
 router.post(
   "/lessons/:lessonId/materials/upload-url",
