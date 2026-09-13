@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const crypto = require("crypto");
 const { Readable } = require("stream");
 const { google } = require("googleapis");
 
@@ -10,7 +9,7 @@ function getUploadsDir() {
     process.env.VERCEL ||
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
     process.env.LAMBDA_TASK_ROOT ||
-    (process.cwd() && process.cwd().startsWith("/var/task"))
+    (process.cwd() && process.cwd().startsWith("/var/task")),
   );
 
   let targetDir = isServerless
@@ -23,14 +22,20 @@ function getUploadsDir() {
     }
     return targetDir;
   } catch (error) {
-    console.warn("[googleDriveStorage] Failed to create local uploads directory in primary path, using OS temp dir:", error.message);
+    console.warn(
+      "[googleDriveStorage] Failed to create local uploads directory in primary path, using OS temp dir:",
+      error.message,
+    );
     const tmpDir = path.join(os.tmpdir(), "uploads", "materials");
     try {
       if (!fs.existsSync(tmpDir)) {
         fs.mkdirSync(tmpDir, { recursive: true });
       }
     } catch (e) {
-      console.error("[googleDriveStorage] Could not create temp directory:", e.message);
+      console.error(
+        "[googleDriveStorage] Could not create temp directory:",
+        e.message,
+      );
     }
     return tmpDir;
   }
@@ -45,21 +50,20 @@ const requiredEnvironmentVariables = [
 ];
 
 function getDriveClient() {
-  const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "").trim();
-  const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "").trim();
-  const redirectUri = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "http://localhost:3000/oauth2callback").trim();
-  const refreshToken = (process.env.GOOGLE_OAUTH_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN || "").trim();
+  const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim();
+  const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
+  const redirectUri = (
+    process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+    "http://localhost:3000/oauth2callback"
+  ).trim();
+  const refreshToken = (process.env.GOOGLE_OAUTH_REFRESH_TOKEN || "").trim();
   const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
 
   if (!clientId || !clientSecret || !refreshToken || !folderId) {
     throw new Error("Google Drive configuration is incomplete.");
   }
 
-  const auth = new google.auth.OAuth2(
-    clientId,
-    clientSecret,
-    redirectUri,
-  );
+  const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   auth.setCredentials({
     refresh_token: refreshToken,
   });
@@ -91,33 +95,18 @@ function safeImageName(fileName, mimeType) {
 }
 
 async function uploadPdf(buffer, fileName) {
-  try {
-    const drive = getDriveClient();
-    const result = await drive.files.create({
-      requestBody: {
-        name: safePdfName(fileName),
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
-        mimeType: "application/pdf",
-      },
-      media: { mimeType: "application/pdf", body: Readable.from(buffer) },
-      fields: "id,name,mimeType,size,createdTime,modifiedTime",
-      supportsAllDrives: true,
-    });
-    return result.data;
-  } catch (error) {
-    console.warn("[googleDriveStorage] Google Drive upload failed or unconfigured:", error.message);
-    console.warn("[googleDriveStorage] Saving PDF locally in uploads/materials as immediate fallback.");
-    const fileId = `local_${crypto.randomUUID()}`;
-    const uploadsDir = getUploadsDir();
-    const localPath = path.join(uploadsDir, `${fileId}.pdf`);
-    fs.writeFileSync(localPath, buffer);
-    return {
-      id: fileId,
+  const drive = getDriveClient();
+  const result = await drive.files.create({
+    requestBody: {
       name: safePdfName(fileName),
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
       mimeType: "application/pdf",
-      size: buffer.length,
-    };
-  }
+    },
+    media: { mimeType: "application/pdf", body: Readable.from(buffer) },
+    fields: "id,name,mimeType,size,createdTime,modifiedTime",
+    supportsAllDrives: true,
+  });
+  return result.data;
 }
 
 async function uploadQuizImage(buffer, fileName, mimeType) {
@@ -154,7 +143,10 @@ async function getPdfStream(fileId) {
     return result.data;
   } catch (error) {
     if (fs.existsSync(localPath)) {
-      console.warn("[googleDriveStorage] Google Drive stream failed, serving local fallback file:", error.message);
+      console.warn(
+        "[googleDriveStorage] Google Drive stream failed, serving local fallback file:",
+        error.message,
+      );
       return fs.createReadStream(localPath);
     }
     throw error;
@@ -172,7 +164,11 @@ async function getImageStream(fileId) {
 
 async function updatePdf(fileId, title) {
   if (String(fileId).startsWith("local_")) {
-    return { id: fileId, name: safePdfName(title), mimeType: "application/pdf" };
+    return {
+      id: fileId,
+      name: safePdfName(title),
+      mimeType: "application/pdf",
+    };
   }
   const drive = getDriveClient();
   const result = await drive.files.update({
