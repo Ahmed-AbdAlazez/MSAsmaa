@@ -18,10 +18,12 @@ const {
   uploadPdf,
   createPdfUploadSession,
   getPdfMetadata,
-  getPdfStream,
   deletePdf,
   isDriveReauthorizationError,
   createResumableUploadSession,
+  ensurePublicReadable,
+  getPdfViewUrl,
+  getPdfDownloadUrl,
 } = require("../services/googleDriveStorage.service.js");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
@@ -106,6 +108,17 @@ async function ensureTeacherOwnsLesson(req, next) {
     return false;
   }
   return true;
+}
+
+/** Makes a Drive PDF "anyone with the link" readable so browsers can open
+ *  the preview/download URL directly (bytes never pass through Vercel). */
+function bestEffortShare(fileId) {
+  return ensurePublicReadable(fileId).catch((error) =>
+    console.warn(
+      "[materials] Failed to share PDF by link:",
+      error && error.message,
+    ),
+  );
 }
 
 router.post(
@@ -201,6 +214,8 @@ router.post(
       return next(new AppError("ملف PDF المرفوع غير صالح.", 400));
     }
 
+    await bestEffortShare(fileId);
+
     const existingMaterial = await getMaterialByDriveFileId(fileId);
     if (existingMaterial) {
       if (existingMaterial.lessonId !== String(req.params.lessonId)) {
@@ -275,6 +290,7 @@ router.post(
       cleanMaterialTitle,
       driveFileObj
     );
+    await bestEffortShare(String(driveFileId));
     return res.status(201).json({
       message: "تم حفظ مادة PDF بنجاح.",
       lessonId: req.params.lessonId,
@@ -379,27 +395,8 @@ router.get(
         new AppError("أنت غير مسجل في الكورس الذي تتبع له هذه المادة.", 403),
       );
     }
-    try {
-      const stream = await getPdfStream(material.fileId);
-      const disposition =
-        req.query.mode === "inline"
-          ? "inline"
-          : `attachment; filename="${encodeURIComponent(material.fileName)}"`;
-      res.set({
-        "Content-Type": "application/pdf",
-        "Content-Disposition": disposition,
-      });
-      stream.on("error", () => {
-        if (!res.headersSent)
-          next(new AppError("فشل تحميل ملف PDF. يرجى المحاولة لاحقاً.", 500));
-      });
-      return stream.pipe(res);
-    } catch (error) {
-      console.error("[materials] PDF stream failed:", error.message);
-      return next(
-        new AppError("فشل تحميل ملف PDF. يرجى المحاولة لاحقاً.", 500),
-      );
-    }
+    await bestEffortShare(material.fileId);
+    return res.json({ downloadUrl: getPdfDownloadUrl(material.fileId) });
   }),
 );
 
@@ -423,21 +420,8 @@ router.get(
       return next(new AppError("لا تملك صلاحية عرض ملف PDF هذا.", 403));
     }
 
-    try {
-      const stream = await getPdfStream(material.fileId);
-      res.set({
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "inline",
-      });
-      stream.on("error", () => {
-        if (!res.headersSent)
-          next(new AppError("فشل تحميل ملف PDF. يرجى المحاولة لاحقاً.", 500));
-      });
-      return stream.pipe(res);
-    } catch (error) {
-      console.error("[materials] PDF view failed:", error.message);
-      return next(new AppError("فشل فتح ملف PDF. يرجى المحاولة لاحقاً.", 500));
-    }
+    await bestEffortShare(material.fileId);
+    return res.json({ viewUrl: getPdfViewUrl(material.fileId) });
   }),
 );
 

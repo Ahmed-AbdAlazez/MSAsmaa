@@ -205,9 +205,10 @@
   <div id="toast-container"></div>
 
   <script src="/js/curriculum.js"></script>
-  <!-- PDFs stream through the same-origin backend proxy
-       (GET /api/materials/:id/view) into a plain <iframe>, so the native
-       browser/OS PDF renderer handles display on every platform. -->
+  <!-- PDFs open in an in-page iframe pointed at Google Drive's /preview URL
+       (GET /api/materials/:id/view returns the link after the enrollment
+       check), so the file bytes never stream through the Vercel function
+       which caps responses at ~4.5MB. -->
   <script src="/js/profile-menu.js"></script>
   <script type="module" src="/src/main.js"></script>
   <script type="module" src="/src/exams.js"></script>

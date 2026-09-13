@@ -962,6 +962,41 @@ document.addEventListener("DOMContentLoaded", () => {
     return data;
   };
 
+  const openPdfViewer = (viewUrl, title) => {
+    const existing = document.querySelector(".pdf-viewer-overlay");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "pdf-viewer-overlay";
+    overlay.innerHTML =
+      '<div class="pdf-viewer-shell">' +
+      '<div class="pdf-viewer-bar">' +
+      '<span class="pdf-viewer-title"></span>' +
+      '<button type="button" class="pdf-viewer-close" aria-label="إغلاق">إغلاق ✕</button>' +
+      "</div>" +
+      '<iframe class="pdf-viewer-iframe" allow="fullscreen" frameborder="0"></iframe>' +
+      "</div>";
+
+    overlay.querySelector(".pdf-viewer-title").textContent = title || "PDF";
+    overlay
+      .querySelector(".pdf-viewer-close")
+      .addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) overlay.remove();
+    });
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") overlay.remove();
+      },
+      { once: true },
+    );
+
+    const iframe = overlay.querySelector(".pdf-viewer-iframe");
+    iframe.src = viewUrl;
+    document.body.appendChild(overlay);
+  };
+
   const restoredVideoPolls = new Set();
   const acknowledgeUploadWorkflow = (jobId) => {
     navigator.serviceWorker.ready
@@ -2256,19 +2291,11 @@ document.addEventListener("DOMContentLoaded", () => {
           try {
             downloadButton.disabled = true;
             downloadButton.textContent = "جاري...";
-            const downloadResponse = await fetch(
+            const downloadRes = await fetchJson(
               `/api/materials/${encodeURIComponent(material.id)}/download`,
               { headers: authHeaders() },
             );
-            if (!downloadResponse.ok) {
-              const errorData = await downloadResponse.json().catch(() => ({}));
-              throw new Error(
-                errorData.message || errorData.error || "تعذر تحميل ملف PDF.",
-              );
-            }
-            const pdfUrl = URL.createObjectURL(await downloadResponse.blob());
-            window.open(pdfUrl, "_blank", "noopener");
-            setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+            window.open(downloadRes.downloadUrl, "_blank", "noopener");
           } catch (error) {
             showToast(error.message, "danger");
           } finally {
@@ -2288,19 +2315,11 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
               viewButton.disabled = true;
               viewButton.textContent = "جاري...";
-              const viewResponse = await fetch(
+              const viewRes = await fetchJson(
                 `/api/materials/${encodeURIComponent(material.id)}/view`,
                 { headers: authHeaders() },
               );
-              if (!viewResponse.ok) {
-                const errorData = await viewResponse.json().catch(() => ({}));
-                throw new Error(
-                  errorData.message || errorData.error || "تعذر فتح ملف PDF.",
-                );
-              }
-              const pdfUrl = URL.createObjectURL(await viewResponse.blob());
-              window.open(pdfUrl, "_blank", "noopener");
-              setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+              openPdfViewer(viewRes.viewUrl, material.title || "PDF");
             } catch (error) {
               showToast(error.message, "danger");
             } finally {
@@ -4112,19 +4131,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const openMaterial = async (button, fallbackMessage) => {
           try {
             button.disabled = true;
-            const response = await fetch(
+            const response = await fetchJson(
               `/api/materials/${encodeURIComponent(material.id)}/view`,
               { headers: authHeaders() },
             );
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
-              throw new Error(
-                errorData.message || errorData.error || fallbackMessage,
-              );
-            }
-            const pdfUrl = URL.createObjectURL(await response.blob());
-            window.open(pdfUrl, "_blank", "noopener");
-            setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+            openPdfViewer(response.viewUrl, material.title || "PDF");
           } catch (error) {
             showToast(error.message, "danger");
           } finally {
@@ -4144,23 +4155,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const button = event.currentTarget;
             try {
               button.disabled = true;
-              const response = await fetch(
+              const response = await fetchJson(
                 `/api/materials/${encodeURIComponent(material.id)}/download`,
                 { headers: authHeaders() },
               );
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                  errorData.message || errorData.error || "تعذر تحميل ملف PDF.",
-                );
-              }
-              const pdfUrl = URL.createObjectURL(await response.blob());
-              const link = document.createElement("a");
-              link.href = pdfUrl;
-              link.download =
-                material.fileName || `${material.title || "material"}.pdf`;
-              link.click();
-              setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+              window.open(response.downloadUrl, "_blank", "noopener");
             } catch (error) {
               showToast(error.message, "danger");
             } finally {

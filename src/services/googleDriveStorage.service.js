@@ -122,6 +122,12 @@ async function uploadPdf(buffer, fileName) {
       fields: "id,name,mimeType,size,createdTime,modifiedTime",
       supportsAllDrives: true,
     });
+    await ensurePublicReadable(result.data.id).catch((shareError) =>
+      console.warn(
+        "[googleDriveStorage] Failed to share uploaded PDF by link:",
+        shareError.message,
+      ),
+    );
     return result.data;
   } catch (error) {
     if (folderId && (error.code === 404 || String(error.message || "").includes("File not found"))) {
@@ -135,6 +141,12 @@ async function uploadPdf(buffer, fileName) {
         fields: "id,name,mimeType,size,createdTime,modifiedTime",
         supportsAllDrives: true,
       });
+      await ensurePublicReadable(result.data.id).catch((shareError) =>
+        console.warn(
+          "[googleDriveStorage] Failed to share uploaded PDF by link:",
+          shareError.message,
+        ),
+      );
       return result.data;
     }
     throw error;
@@ -338,6 +350,33 @@ async function createResumableUploadSession(fileName, mimeType = "application/pd
   return { uploadUrl, fileId };
 }
 
+async function ensurePublicReadable(fileId) {
+  if (String(fileId).startsWith("local_")) return;
+  const drive = getDriveClient();
+  const list = await drive.permissions.list({
+    fileId,
+    fields: "permissions(id,type,role)",
+    supportsAllDrives: true,
+  });
+  const alreadyPublic = (list.data?.permissions || []).some(
+    (p) => p.type === "anyone" && p.role === "reader",
+  );
+  if (alreadyPublic) return;
+  await drive.permissions.create({
+    fileId,
+    supportsAllDrives: true,
+    requestBody: { type: "anyone", role: "reader" },
+  });
+}
+
+function getPdfViewUrl(fileId) {
+  return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+}
+
+function getPdfDownloadUrl(fileId) {
+  return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
+}
+
 module.exports = {
   uploadPdf,
   createPdfUploadSession,
@@ -349,4 +388,7 @@ module.exports = {
   deletePdf,
   isDriveReauthorizationError,
   createResumableUploadSession,
+  ensurePublicReadable,
+  getPdfViewUrl,
+  getPdfDownloadUrl,
 };
