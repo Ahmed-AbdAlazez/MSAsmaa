@@ -1101,7 +1101,8 @@ document.addEventListener("DOMContentLoaded", () => {
           persist();
         } catch (_) {}
 
-        let consecutiveFailures = 0;
+        let stallStreak = 0;
+        let lastConfirmed = cursor;
 
         while (cursor < total) {
           const end = Math.min(total, cursor + DRIVE_CHUNK_SIZE);
@@ -1112,7 +1113,6 @@ document.addEventListener("DOMContentLoaded", () => {
             attempts += 1;
             try {
               const r = await sendChunk(cursor, end);
-              consecutiveFailures = 0;
               if (r.done) {
                 uploadedBytes = total;
                 reportProgress();
@@ -1125,6 +1125,10 @@ document.addEventListener("DOMContentLoaded", () => {
               }
               cursor = r.nextByte;
               uploadedBytes = cursor;
+              if (cursor > lastConfirmed) {
+                lastConfirmed = cursor;
+                stallStreak = 0;
+              }
               ok = true;
               reportProgress();
               persist();
@@ -1132,26 +1136,31 @@ document.addEventListener("DOMContentLoaded", () => {
               if (attempts >= DRIVE_MAX_RETRIES) {
                 let q = null;
                 for (let i = 0; i < 3 && !q; i++) {
-                  q = await queryDriveProgress(uploadUrl, total).catch(() => null);
+                  q = await queryDriveProgress(uploadUrl).catch(() => null);
                   if (!q) await new Promise((r) => setTimeout(r, 1200));
                 }
-                if (q && (q.completed || q.lastByte > 0)) {
-                  if (q.completed) {
-                    uploadedBytes = total;
-                    reportProgress();
-                    persist();
-                    return resolve({ id: q.fileId });
-                  }
-                  cursor = q.lastByte;
-                  uploadedBytes = q.lastByte;
+                if (q && q.completed) {
+                  uploadedBytes = total;
                   reportProgress();
                   persist();
-                  break;
+                  return resolve({ id: q.fileId });
                 }
-                consecutiveFailures += 1;
-                if (consecutiveFailures >= 2) {
+                // Reconcile with what Drive actually confirmed so we resume
+                // from the true position instead of an optimistic estimate.
+                const serverByte = q ? q.lastByte : 0;
+                if (serverByte > lastConfirmed) {
+                  lastConfirmed = serverByte;
+                  stallStreak = 0;
+                } else {
+                  stallStreak += 1;
+                }
+                cursor = Math.max(serverByte, 0);
+                uploadedBytes = cursor;
+                reportProgress();
+                persist();
+                if (stallStreak >= 2) {
                   throw new Error(
-                    "انقطع الاتصال أثناء رفع الملف إلى Google Drive. سيُستأنف الرفع تلقائياً عند النقر على زر الرفع مرة أخرى.",
+                    "انقطع الاتصال أثناء رفع الملف إلى Google Drive وتوقّف التقدّم. سيُستأنف الرفع تلقائياً عند النقر على زر الرفع مرة أخرى من حيث توقّف.",
                   );
                 }
               } else {
@@ -1166,7 +1175,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Every byte was accepted by Drive but the final 200 was never seen:
         // re-ask to fetch the file id.
         try {
-          const done = await queryDriveProgress(uploadUrl, total);
+          const done = await queryDriveProgress(uploadUrl);
           if (done.completed && done.fileId) return resolve({ id: done.fileId });
         } catch (_) {}
         return resolve({});
