@@ -14,52 +14,6 @@ if (!clientId || !clientSecret) {
   process.exit(1);
 }
 
-const oauth2Client = new google.auth.OAuth2(
-  clientId,
-  clientSecret,
-  redirectUriStr,
-);
-const authorizationUrl = oauth2Client.generateAuthUrl({
-  access_type: "offline",
-  prompt: "consent",
-  scope: [
-    "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/calendar.events",
-  ],
-});
-
-async function saveRefreshToken(code) {
-  try {
-    const tokens = await oauth2Client.getToken(String(code || "").trim());
-    if (!tokens.tokens.refresh_token) {
-      throw new Error(
-        "No refresh token was returned. Run again and approve consent.",
-      );
-    }
-    const envPath = path.resolve(process.cwd(), ".env");
-    let currentEnv = fs.existsSync(envPath)
-      ? fs.readFileSync(envPath, "utf8")
-      : "";
-    
-    const newToken = tokens.tokens.refresh_token;
-
-    // Update GOOGLE_REFRESH_TOKEN specifically for Google Meet
-    const envLineMeet = `GOOGLE_REFRESH_TOKEN=${newToken}`;
-    currentEnv = /^(?:GOOGLE_REFRESH_TOKEN)=.*$/m.test(currentEnv)
-      ? currentEnv.replace(/^(?:GOOGLE_REFRESH_TOKEN)=.*$/m, envLineMeet)
-      : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineMeet}\n`;
-
-    fs.writeFileSync(envPath, currentEnv, { encoding: "utf8", mode: 0o600 });
-    console.log("Google Meet OAuth authorization succeeded!");
-    console.log("The new refresh token was saved to GOOGLE_REFRESH_TOKEN in .env.");
-  } catch (error) {
-    console.error(
-      "Google Meet OAuth authorization failed:", error.message
-    );
-    process.exitCode = 1;
-  }
-}
-
 function startServer(port) {
   const currentRedirectUri = new URL(`http://localhost:${port}/oauth2callback`);
   const oauthClient = new google.auth.OAuth2(
@@ -134,5 +88,10 @@ function startServer(port) {
   });
 }
 
-const initialPort = Number(redirectUri.port || 53682);
-startServer(initialPort);
+let parsedPort = 53682;
+try {
+  const parsedUrl = new URL(redirectUriStr);
+  if (parsedUrl.port) parsedPort = Number(parsedUrl.port);
+} catch (e) {}
+
+startServer(parsedPort);
