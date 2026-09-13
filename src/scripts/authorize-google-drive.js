@@ -7,10 +7,15 @@ const { google } = require("googleapis");
 
 const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim();
 const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
-const redirectUriStr = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "http://localhost:53682/oauth2callback").trim();
+const redirectUriStr = (
+  process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+  "http://localhost:53682/oauth2callback"
+).trim();
 
 if (!clientId || !clientSecret) {
-  console.error("Missing Google Drive OAuth environment variables: GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET");
+  console.error(
+    "Missing Google Drive OAuth environment variables: GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET",
+  );
   process.exit(1);
 }
 
@@ -22,9 +27,7 @@ const oauth2Client = new google.auth.OAuth2(
 const authorizationUrl = oauth2Client.generateAuthUrl({
   access_type: "offline",
   prompt: "consent",
-  scope: [
-    "https://www.googleapis.com/auth/drive",
-  ],
+  scope: ["https://www.googleapis.com/auth/drive"],
 });
 
 async function saveRefreshToken(code) {
@@ -39,7 +42,7 @@ async function saveRefreshToken(code) {
     let currentEnv = fs.existsSync(envPath)
       ? fs.readFileSync(envPath, "utf8")
       : "";
-    
+
     const newToken = tokens.tokens.refresh_token;
 
     // Update GOOGLE_OAUTH_REFRESH_TOKEN for Google Drive
@@ -50,11 +53,18 @@ async function saveRefreshToken(code) {
 
     fs.writeFileSync(envPath, currentEnv, { encoding: "utf8", mode: 0o600 });
     console.log("Google Drive OAuth authorization succeeded.");
-    console.log("The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN in .env.");
-  } catch (error) {
-    console.error(
-      "Google Drive OAuth authorization failed:", error.message
+    console.log(
+      "The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN in .env.",
     );
+  } catch (error) {
+    const googleError = error.response?.data?.error;
+    if (googleError === "invalid_grant") {
+      console.error(
+        "Google rejected the authorization code. Start the script again, open the new URL, and approve consent.",
+      );
+    } else {
+      console.error("Google Drive OAuth authorization failed:", error.message);
+    }
     process.exitCode = 1;
   }
 }

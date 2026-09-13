@@ -15,6 +15,7 @@ const {
 const {
   uploadPdf,
   getPdfStream,
+  isDriveReauthorizationError,
 } = require("../services/googleDriveStorage.service.js");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
@@ -84,20 +85,31 @@ router.post(
     try {
       driveFile = await uploadPdf(buffer, req.file.originalname);
     } catch (error) {
-      console.error("[materials] Google Drive upload failed:", error);
+      console.error("[materials] Google Drive upload failed:", error.message);
       const errMessage = String(error.message || "");
-      if (errMessage.includes("invalid_grant") || errMessage.includes("expired or revoked") || errMessage.includes("invalid_client")) {
+      if (
+        isDriveReauthorizationError(error) ||
+        errMessage.includes("expired or revoked") ||
+        errMessage.includes("invalid_client")
+      ) {
         return next(
           new AppError(
-            "فشل رفع الملف إلى Google Drive (انتهت صلاحية رمز الوصول invalid_grant). يرجى إعادة تشغيل سكربت التوثيق: node src/scripts/authorize-google-drive.js",
+            "فشل رفع الملف إلى Google Drive لأن رمز OAuth أصبح غير صالح أو أُلغي. شغّل محلياً: node src/scripts/authorize-google-drive.js ثم حدّث GOOGLE_OAUTH_REFRESH_TOKEN في Vercel Environment Variables بالقيمة الجديدة وأعد النشر.",
             500,
           ),
         );
       }
       if (errMessage.includes("configuration is incomplete")) {
-        return next(new AppError("إعدادات Google Drive غير مكتملة في الخادم.", 500));
+        return next(
+          new AppError("إعدادات Google Drive غير مكتملة في الخادم.", 500),
+        );
       }
-      return next(new AppError(`فشل رفع ملف PDF إلى Google Drive: ${errMessage || "خطأ غير معروف"}`, 500));
+      return next(
+        new AppError(
+          `فشل رفع ملف PDF إلى Google Drive: ${errMessage || "خطأ غير معروف"}`,
+          500,
+        ),
+      );
     }
 
     const material = await saveMaterialRecord(
