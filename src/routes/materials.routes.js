@@ -36,7 +36,7 @@ const upload = multer({
   limits: { fileSize: MAX_PDF_SIZE_BYTES },
 });
 
-const UPLOAD_TOKEN_TTL = "15m";
+const UPLOAD_TOKEN_TTL = "60m";
 
 function requireTeacher(req, res, next) {
   if (req.user.role !== "teacher") {

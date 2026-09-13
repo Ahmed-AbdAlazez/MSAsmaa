@@ -370,7 +370,7 @@ async function ensurePublicReadable(fileId) {
 }
 
 function getPdfViewUrl(fileId) {
-  return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+  return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`;
 }
 
 function getPdfDownloadUrl(fileId) {

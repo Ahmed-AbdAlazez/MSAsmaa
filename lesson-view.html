@@ -205,7 +205,7 @@
   <div id="toast-container"></div>
 
   <script src="/js/curriculum.js"></script>
-  <!-- PDFs open in an in-page iframe pointed at Google Drive's /preview URL
+  <!-- PDFs open in a new tab using Google Drive's native viewer
        (GET /api/materials/:id/view returns the link after the enrollment
        check), so the file bytes never stream through the Vercel function
        which caps responses at ~4.5MB. -->

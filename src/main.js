@@ -962,40 +962,150 @@ document.addEventListener("DOMContentLoaded", () => {
     return data;
   };
 
-  const openPdfViewer = (viewUrl, title) => {
-    const existing = document.querySelector(".pdf-viewer-overlay");
-    if (existing) existing.remove();
-
-    const overlay = document.createElement("div");
-    overlay.className = "pdf-viewer-overlay";
-    overlay.innerHTML =
-      '<div class="pdf-viewer-shell">' +
-      '<div class="pdf-viewer-bar">' +
-      '<span class="pdf-viewer-title"></span>' +
-      '<button type="button" class="pdf-viewer-close" aria-label="إغلاق">إغلاق ✕</button>' +
-      "</div>" +
-      '<iframe class="pdf-viewer-iframe" allow="fullscreen" frameborder="0"></iframe>' +
-      "</div>";
-
-    overlay.querySelector(".pdf-viewer-title").textContent = title || "PDF";
-    overlay
-      .querySelector(".pdf-viewer-close")
-      .addEventListener("click", () => overlay.remove());
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) overlay.remove();
-    });
-    document.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.key === "Escape") overlay.remove();
-      },
-      { once: true },
-    );
-
-    const iframe = overlay.querySelector(".pdf-viewer-iframe");
-    iframe.src = viewUrl;
-    document.body.appendChild(overlay);
+  const openPdfViewer = (viewUrl) => {
+    window.open(viewUrl, "_blank", "noopener");
   };
+
+  const DRIVE_CHUNK_SIZE = 2 * 1024 * 1024;
+  const DRIVE_MAX_RETRIES = 4;
+
+  const uploadPdfToDriveResumable = (uploadUrl, file, onProgress) =>
+    new Promise((resolve, reject) => {
+      const total = file.size;
+      let uploadedBytes = 0;
+
+      const reportProgress = (extraLoaded = 0) => {
+        if (typeof onProgress === "function") {
+          const pct = total
+            ? Math.min(100, Math.round(((uploadedBytes + extraLoaded) / total) * 100))
+            : 0;
+          onProgress(pct, null);
+        }
+      };
+
+      const sendChunk = (start, end) =>
+        new Promise((res, rej) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", uploadUrl);
+          xhr.timeout = 120000;
+          xhr.setRequestHeader("Content-Type", "application/pdf");
+          xhr.setRequestHeader(
+            "Content-Range",
+            `bytes ${start}-${end - 1}/${total}`,
+          );
+
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) reportProgress(e.loaded);
+          });
+
+          xhr.addEventListener("load", () => {
+            const s = xhr.status;
+            if (s >= 200 && s < 300) {
+              res({ done: true, body: xhr.responseText || "{}" });
+            } else if (s === 308) {
+              let nextByte = end;
+              const range = xhr.getResponseHeader("Range");
+              if (range) {
+                const m = /bytes=0-(\d+)/.exec(range);
+                if (m) nextByte = Number(m[1]) + 1;
+              }
+              res({ done: false, nextByte });
+            } else {
+              rej(
+                new Error(
+                  `فشل رفع الملف إلى Google Drive (رمز الحالة ${s}).`,
+                ),
+              );
+            }
+          });
+
+          xhr.addEventListener("error", () =>
+            rej(new Error("network")),
+          );
+          xhr.addEventListener("timeout", () =>
+            rej(new Error("timeout")),
+          );
+          xhr.addEventListener("abort", () =>
+            rej(new Error("aborted")),
+          );
+
+          xhr.send(file.slice(start, end));
+        });
+
+      const queryServerProgress = () =>
+        new Promise((res, rej) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", uploadUrl);
+          xhr.timeout = 30000;
+          xhr.setRequestHeader("Content-Type", "application/pdf");
+          xhr.setRequestHeader("Content-Range", "bytes */*");
+          xhr.addEventListener("load", () => {
+            let nextByte = 0;
+            const range = xhr.getResponseHeader("Range");
+            if (range) {
+              const m = /bytes=0-(\d+)/.exec(range);
+              if (m) nextByte = Number(m[1]) + 1;
+            }
+            res(nextByte);
+          });
+          xhr.addEventListener("error", () =>
+            rej(new Error("query failed")),
+          );
+          xhr.addEventListener("timeout", () =>
+            rej(new Error("query timeout")),
+          );
+          xhr.send();
+        });
+
+      const run = async () => {
+        let cursor = 0;
+
+        while (cursor < total) {
+          const end = Math.min(total, cursor + DRIVE_CHUNK_SIZE);
+          let ok = false;
+          let attempts = 0;
+
+          while (!ok && attempts < DRIVE_MAX_RETRIES) {
+            attempts += 1;
+            try {
+              const res = await sendChunk(cursor, end);
+              if (res.done) {
+                uploadedBytes = total;
+                reportProgress(0);
+                try {
+                  return resolve(JSON.parse(res.body || "{}"));
+                } catch (_) {
+                  return resolve({});
+                }
+              }
+              cursor = res.nextByte;
+              uploadedBytes = cursor;
+              ok = true;
+              reportProgress(0);
+            } catch (err) {
+              if (attempts >= DRIVE_MAX_RETRIES) {
+                const sr = await queryServerProgress().catch(() => null);
+                if (sr != null) {
+                  cursor = sr;
+                  uploadedBytes = sr;
+                  reportProgress(0);
+                  break;
+                }
+                throw new Error(
+                  "انقطع الاتصال أثناء رفع الملف إلى Google Drive.",
+                );
+              }
+              await new Promise((r) =>
+                setTimeout(r, Math.min(1600, 600 * attempts)),
+              );
+            }
+          }
+        }
+        return resolve({});
+      };
+
+      run().catch(reject);
+    });
 
   const restoredVideoPolls = new Set();
   const acknowledgeUploadWorkflow = (jobId) => {
@@ -2319,7 +2429,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 `/api/materials/${encodeURIComponent(material.id)}/view`,
                 { headers: authHeaders() },
               );
-              openPdfViewer(viewRes.viewUrl, material.title || "PDF");
+              openPdfViewer(viewRes.viewUrl);
             } catch (error) {
               showToast(error.message, "danger");
             } finally {
@@ -2914,41 +3024,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (uploadUrl) {
-        const driveUpload = await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("PUT", uploadUrl);
-          xhr.setRequestHeader("Content-Type", "application/pdf");
-
-          if (typeof onProgress === "function") {
-            xhr.upload.addEventListener("progress", (e) => {
-              if (e.lengthComputable) {
-                onProgress(Math.round((e.loaded / e.total) * 100), null);
-              }
-            });
-          }
-
-          xhr.addEventListener("load", () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                resolve(JSON.parse(xhr.responseText || "{}"));
-              } catch (_) {
-                resolve({});
-              }
-            } else {
-              reject(
-                new Error(
-                  `فشل رفع الملف إلى Google Drive (رمز الحالة ${xhr.status}).`,
-                ),
-              );
-            }
-          });
-
-          xhr.addEventListener("error", () =>
-            reject(new Error("انقطع الاتصال أثناء الرفع المباشر إلى Google Drive.")),
-          );
-
-          xhr.send(pdfFile);
-        });
+        const driveUpload = await uploadPdfToDriveResumable(
+          uploadUrl,
+          pdfFile,
+          onProgress,
+        );
 
         const targetFileId = sessionFileId || driveUpload?.id;
 
@@ -4135,7 +4215,7 @@ document.addEventListener("DOMContentLoaded", () => {
               `/api/materials/${encodeURIComponent(material.id)}/view`,
               { headers: authHeaders() },
             );
-            openPdfViewer(response.viewUrl, material.title || "PDF");
+            openPdfViewer(response.viewUrl);
           } catch (error) {
             showToast(error.message, "danger");
           } finally {

@@ -3695,66 +3695,6 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 .skeleton-circle {
   border-radius: 50%;
 }
-
-/* PDF viewer overlay: loads Google Drive's /preview URL in an iframe so the
-   file bytes never stream through a Vercel function (which caps responses at
-   ~4.5MB for large PDFs). */
-.pdf-viewer-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: rgba(9, 27, 25, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-.pdf-viewer-shell {
-  width: min(1100px, 100%);
-  height: min(88vh, 90%);
-  background: #fff;
-  border-radius: var(--radius-md, 0.75rem);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-}
-.pdf-viewer-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.6rem 1rem;
-  background: var(--color-primary, #0f4c3a);
-  color: #fff;
-}
-.pdf-viewer-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pdf-viewer-close {
-  background: rgba(255, 255, 255, 0.18);
-  border: none;
-  color: #fff;
-  border-radius: 8px;
-  padding: 0.3rem 0.7rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-family: inherit;
-  flex-shrink: 0;
-}
-.pdf-viewer-close:hover {
-  background: rgba(255, 255, 255, 0.32);
-}
-.pdf-viewer-iframe {
-  flex: 1;
-  width: 100%;
-  border: 0;
-  background: #fff;
-}
 @keyframes skeleton-shimmer {
   100% {
     transform: translateX(100%);
