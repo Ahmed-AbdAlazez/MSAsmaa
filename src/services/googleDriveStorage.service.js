@@ -125,8 +125,9 @@ async function uploadPdf(buffer, fileName) {
 
 async function createPdfUploadSession(fileName, sizeBytes) {
   const auth = getDriveAuth();
+  const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
   const response = await auth.request({
-    url: "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",
+    url: "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,mimeType,size,parents",
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
@@ -135,7 +136,7 @@ async function createPdfUploadSession(fileName, sizeBytes) {
     },
     data: JSON.stringify({
       name: safePdfName(fileName),
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
+      parents: folderId ? [folderId] : [],
       mimeType: "application/pdf",
     }),
   });
@@ -145,8 +146,9 @@ async function createPdfUploadSession(fileName, sizeBytes) {
   if (!uploadUrl) {
     throw new Error("Google Drive did not return a resumable upload URL.");
   }
+  const fileId = response.data?.id || null;
 
-  return { uploadUrl, fileName: safePdfName(fileName) };
+  return { uploadUrl, fileId, fileName: safePdfName(fileName) };
 }
 
 async function getPdfMetadata(fileId) {
@@ -256,7 +258,7 @@ async function createResumableUploadSession(fileName, mimeType = "application/pd
   }
 
   const response = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true",
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,mimeType,size,parents",
     {
       method: "POST",
       headers: {
@@ -266,7 +268,7 @@ async function createResumableUploadSession(fileName, mimeType = "application/pd
       },
       body: JSON.stringify({
         name: safePdfName(fileName),
-        parents: [folderId],
+        parents: folderId ? [folderId] : [],
         mimeType,
       }),
     }
@@ -282,7 +284,13 @@ async function createResumableUploadSession(fileName, mimeType = "application/pd
     throw new Error("Google Drive API did not return location header for resumable upload.");
   }
 
-  return { uploadUrl };
+  let fileId = null;
+  try {
+    const data = await response.json();
+    fileId = data?.id || null;
+  } catch (_) {}
+
+  return { uploadUrl, fileId };
 }
 
 module.exports = {

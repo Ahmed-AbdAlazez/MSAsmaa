@@ -2855,7 +2855,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Direct Browser-to-Cloud Upload Flow (bypasses Vercel 4.5MB limit)
     try {
-      let uploadUrl, uploadToken;
+      let uploadUrl, uploadToken, sessionFileId;
 
       try {
         const sessionRes = await fetchJson(
@@ -2874,6 +2874,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (sessionRes && sessionRes.uploadUrl) {
           uploadUrl = sessionRes.uploadUrl;
           uploadToken = sessionRes.uploadToken;
+          sessionFileId = sessionRes.fileId;
         }
       } catch (_) {
         const urlRes = await fetchJson(
@@ -2889,6 +2890,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         if (urlRes && urlRes.uploadUrl) {
           uploadUrl = urlRes.uploadUrl;
+          sessionFileId = urlRes.fileId;
         }
       }
 
@@ -2929,27 +2931,29 @@ document.addEventListener("DOMContentLoaded", () => {
           xhr.send(pdfFile);
         });
 
+        const targetFileId = sessionFileId || driveUpload?.id;
+
         let result;
-        if (uploadToken && driveUpload.id) {
+        if (uploadToken && targetFileId) {
           result = await fetchJson(
             `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json", ...authHeaders() },
               body: JSON.stringify({
-                fileId: driveUpload.id,
+                fileId: targetFileId,
                 uploadToken,
               }),
             },
           );
-        } else if (driveUpload.id) {
+        } else if (targetFileId) {
           result = await fetchJson(
             `/api/lessons/${encodeURIComponent(lessonId)}/materials/confirm`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json", ...authHeaders() },
               body: JSON.stringify({
-                driveFileId: driveUpload.id,
+                driveFileId: targetFileId,
                 title: formDataTitle,
                 fileName: pdfFile.name,
                 sizeBytes: pdfFile.size,
@@ -2969,9 +2973,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (directError) {
       console.warn(
-        "[materials] Direct upload fallback to proxy upload:",
+        "[materials] Direct upload failed:",
         directError.message,
       );
+      if (pdfFile.size > 4.5 * 1024 * 1024) {
+        showToast(directError.message || "فشل رفع الملف إلى Google Drive.", "danger");
+        return null;
+      }
     }
 
     // Fallback: Standard Proxy Upload

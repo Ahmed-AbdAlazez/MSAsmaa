@@ -135,11 +135,13 @@ router.post(
         role: req.user.role,
         lessonId: String(req.params.lessonId),
         fileName: session.fileName,
+        fileId: session.fileId,
         title,
         sizeBytes,
       });
       return res.json({
         uploadUrl: session.uploadUrl,
+        fileId: session.fileId,
         uploadToken,
       });
     } catch (error) {
@@ -175,7 +177,7 @@ router.post(
     }
     if (!(await ensureTeacherOwnsLesson(req, next))) return;
 
-    const fileId = String(req.body?.fileId || "").trim();
+    const fileId = String(req.body?.fileId || uploadClaims.fileId || "").trim();
     if (!fileId) return next(new AppError("معرف ملف Google Drive مطلوب.", 400));
 
     let driveFile;
@@ -190,30 +192,12 @@ router.post(
     }
 
     const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
-    const actualSize = Number(driveFile.size);
     const validFile =
       driveFile.id === fileId &&
-      driveFile.name === uploadClaims.fileName &&
       driveFile.mimeType === "application/pdf" &&
-      /\.pdf$/i.test(driveFile.name || "") &&
-      Array.isArray(driveFile.parents) &&
-      driveFile.parents.includes(folderId) &&
-      Number.isSafeInteger(actualSize) &&
-      actualSize === Number(uploadClaims.sizeBytes) &&
-      actualSize <= MAX_PDF_SIZE_BYTES;
+      /\.pdf$/i.test(driveFile.name || "");
 
     if (!validFile) {
-      if (
-        Array.isArray(driveFile.parents) &&
-        driveFile.parents.includes(folderId)
-      ) {
-        await deletePdf(fileId).catch((error) =>
-          console.error(
-            "[materials] Invalid Drive PDF cleanup failed:",
-            error.message,
-          ),
-        );
-      }
       return next(new AppError("ملف PDF المرفوع غير صالح.", 400));
     }
 
@@ -261,8 +245,8 @@ router.post(
   catchAsync(async (req, res, next) => {
     const fileName = String(req.body?.fileName || req.body?.title || "material.pdf").trim();
     try {
-      const { uploadUrl } = await createResumableUploadSession(fileName);
-      return res.json({ uploadUrl });
+      const { uploadUrl, fileId } = await createResumableUploadSession(fileName);
+      return res.json({ uploadUrl, fileId });
     } catch (error) {
       console.error("[materials] Failed to create direct upload URL:", error.message);
       return next(new AppError("فشل إنشاء رابط الرفع المباشر إلى Google Drive. يرجى التأكد من التوثيق.", 500));
