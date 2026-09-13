@@ -16,7 +16,9 @@ GOOGLE_OAUTH_REFRESH_TOKEN=...
 
 The original Service Account variables remain in `.env` for other possible uses, but PDF storage uses OAuth2 for the Gmail account that owns the existing My Drive folder. The OAuth scope is `https://www.googleapis.com/auth/drive` because the application must list, read, create, rename, and delete files already associated with that folder. Do not make the folder or files public.
 
-Run `node src/scripts/authorize-google-drive.js` once locally after creating an OAuth Web application client in Google Cloud Console. Add the exact redirect URI to that client, open the printed authorization URL with the folder-owner Gmail account, and paste the returned code. The helper writes the refresh token into the ignored local `.env` without printing it. Copy the four OAuth variable names and values into the production environment securely.
+Run `node src/scripts/authorize-google-drive.js` once locally after creating an OAuth Web application client in Google Cloud Console. Add the exact redirect URI to that client, open the printed authorization URL with the folder-owner Gmail account, and paste the returned code. The helper writes the new refresh token into the ignored local `.env` without printing it. Copy the value of `GOOGLE_OAUTH_REFRESH_TOKEN` from that local file, together with the other backend-only OAuth variables, into Vercel Environment Variables and redeploy. Vercel must use these environment variables; it must not depend on a local `token.json` file.
+
+If Google returns `invalid_grant` during upload, the configured refresh token is expired, revoked, or invalid for the configured OAuth client. Re-run `node src/scripts/authorize-google-drive.js`, then replace the Vercel `GOOGLE_OAUTH_REFRESH_TOKEN` value with the newly generated one.
 
 Supabase variables remain required only by quiz-image storage. They are no longer used for lesson PDFs.
 

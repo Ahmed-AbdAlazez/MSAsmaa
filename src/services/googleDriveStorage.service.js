@@ -49,12 +49,21 @@ const requiredEnvironmentVariables = [
   "GOOGLE_DRIVE_FOLDER_ID",
 ];
 
+function isDriveReauthorizationError(error) {
+  const googleError = error?.response?.data?.error;
+  return (
+    googleError === "invalid_grant" ||
+    error?.code === "invalid_grant" ||
+    String(error?.message || "").includes("invalid_grant")
+  );
+}
+
 function getDriveClient() {
   const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim();
   const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
   const redirectUri = (
     process.env.GOOGLE_OAUTH_REDIRECT_URI ||
-    "http://localhost:3000/oauth2callback"
+    "http://localhost:53682/oauth2callback"
   ).trim();
   const refreshToken = (process.env.GOOGLE_OAUTH_REFRESH_TOKEN || "").trim();
   const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
@@ -200,4 +209,5 @@ module.exports = {
   getImageStream,
   updatePdf,
   deletePdf,
+  isDriveReauthorizationError,
 };
