@@ -49,12 +49,13 @@ async function getGoogleAccessToken() {
 }
 
 function getMockMeeting() {
-  const randomCode = `${crypto.randomBytes(2).toString("hex")}-${crypto
-    .randomBytes(2)
-    .toString("hex")}-${crypto.randomBytes(2).toString("hex")}`.toLowerCase();
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const randomLetters = (len) =>
+    Array.from({ length: len }, () => letters[Math.floor(Math.random() * letters.length)]).join("");
+  const code = `${randomLetters(3)}-${randomLetters(4)}-${randomLetters(3)}`;
   return {
-    meetingId: randomCode,
-    meetingUrl: `https://meet.google.com/${randomCode}`,
+    meetingId: code,
+    meetingUrl: `https://meet.google.com/${code}`,
   };
 }
 
