@@ -1003,223 +1003,6 @@ document.addEventListener("DOMContentLoaded", () => {
     window.open(viewUrl, "_blank", "noopener");
   };
 
-  const DRIVE_CHUNK_SIZE = 2 * 1024 * 1024;
-  const DRIVE_MAX_RETRIES = 6;
-  const PDF_UPLOAD_PENDING_KEY = "msasmaa-pdf-upload-pending";
-
-  /** Asks a Google Drive resumable session where it stopped.
-   *  -> { completed:true, fileId } when the file is already fully uploaded
-   *  -> { completed:false, lastByte } otherwise (first missing byte). */
-  const queryDriveProgress = (uploadUrl, totalBytes) =>
-    new Promise((res) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", uploadUrl);
-      xhr.timeout = 30000;
-      xhr.setRequestHeader("Content-Type", "application/pdf");
-      xhr.setRequestHeader("Content-Range", `bytes */${totalBytes || "*"}`);
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          let fileId = null;
-          try {
-            const body = JSON.parse(xhr.responseText || "{}");
-            fileId = body && body.id ? body.id : null;
-          } catch (_) {}
-          return res({ completed: true, fileId });
-        }
-        let lastByte = 0;
-        const range = xhr.getResponseHeader("Range");
-        if (range) {
-          const m = /bytes=0-(\d+)/.exec(range);
-          if (m) lastByte = Number(m[1]) + 1;
-        }
-        res({ completed: false, lastByte });
-      });
-      xhr.addEventListener("error", () => res({ completed: false, lastByte: 0 }));
-      xhr.addEventListener("timeout", () => res({ completed: false, lastByte: 0 }));
-      xhr.addEventListener("abort", () => res({ completed: false, lastByte: 0 }));
-      xhr.send();
-    });
-
-  const uploadPdfToDriveResumable = (
-    uploadUrl,
-    file,
-    onProgress,
-    options = {},
-  ) =>
-    new Promise((resolve, reject) => {
-      const total = file.size;
-      const { startByte = 0, onByte = null } = options;
-      let uploadedBytes = Math.min(startByte, total);
-
-      const reportProgress = () => {
-        if (typeof onProgress === "function") {
-          onProgress(
-            total
-              ? Math.min(99, Math.round((uploadedBytes / total) * 100))
-              : 0,
-            null,
-          );
-        }
-      };
-
-      const persist = () => {
-        if (typeof onByte === "function") onByte(uploadedBytes);
-      };
-
-      const sendChunk = (start, end) =>
-        new Promise((res, rej) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("PUT", uploadUrl);
-          xhr.timeout = 120000;
-          xhr.setRequestHeader("Content-Type", "application/pdf");
-          xhr.setRequestHeader(
-            "Content-Range",
-            `bytes ${start}-${end - 1}/${total}`,
-          );
-
-          xhr.upload.addEventListener("progress", (e) => {
-            if (e.lengthComputable) {
-              uploadedBytes = Math.min(start + e.loaded, total - 1);
-              reportProgress();
-              persist();
-            }
-          });
-
-          xhr.addEventListener("load", () => {
-            const s = xhr.status;
-            if (s >= 200 && s < 300) {
-              res({ done: true, body: xhr.responseText || "{}" });
-            } else if (s === 308) {
-              let nextByte = end;
-              const range = xhr.getResponseHeader("Range");
-              if (range) {
-                const m = /bytes=0-(\d+)/.exec(range);
-                if (m) nextByte = Number(m[1]) + 1;
-              }
-              res({ done: false, nextByte });
-            } else {
-              rej(
-                new Error(
-                  `فشل رفع الملف إلى Google Drive (رمز الحالة ${s}).`,
-                ),
-              );
-            }
-          });
-
-          xhr.addEventListener("error", () =>
-            rej(new Error("network")),
-          );
-          xhr.addEventListener("timeout", () =>
-            rej(new Error("timeout")),
-          );
-          xhr.addEventListener("abort", () =>
-            rej(new Error("aborted")),
-          );
-
-          xhr.send(file.slice(start, end));
-        });
-
-      const run = async () => {
-        let cursor = uploadedBytes;
-
-        // Resume-aware start: ask Drive where it actually is so a retry (or a
-        // click after a drop / page reload) continues instead of restarting.
-        try {
-          const probe = await queryDriveProgress(uploadUrl, total);
-          if (probe.completed) {
-            uploadedBytes = total;
-            reportProgress();
-            persist();
-            return resolve({ id: probe.fileId });
-          }
-          cursor = Math.max(cursor, probe.lastByte || 0);
-          uploadedBytes = cursor;
-          reportProgress();
-          persist();
-        } catch (_) {}
-
-        let stallStreak = 0;
-        let lastConfirmed = cursor;
-
-        while (cursor < total) {
-          const end = Math.min(total, cursor + DRIVE_CHUNK_SIZE);
-          let ok = false;
-          let attempts = 0;
-
-          while (!ok && attempts < DRIVE_MAX_RETRIES) {
-            attempts += 1;
-            try {
-              const r = await sendChunk(cursor, end);
-              if (r.done) {
-                uploadedBytes = total;
-                reportProgress();
-                persist();
-                try {
-                  return resolve(JSON.parse(r.body || "{}"));
-                } catch (_) {
-                  return resolve({});
-                }
-              }
-              cursor = r.nextByte;
-              uploadedBytes = cursor;
-              if (cursor > lastConfirmed) {
-                lastConfirmed = cursor;
-                stallStreak = 0;
-              }
-              ok = true;
-              reportProgress();
-              persist();
-            } catch (err) {
-              if (attempts >= DRIVE_MAX_RETRIES) {
-                let q = null;
-                for (let i = 0; i < 3 && !q; i++) {
-                  q = await queryDriveProgress(uploadUrl, total).catch(() => null);
-                  if (!q) await new Promise((r) => setTimeout(r, 1200));
-                }
-                if (q && q.completed) {
-                  uploadedBytes = total;
-                  reportProgress();
-                  persist();
-                  return resolve({ id: q.fileId });
-                }
-                // Reconcile with what Drive actually confirmed so we resume
-                // from the true position instead of an optimistic estimate.
-                const serverByte = q ? q.lastByte : 0;
-                if (serverByte > lastConfirmed) {
-                  lastConfirmed = serverByte;
-                  stallStreak = 0;
-                } else {
-                  stallStreak += 1;
-                }
-                cursor = Math.max(serverByte, 0);
-                uploadedBytes = cursor;
-                reportProgress();
-                persist();
-                if (stallStreak >= 2) {
-                  throw new Error(
-                    "انقطع الاتصال أثناء رفع الملف إلى Google Drive وتوقّف التقدّم. سيُستأنف الرفع تلقائياً عند النقر على زر الرفع مرة أخرى من حيث توقّف.",
-                  );
-                }
-              } else {
-                await new Promise((r) =>
-                  setTimeout(r, Math.min(3000, 800 * attempts)),
-                );
-              }
-            }
-          }
-        }
-
-        // Every byte was accepted by Drive but the final 200 was never seen:
-        // re-ask to fetch the file id.
-        try {
-          const done = await queryDriveProgress(uploadUrl, total);
-          if (done.completed && done.fileId) return resolve({ id: done.fileId });
-        } catch (_) {}
-        return resolve({});
-      };
-
-      run().catch(reject);
-    });
 
   const restoredVideoPolls = new Set();
   const acknowledgeUploadWorkflow = (jobId) => {
@@ -3151,156 +2934,76 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
-    const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 60000) => {
-      const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        return await fetchJson(url, { ...options, signal: controller.signal });
-      } catch (error) {
-        if (controller.signal.aborted || (error && error.name === "AbortError")) {
-          throw new Error("انتهت مهلة حفظ ملف PDF بعد الرفع. حاولي مرة أخرى.");
-        }
-        throw error;
-      } finally {
-        window.clearTimeout(timer);
-      }
-    };
-
-    // Direct Browser-to-Cloud Upload Flow (bypasses Vercel 4.5MB limit)
-    try {
-      const readPending = () => {
-        try {
-          return JSON.parse(
-            localStorage.getItem(PDF_UPLOAD_PENDING_KEY) || "null",
-          );
-        } catch (_) {
-          return null;
-        }
-      };
-      const writePending = (rec) => {
-        try {
-          localStorage.setItem(PDF_UPLOAD_PENDING_KEY, JSON.stringify(rec));
-        } catch (_) {}
-      };
-      const clearPending = () => {
-        try {
-          localStorage.removeItem(PDF_UPLOAD_PENDING_KEY);
-        } catch (_) {}
-      };
-      const persist = (lastByte) =>
-        writePending({
-          lessonId,
-          uploadUrl,
-          uploadToken,
-          sessionFileId,
-          title: formDataTitle,
-          fileName: pdfFile.name,
-          sizeBytes: pdfFile.size,
-          lastByte,
-          updatedAt: Date.now(),
-        });
-
-      const pending = readPending();
-      const resume =
-        pending &&
-        pending.uploadUrl &&
-        pending.lessonId === lessonId &&
-        pending.fileName === pdfFile.name &&
-        pending.sizeBytes === pdfFile.size
-          ? pending
-          : null;
-
-      let uploadUrl, uploadToken, sessionFileId;
-      let startByte = 0;
-
-      if (resume) {
-        // Same file, dropped earlier: reuse the same Google session so the
-        // upload continues from where it stopped instead of re-uploading.
-        uploadUrl = resume.uploadUrl;
-        uploadToken = resume.uploadToken;
-        sessionFileId = resume.sessionFileId || null;
-        startByte = Number(resume.lastByte) || 0;
-      } else {
-        clearPending();
-      }
-
-      if (!uploadUrl) {
-        const sessionRes = await fetchJson(
-          `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-session`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...authHeaders() },
-            body: JSON.stringify({
-              fileName: pdfFile.name,
-              mimeType: "application/pdf",
-              sizeBytes: pdfFile.size,
-              title: formDataTitle,
-            }),
-          },
-        );
-        if (sessionRes && sessionRes.uploadUrl && sessionRes.uploadToken) {
-          uploadUrl = sessionRes.uploadUrl;
-          uploadToken = sessionRes.uploadToken;
-          sessionFileId = sessionRes.fileId;
-          startByte = 0;
-        }
-      }
-
-      if (!uploadUrl || !uploadToken) {
-        throw new Error("Google Drive upload session was not created.");
-      }
-
-      if (uploadUrl && uploadToken) {
-        // Save now so even a hard kill (close tab / power loss) can resume.
-        persist(startByte);
-
-        const driveUpload = await uploadPdfToDriveResumable(
-          uploadUrl,
-          pdfFile,
-          onProgress,
-          { startByte, onByte: persist },
-        );
-
-        clearPending();
-
-        const targetFileId = driveUpload?.id || sessionFileId;
-
-        if (!targetFileId) {
-          throw new Error("Google Drive did not return a file id after upload.");
-        }
-
-        if (typeof onProgress === "function") {
-          onProgress(100, "تم رفع الملف، جاري حفظه في الدرس...");
-        }
-
-        const result = await fetchJsonWithTimeout(
-          `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...authHeaders() },
-            body: JSON.stringify({
-              fileId: targetFileId,
-              uploadToken,
-            }),
-          },
-        );
-
-        if (result) {
-          try {
-            sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
-          } catch (_) {}
-          pdfInput.value = "";
-          showToast("تم رفع ملف PDF للدرس بنجاح.", "success");
-          return result;
-        }
-      }
-    } catch (directError) {
-      console.warn(
-        "[materials] Direct upload failed:",
-        directError.message,
+    const maxProxyPdfSizeBytes = 4200 * 1024;
+    if (pdfFile.size > maxProxyPdfSizeBytes) {
+      showToast(
+        "الملف كبير جداً للرفع المباشر (الحد المسموح على المنصة حوالي 4.2 ميجابايت). اضغطي حجم الملف ثم أعدي المحاولة.",
+        "warning",
       );
-      throw directError;
+      return null;
     }
+
+    const result = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/lessons/${encodeURIComponent(lessonId)}/materials`);
+
+      Object.entries(authHeaders()).forEach(([key, value]) =>
+        xhr.setRequestHeader(key, value),
+      );
+
+      if (typeof onProgress === "function") {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            onProgress(
+              Math.min(99, Math.round((e.loaded / e.total) * 100)),
+              null,
+            );
+          }
+        });
+      }
+
+      const formData = new FormData();
+      formData.append("file", pdfFile);
+      formData.append("title", formDataTitle);
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          let body = {};
+          try {
+            body = JSON.parse(xhr.responseText || "{}");
+          } catch (_) {}
+          resolve(body);
+          return;
+        }
+        let message = "فشل رفع ملف PDF إلى Google Drive.";
+        if (xhr.status === 413) {
+          message =
+            "الملف أكبر من الحد المسموح به على المنصة (حوالي 4.5 ميجابايت). اضغطي الملف ثم أعدي المحاولة.";
+        } else {
+          try {
+            const errBody = JSON.parse(xhr.responseText || "{}");
+            if (errBody.error || errBody.message) {
+              message = errBody.error || errBody.message;
+            }
+          } catch (_) {}
+        }
+        reject(new Error(message));
+      });
+
+      xhr.addEventListener("error", () =>
+        reject(new Error("انقطع الاتصال أثناء رفع ملف PDF. حاولي مرة أخرى.")),
+      );
+
+      xhr.send(formData);
+    });
+
+    if (typeof onProgress === "function") onProgress(100, null);
+    try {
+      sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
+    } catch (_) {}
+    pdfInput.value = "";
+    showToast("تم رفع ملف PDF للدرس بنجاح.", "success");
+    return result;
   };
 
   if (uploadMaterialBtn) {
