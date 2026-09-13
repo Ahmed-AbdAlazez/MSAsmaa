@@ -16,6 +16,7 @@ const {
   uploadPdf,
   getPdfStream,
   isDriveReauthorizationError,
+  createResumableUploadSession,
 } = require("../services/googleDriveStorage.service.js");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
@@ -60,6 +61,51 @@ function cleanTitle(req) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+router.post(
+  "/lessons/:lessonId/materials/upload-url",
+  requireAuth,
+  requireTeacher,
+  catchAsync(async (req, res, next) => {
+    const fileName = String(req.body?.fileName || req.body?.title || "material.pdf").trim();
+    try {
+      const { uploadUrl } = await createResumableUploadSession(fileName);
+      return res.json({ uploadUrl });
+    } catch (error) {
+      console.error("[materials] Failed to create direct upload URL:", error.message);
+      return next(new AppError("فشل إنشاء رابط الرفع المباشر إلى Google Drive. يرجى التأكد من التوثيق.", 500));
+    }
+  })
+);
+
+router.post(
+  "/lessons/:lessonId/materials/confirm",
+  requireAuth,
+  requireTeacher,
+  catchAsync(async (req, res, next) => {
+    const { driveFileId, title, fileName, sizeBytes } = req.body || {};
+    if (!driveFileId) {
+      return next(new AppError("معرف ملف Google Drive (driveFileId) مطلوب.", 400));
+    }
+    const cleanMaterialTitle = String(title || fileName || "مادة الدرس").replace(/\s+/g, " ").trim();
+    const driveFileObj = {
+      id: String(driveFileId),
+      name: String(fileName || cleanMaterialTitle || "material.pdf"),
+      mimeType: "application/pdf",
+      size: sizeBytes ? Number(sizeBytes) : null,
+    };
+    const material = await saveMaterialRecord(
+      req.params.lessonId,
+      cleanMaterialTitle,
+      driveFileObj
+    );
+    return res.status(201).json({
+      message: "تم حفظ مادة PDF بنجاح.",
+      lessonId: req.params.lessonId,
+      material: { id: material.id, title: material.title },
+    });
+  })
+);
 
 router.post(
   "/lessons/:lessonId/materials",

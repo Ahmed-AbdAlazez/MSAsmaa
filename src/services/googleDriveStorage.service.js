@@ -202,6 +202,48 @@ async function deletePdf(fileId) {
   await drive.files.delete({ fileId, supportsAllDrives: true });
 }
 
+async function createResumableUploadSession(fileName, mimeType = "application/pdf") {
+  const drive = getDriveClient();
+  const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+
+  const authClient = drive.context._options.auth;
+  const tokenResponse = await authClient.getAccessToken();
+  const accessToken = typeof tokenResponse === "string" ? tokenResponse : tokenResponse?.token;
+
+  if (!accessToken) {
+    throw new Error("Could not obtain access token for Google Drive upload.");
+  }
+
+  const response = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": mimeType,
+      },
+      body: JSON.stringify({
+        name: safePdfName(fileName),
+        parents: [folderId],
+        mimeType,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google Drive resumable upload session creation failed: ${response.status} ${errorText}`);
+  }
+
+  const uploadUrl = response.headers.get("location");
+  if (!uploadUrl) {
+    throw new Error("Google Drive API did not return location header for resumable upload.");
+  }
+
+  return { uploadUrl };
+}
+
 module.exports = {
   uploadPdf,
   uploadQuizImage,
@@ -210,4 +252,5 @@ module.exports = {
   updatePdf,
   deletePdf,
   isDriveReauthorizationError,
+  createResumableUploadSession,
 };

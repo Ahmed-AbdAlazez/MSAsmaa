@@ -2842,9 +2842,94 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
 
-    // Auth: JWT Bearer token from the shared helper (no client-trusted role
-    // headers — the backend decides who may upload).
-    // ------------------------------------------------------------------
+    // Direct Browser-to-Cloud Upload Flow (bypasses Vercel 4.5MB limit)
+    try {
+      const urlRes = await fetchJson(
+        `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-url`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+          body: JSON.stringify({
+            fileName: pdfFile.name,
+            title: formDataTitle,
+          }),
+        },
+      );
+
+      if (urlRes && urlRes.uploadUrl) {
+        const driveRes = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", urlRes.uploadUrl);
+          xhr.setRequestHeader("Content-Type", "application/pdf");
+
+          if (typeof onProgress === "function") {
+            xhr.upload.addEventListener("progress", (e) => {
+              if (e.lengthComputable) {
+                onProgress(Math.round((e.loaded / e.total) * 100), null);
+              }
+            });
+          }
+
+          xhr.addEventListener("load", () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                resolve(JSON.parse(xhr.responseText || "{}"));
+              } catch (_) {
+                resolve({});
+              }
+            } else {
+              reject(
+                new Error(
+                  `فشل رفع الملف إلى Google Drive (رمز الحالة ${xhr.status}).`,
+                ),
+              );
+            }
+          });
+
+          xhr.addEventListener("error", () =>
+            reject(new Error("انقطع الاتصال أثناء الرفع المباشر إلى Google Drive.")),
+          );
+
+          xhr.send(pdfFile);
+        });
+
+        const driveFileId = driveRes.id;
+        if (driveFileId) {
+          const confirmRes = await fetchJson(
+            `/api/lessons/${encodeURIComponent(lessonId)}/materials/confirm`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...authHeaders(),
+              },
+              body: JSON.stringify({
+                driveFileId,
+                title: formDataTitle,
+                fileName: pdfFile.name,
+                sizeBytes: pdfFile.size,
+              }),
+            },
+          );
+
+          try {
+            sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
+          } catch (_) {}
+
+          return confirmRes;
+        }
+      }
+    } catch (directError) {
+      console.warn(
+        "[materials] Direct upload fallback to proxy upload:",
+        directError.message,
+      );
+    }
+
+    // Fallback: Standard Proxy Upload
     const result = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open(

@@ -27,7 +27,10 @@ const oauth2Client = new google.auth.OAuth2(
 const authorizationUrl = oauth2Client.generateAuthUrl({
   access_type: "offline",
   prompt: "consent",
-  scope: ["https://www.googleapis.com/auth/drive"],
+  scope: [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/calendar",
+  ],
 });
 
 async function saveRefreshToken(code) {
@@ -51,10 +54,16 @@ async function saveRefreshToken(code) {
       ? currentEnv.replace(/^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m, envLineDrive)
       : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineDrive}\n`;
 
+    // Update GOOGLE_REFRESH_TOKEN for Google Meet
+    const envLineMeet = `GOOGLE_REFRESH_TOKEN=${newToken}`;
+    currentEnv = /^(?:GOOGLE_REFRESH_TOKEN)=.*$/m.test(currentEnv)
+      ? currentEnv.replace(/^(?:GOOGLE_REFRESH_TOKEN)=.*$/m, envLineMeet)
+      : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineMeet}\n`;
+
     fs.writeFileSync(envPath, currentEnv, { encoding: "utf8", mode: 0o600 });
-    console.log("Google Drive OAuth authorization succeeded.");
+    console.log("Google OAuth authorization succeeded.");
     console.log(
-      "The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN in .env.",
+      "The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN and GOOGLE_REFRESH_TOKEN in .env.",
     );
   } catch (error) {
     const googleError = error.response?.data?.error;
