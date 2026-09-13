@@ -2927,75 +2927,177 @@ document.addEventListener("DOMContentLoaded", () => {
       return null;
     }
 
-    const maxPdfSizeBytes = 20 * 1024 * 1024;
+const maxPdfSizeBytes = 20 * 1024 * 1024;
     if (pdfFile.size <= 0 || pdfFile.size > maxPdfSizeBytes) {
       showToast("يجب أن يكون حجم ملف PDF 20 ميجابايت أو أقل.", "warning");
       return null;
     }
 
     const formDataTitle = (titleInput?.value || pdfFile.name).trim();
-    const maxProxyPdfSizeBytes = 4200 * 1024;
-    if (pdfFile.size > maxProxyPdfSizeBytes) {
-      showToast(
-        "الملف كبير جداً للرفع المباشر (الحد المسموح على المنصة حوالي 4.2 ميجابايت). اضغطي حجم الملف ثم أعدي المحاولة.",
-        "warning",
-      );
-      return null;
-    }
+    const MAX_PROXY_PDF_SIZE_BYTES = 4200 * 1024;
 
-    const result = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `/api/lessons/${encodeURIComponent(lessonId)}/materials`);
+    // Direct browser -> Google Drive single-shot upload. The whole PDF is PUT
+    // in one request to a Drive resumable session created by our server, so
+    // the bytes never pass through Vercel (whose serverless body limit is
+    // ~4.5 MB). No chunking and no compression are needed — files up to 20MB
+    // upload in a single request straight to Google Drive.
+    const legacyProxyUpload = () =>
+      new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `/api/lessons/${encodeURIComponent(lessonId)}/materials`);
 
-      Object.entries(authHeaders()).forEach(([key, value]) =>
-        xhr.setRequestHeader(key, value),
-      );
+        Object.entries(authHeaders()).forEach(([key, value]) =>
+          xhr.setRequestHeader(key, value),
+        );
 
-      if (typeof onProgress === "function") {
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            onProgress(
-              Math.min(99, Math.round((e.loaded / e.total) * 100)),
-              null,
-            );
-          }
-        });
-      }
-
-      const formData = new FormData();
-      formData.append("file", pdfFile);
-      formData.append("title", formDataTitle);
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          let body = {};
-          try {
-            body = JSON.parse(xhr.responseText || "{}");
-          } catch (_) {}
-          resolve(body);
-          return;
-        }
-        let message = "فشل رفع ملف PDF إلى Google Drive.";
-        if (xhr.status === 413) {
-          message =
-            "الملف أكبر من الحد المسموح به على المنصة (حوالي 4.5 ميجابايت). اضغطي الملف ثم أعدي المحاولة.";
-        } else {
-          try {
-            const errBody = JSON.parse(xhr.responseText || "{}");
-            if (errBody.error || errBody.message) {
-              message = errBody.error || errBody.message;
+        if (typeof onProgress === "function") {
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              onProgress(
+                Math.min(99, Math.round((e.loaded / e.total) * 100)),
+                null,
+              );
             }
-          } catch (_) {}
+          });
         }
-        reject(new Error(message));
+
+        const formData = new FormData();
+        formData.append("file", pdfFile);
+        formData.append("title", formDataTitle);
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            let body = {};
+            try {
+              body = JSON.parse(xhr.responseText || "{}");
+            } catch (_) {}
+            resolve(body);
+            return;
+          }
+          let message = "فشل رفع ملف PDF إلى Google Drive.";
+          if (xhr.status === 413) {
+            message =
+              "الملف أكبر من الحد المسموح به على المنصة (حوالي 4.5 ميجابايت).";
+          } else {
+            try {
+              const errBody = JSON.parse(xhr.responseText || "{}");
+              if (errBody.error || errBody.message) {
+                message = errBody.error || errBody.message;
+              }
+            } catch (_) {}
+          }
+          reject(new Error(message));
+        });
+
+        xhr.addEventListener("error", () =>
+          reject(new Error("انقطع الاتصال أثناء رفع ملف PDF. حاولي مرة أخرى.")),
+        );
+
+        xhr.send(formData);
       });
 
-      xhr.addEventListener("error", () =>
-        reject(new Error("انقطع الاتصال أثناء رفع ملف PDF. حاولي مرة أخرى.")),
+    let sessionReq = null;
+    try {
+      sessionReq = await fetchJson(
+        `/api/lessons/${encodeURIComponent(lessonId)}/materials/upload-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({
+            fileName: pdfFile.name,
+            mimeType: "application/pdf",
+            sizeBytes: pdfFile.size,
+            title: formDataTitle,
+          }),
+        },
       );
+    } catch (sessionError) {
+      // Drive session hiccup: small files can still use the classic proxy.
+      if (pdfFile.size > MAX_PROXY_PDF_SIZE_BYTES) throw sessionError;
+      const result = await legacyProxyUpload();
+      if (typeof onProgress === "function") onProgress(100, null);
+      try {
+        sessionStorage.removeItem(`lessonCache:materials:${lessonId}`);
+      } catch (_) {}
+      pdfInput.value = "";
+      showToast("تم رفع ملف PDF للدرس بنجاح.", "success");
+      return result;
+    }
 
-      xhr.send(formData);
-    });
+    if (!sessionReq || !sessionReq.uploadUrl || !sessionReq.uploadToken) {
+      throw new Error("لم يستطع السيرفر تجهيز جلسة رفع إلى Google Drive.");
+    }
+
+    if (typeof onProgress === "function") {
+      onProgress(0, "جاري رفع الملف مباشرة إلى Google Drive...");
+    }
+
+    const putWholeFile = (uploadUrl) =>
+      new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl);
+        xhr.timeout = 600000;
+        xhr.setRequestHeader("Content-Type", "application/pdf");
+
+        if (typeof onProgress === "function") {
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              onProgress(
+                Math.min(99, Math.round((e.loaded / e.total) * 100)),
+                null,
+              );
+            }
+          });
+        }
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            let fileId = null;
+            try {
+              fileId = JSON.parse(xhr.responseText || "{}").id;
+            } catch (_) {}
+            resolve(fileId);
+            return;
+          }
+          let message = `فشل رفع الملف إلى Google Drive (كود ${xhr.status}).`;
+          try {
+            const errBody = JSON.parse(xhr.responseText || "{}");
+            message = errBody.error?.message || errBody.message || message;
+          } catch (_) {}
+          reject(new Error(message));
+        });
+
+        xhr.addEventListener("error", () =>
+          reject(new Error("انقطع الاتصال أثناء رفع الملف إلى Google Drive.")),
+        );
+        xhr.addEventListener("timeout", () =>
+          reject(new Error("انتهت مهلة رفع الملف إلى Google Drive.")),
+        );
+
+        xhr.send(pdfFile);
+      });
+
+    const driveFileId = await putWholeFile(sessionReq.uploadUrl);
+    const targetFileId = driveFileId || sessionReq.fileId;
+    if (!targetFileId) {
+      throw new Error("لم يُرجع Google Drive معرّف الملف بعد الرفع.");
+    }
+
+    if (typeof onProgress === "function") {
+      onProgress(99, "تم رفع الملف، جاري حفظه في الدرس...");
+    }
+
+    const result = await fetchJson(
+      `/api/lessons/${encodeURIComponent(lessonId)}/materials/complete-upload`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          fileId: targetFileId,
+          uploadToken: sessionReq.uploadToken,
+        }),
+      },
+    );
 
     if (typeof onProgress === "function") onProgress(100, null);
     try {
