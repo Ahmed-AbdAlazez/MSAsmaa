@@ -1,6 +1,13 @@
+const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { Readable } = require("stream");
 const { google } = require("googleapis");
+
+const LOCAL_UPLOADS_DIR = path.join(process.cwd(), "uploads", "materials");
+if (!fs.existsSync(LOCAL_UPLOADS_DIR)) {
+  fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+}
 
 const requiredEnvironmentVariables = [
   "GOOGLE_OAUTH_CLIENT_ID",
@@ -57,18 +64,32 @@ function safeImageName(fileName, mimeType) {
 }
 
 async function uploadPdf(buffer, fileName) {
-  const drive = getDriveClient();
-  const result = await drive.files.create({
-    requestBody: {
+  try {
+    const drive = getDriveClient();
+    const result = await drive.files.create({
+      requestBody: {
+        name: safePdfName(fileName),
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
+        mimeType: "application/pdf",
+      },
+      media: { mimeType: "application/pdf", body: Readable.from(buffer) },
+      fields: "id,name,mimeType,size,createdTime,modifiedTime",
+      supportsAllDrives: true,
+    });
+    return result.data;
+  } catch (error) {
+    console.warn("[googleDriveStorage] Google Drive upload failed or unconfigured:", error.message);
+    console.warn("[googleDriveStorage] Saving PDF locally in uploads/materials as immediate fallback.");
+    const fileId = `local_${crypto.randomUUID()}`;
+    const localPath = path.join(LOCAL_UPLOADS_DIR, `${fileId}.pdf`);
+    fs.writeFileSync(localPath, buffer);
+    return {
+      id: fileId,
       name: safePdfName(fileName),
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID.trim()],
       mimeType: "application/pdf",
-    },
-    media: { mimeType: "application/pdf", body: Readable.from(buffer) },
-    fields: "id,name,mimeType,size,createdTime,modifiedTime",
-    supportsAllDrives: true,
-  });
-  return result.data;
+      size: buffer.length,
+    };
+  }
 }
 
 async function uploadQuizImage(buffer, fileName, mimeType) {
@@ -87,6 +108,13 @@ async function uploadQuizImage(buffer, fileName, mimeType) {
 }
 
 async function getPdfStream(fileId) {
+  if (String(fileId).startsWith("local_")) {
+    const localPath = path.join(LOCAL_UPLOADS_DIR, `${fileId}.pdf`);
+    if (!fs.existsSync(localPath)) {
+      throw new Error("Local PDF material file not found.");
+    }
+    return fs.createReadStream(localPath);
+  }
   const drive = getDriveClient();
   const result = await drive.files.get(
     { fileId, alt: "media", supportsAllDrives: true },
@@ -105,6 +133,9 @@ async function getImageStream(fileId) {
 }
 
 async function updatePdf(fileId, title) {
+  if (String(fileId).startsWith("local_")) {
+    return { id: fileId, name: safePdfName(title), mimeType: "application/pdf" };
+  }
   const drive = getDriveClient();
   const result = await drive.files.update({
     fileId,
@@ -116,6 +147,13 @@ async function updatePdf(fileId, title) {
 }
 
 async function deletePdf(fileId) {
+  if (String(fileId).startsWith("local_")) {
+    const localPath = path.join(LOCAL_UPLOADS_DIR, `${fileId}.pdf`);
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath);
+    }
+    return;
+  }
   const drive = getDriveClient();
   await drive.files.delete({ fileId, supportsAllDrives: true });
 }
