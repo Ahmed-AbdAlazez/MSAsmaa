@@ -136,20 +136,29 @@ async function uploadQuizImage(buffer, fileName, mimeType) {
 }
 
 async function getPdfStream(fileId) {
-  if (String(fileId).startsWith("local_")) {
-    const uploadsDir = getUploadsDir();
-    const localPath = path.join(uploadsDir, `${fileId}.pdf`);
-    if (!fs.existsSync(localPath)) {
-      throw new Error("Local PDF material file not found.");
+  const uploadsDir = getUploadsDir();
+  const localPath = path.join(uploadsDir, `${fileId}.pdf`);
+
+  if (String(fileId).startsWith("local_") || fs.existsSync(localPath)) {
+    if (fs.existsSync(localPath)) {
+      return fs.createReadStream(localPath);
     }
-    return fs.createReadStream(localPath);
   }
-  const drive = getDriveClient();
-  const result = await drive.files.get(
-    { fileId, alt: "media", supportsAllDrives: true },
-    { responseType: "stream" },
-  );
-  return result.data;
+
+  try {
+    const drive = getDriveClient();
+    const result = await drive.files.get(
+      { fileId, alt: "media", supportsAllDrives: true },
+      { responseType: "stream" },
+    );
+    return result.data;
+  } catch (error) {
+    if (fs.existsSync(localPath)) {
+      console.warn("[googleDriveStorage] Google Drive stream failed, serving local fallback file:", error.message);
+      return fs.createReadStream(localPath);
+    }
+    throw error;
+  }
 }
 
 async function getImageStream(fileId) {

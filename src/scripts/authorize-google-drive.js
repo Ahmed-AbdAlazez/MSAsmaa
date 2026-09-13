@@ -5,12 +5,12 @@ const path = require("path");
 const { URL } = require("url");
 const { google } = require("googleapis");
 
-const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "").trim();
-const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "").trim();
-const redirectUriStr = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "http://localhost:3000/oauth2callback").trim();
+const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim();
+const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
+const redirectUriStr = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "http://localhost:53682/oauth2callback").trim();
 
 if (!clientId || !clientSecret) {
-  console.error("Missing OAuth environment variables: GOOGLE_OAUTH_CLIENT_ID / GOOGLE_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_CLIENT_SECRET");
+  console.error("Missing Google Drive OAuth environment variables: GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET");
   process.exit(1);
 }
 
@@ -24,7 +24,6 @@ const authorizationUrl = oauth2Client.generateAuthUrl({
   prompt: "consent",
   scope: [
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/calendar",
   ],
 });
 
@@ -43,24 +42,18 @@ async function saveRefreshToken(code) {
     
     const newToken = tokens.tokens.refresh_token;
 
-    // Update GOOGLE_OAUTH_REFRESH_TOKEN
+    // Update GOOGLE_OAUTH_REFRESH_TOKEN for Google Drive
     const envLineDrive = `GOOGLE_OAUTH_REFRESH_TOKEN=${newToken}`;
     currentEnv = /^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m.test(currentEnv)
       ? currentEnv.replace(/^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m, envLineDrive)
       : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineDrive}\n`;
 
-    // Update GOOGLE_REFRESH_TOKEN
-    const envLineMeet = `GOOGLE_REFRESH_TOKEN=${newToken}`;
-    currentEnv = /^(?:GOOGLE_REFRESH_TOKEN)=.*$/m.test(currentEnv)
-      ? currentEnv.replace(/^(?:GOOGLE_REFRESH_TOKEN)=.*$/m, envLineMeet)
-      : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineMeet}\n`;
-
     fs.writeFileSync(envPath, currentEnv, { encoding: "utf8", mode: 0o600 });
-    console.log("OAuth authorization succeeded.");
-    console.log("The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN and GOOGLE_REFRESH_TOKEN in .env.");
+    console.log("Google Drive OAuth authorization succeeded.");
+    console.log("The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN in .env.");
   } catch (error) {
     console.error(
-      "OAuth authorization failed:", error.message
+      "Google Drive OAuth authorization failed:", error.message
     );
     process.exitCode = 1;
   }
