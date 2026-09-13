@@ -3067,9 +3067,15 @@ const maxPdfSizeBytes = 20 * 1024 * 1024;
           reject(new Error(message));
         });
 
-        xhr.addEventListener("error", () =>
-          reject(new Error("انقطع الاتصال أثناء رفع الملف إلى Google Drive.")),
-        );
+        xhr.addEventListener("error", () => {
+          // Google Drive's resumable-upload response carries NO
+          // Access-Control-Allow-Origin header, so browsers block the reply
+          // and XHR reports a generic network error — even though Drive has
+          // already received and stored ALL the bytes. Treat this as
+          // "probably uploaded" and let complete-upload verify the file from
+          // Drive metadata (exact size match) instead of failing the upload.
+          resolve(null);
+        });
         xhr.addEventListener("timeout", () =>
           reject(new Error("انتهت مهلة رفع الملف إلى Google Drive.")),
         );
@@ -3077,6 +3083,9 @@ const maxPdfSizeBytes = 20 * 1024 * 1024;
         xhr.send(pdfFile);
       });
 
+    // The PUT response is often unreadable in the browser (CORS), so prefer
+    // the known session file id. complete-upload independently checks that
+    // Drive really has the full file before saving it.
     const driveFileId = await putWholeFile(sessionReq.uploadUrl);
     const targetFileId = driveFileId || sessionReq.fileId;
     if (!targetFileId) {
