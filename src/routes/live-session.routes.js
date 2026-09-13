@@ -30,7 +30,7 @@ function requireTeacher(req, res, next) {
  */
 router.post("/sessions", requireAuth, requireTeacher, async (req, res) => {
   try {
-    const { title, provider, lessonId, allowCamera } = req.body || {};
+    const { title, provider, lessonId, allowCamera, meetingUrl, meetingLink, customUrl } = req.body || {};
 
     if (!provider) {
       return res.status(400).json({ error: "يرجى تحديد مزود الخدمة (Zoom أو Google Meet)." });
@@ -42,6 +42,7 @@ router.post("/sessions", requireAuth, requireTeacher, async (req, res) => {
       provider,
       lessonId,
       allowCamera: Boolean(allowCamera),
+      meetingUrl: meetingUrl || meetingLink || customUrl || null,
     });
 
     return res.status(201).json({

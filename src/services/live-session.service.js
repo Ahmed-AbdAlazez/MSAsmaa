@@ -24,7 +24,7 @@ const TOKEN_TTL_MINUTES = 10;
  * @param {string} [params.lessonId]- Associated lesson ID (optional)
  * @returns {Promise<object>} Created LiveSession DB record (sanitized)
  */
-async function createLiveSession({ teacherId, title, provider, lessonId = null, allowCamera = false }) {
+async function createLiveSession({ teacherId, title, provider, lessonId = null, allowCamera = false, meetingUrl = null }) {
   const normalizedProvider = String(provider || "").toLowerCase().trim();
 
   if (normalizedProvider !== "zoom" && normalizedProvider !== "google_meet") {
@@ -34,7 +34,14 @@ async function createLiveSession({ teacherId, title, provider, lessonId = null, 
   const cleanTitle = String(title || "").trim() || "بث مباشر تعليمي";
 
   let meetingData;
-  if (normalizedProvider === "zoom") {
+  if (meetingUrl && String(meetingUrl).trim()) {
+    const rawUrl = String(meetingUrl).trim();
+    const match = rawUrl.match(/meet\.google\.com\/([a-z0-9-]+)/i);
+    meetingData = {
+      meetingId: match ? match[1] : "live-meeting",
+      meetingUrl: rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`,
+    };
+  } else if (normalizedProvider === "zoom") {
     meetingData = await createZoomMeeting({ title: cleanTitle, allowCamera });
   } else {
     meetingData = await createGoogleMeetSession({ title: cleanTitle });
