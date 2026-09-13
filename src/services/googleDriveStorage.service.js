@@ -1,12 +1,39 @@
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const crypto = require("crypto");
 const { Readable } = require("stream");
 const { google } = require("googleapis");
 
-const LOCAL_UPLOADS_DIR = path.join(process.cwd(), "uploads", "materials");
-if (!fs.existsSync(LOCAL_UPLOADS_DIR)) {
-  fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+function getUploadsDir() {
+  const isServerless = Boolean(
+    process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT ||
+    (process.cwd() && process.cwd().startsWith("/var/task"))
+  );
+
+  let targetDir = isServerless
+    ? path.join(os.tmpdir(), "uploads", "materials")
+    : path.join(process.cwd(), "uploads", "materials");
+
+  try {
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    return targetDir;
+  } catch (error) {
+    console.warn("[googleDriveStorage] Failed to create local uploads directory in primary path, using OS temp dir:", error.message);
+    const tmpDir = path.join(os.tmpdir(), "uploads", "materials");
+    try {
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+    } catch (e) {
+      console.error("[googleDriveStorage] Could not create temp directory:", e.message);
+    }
+    return tmpDir;
+  }
 }
 
 const requiredEnvironmentVariables = [
@@ -81,7 +108,8 @@ async function uploadPdf(buffer, fileName) {
     console.warn("[googleDriveStorage] Google Drive upload failed or unconfigured:", error.message);
     console.warn("[googleDriveStorage] Saving PDF locally in uploads/materials as immediate fallback.");
     const fileId = `local_${crypto.randomUUID()}`;
-    const localPath = path.join(LOCAL_UPLOADS_DIR, `${fileId}.pdf`);
+    const uploadsDir = getUploadsDir();
+    const localPath = path.join(uploadsDir, `${fileId}.pdf`);
     fs.writeFileSync(localPath, buffer);
     return {
       id: fileId,
@@ -109,7 +137,8 @@ async function uploadQuizImage(buffer, fileName, mimeType) {
 
 async function getPdfStream(fileId) {
   if (String(fileId).startsWith("local_")) {
-    const localPath = path.join(LOCAL_UPLOADS_DIR, `${fileId}.pdf`);
+    const uploadsDir = getUploadsDir();
+    const localPath = path.join(uploadsDir, `${fileId}.pdf`);
     if (!fs.existsSync(localPath)) {
       throw new Error("Local PDF material file not found.");
     }
@@ -148,7 +177,8 @@ async function updatePdf(fileId, title) {
 
 async function deletePdf(fileId) {
   if (String(fileId).startsWith("local_")) {
-    const localPath = path.join(LOCAL_UPLOADS_DIR, `${fileId}.pdf`);
+    const uploadsDir = getUploadsDir();
+    const localPath = path.join(uploadsDir, `${fileId}.pdf`);
     if (fs.existsSync(localPath)) {
       fs.unlinkSync(localPath);
     }
