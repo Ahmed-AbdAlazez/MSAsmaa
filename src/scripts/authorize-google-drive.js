@@ -5,28 +5,27 @@ const path = require("path");
 const { URL } = require("url");
 const { google } = require("googleapis");
 
-const required = [
-  "GOOGLE_OAUTH_CLIENT_ID",
-  "GOOGLE_OAUTH_CLIENT_SECRET",
-  "GOOGLE_OAUTH_REDIRECT_URI",
-];
-const missing = required.filter(
-  (name) => !String(process.env[name] || "").trim(),
-);
-if (missing.length) {
-  console.error("Missing OAuth environment variable(s): " + missing.join(", "));
+const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "").trim();
+const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "").trim();
+const redirectUriStr = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "http://localhost:3000/oauth2callback").trim();
+
+if (!clientId || !clientSecret) {
+  console.error("Missing OAuth environment variables: GOOGLE_OAUTH_CLIENT_ID / GOOGLE_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_CLIENT_SECRET");
   process.exit(1);
 }
 
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_OAUTH_CLIENT_ID.trim(),
-  process.env.GOOGLE_OAUTH_CLIENT_SECRET.trim(),
-  process.env.GOOGLE_OAUTH_REDIRECT_URI.trim(),
+  clientId,
+  clientSecret,
+  redirectUriStr,
 );
 const authorizationUrl = oauth2Client.generateAuthUrl({
   access_type: "offline",
   prompt: "consent",
-  scope: ["https://www.googleapis.com/auth/drive"],
+  scope: [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/calendar",
+  ],
 });
 
 async function saveRefreshToken(code) {
@@ -38,25 +37,36 @@ async function saveRefreshToken(code) {
       );
     }
     const envPath = path.resolve(process.cwd(), ".env");
-    const currentEnv = fs.existsSync(envPath)
+    let currentEnv = fs.existsSync(envPath)
       ? fs.readFileSync(envPath, "utf8")
       : "";
-    const envLine = `GOOGLE_OAUTH_REFRESH_TOKEN=${tokens.tokens.refresh_token}`;
-    const updatedEnv = /^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m.test(currentEnv)
-      ? currentEnv.replace(/^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m, envLine)
-      : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLine}\n`;
-    fs.writeFileSync(envPath, updatedEnv, { encoding: "utf8", mode: 0o600 });
+    
+    const newToken = tokens.tokens.refresh_token;
+
+    // Update GOOGLE_OAUTH_REFRESH_TOKEN
+    const envLineDrive = `GOOGLE_OAUTH_REFRESH_TOKEN=${newToken}`;
+    currentEnv = /^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m.test(currentEnv)
+      ? currentEnv.replace(/^(?:GOOGLE_OAUTH_REFRESH_TOKEN)=.*$/m, envLineDrive)
+      : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineDrive}\n`;
+
+    // Update GOOGLE_REFRESH_TOKEN
+    const envLineMeet = `GOOGLE_REFRESH_TOKEN=${newToken}`;
+    currentEnv = /^(?:GOOGLE_REFRESH_TOKEN)=.*$/m.test(currentEnv)
+      ? currentEnv.replace(/^(?:GOOGLE_REFRESH_TOKEN)=.*$/m, envLineMeet)
+      : `${currentEnv}${currentEnv.endsWith("\n") || !currentEnv ? "" : "\n"}${envLineMeet}\n`;
+
+    fs.writeFileSync(envPath, currentEnv, { encoding: "utf8", mode: 0o600 });
     console.log("OAuth authorization succeeded.");
-    console.log("The refresh token was saved to the local .env file.");
+    console.log("The refresh token was saved to GOOGLE_OAUTH_REFRESH_TOKEN and GOOGLE_REFRESH_TOKEN in .env.");
   } catch (error) {
     console.error(
-      "OAuth authorization failed. Check the redirect URI and authorization code.",
+      "OAuth authorization failed:", error.message
     );
     process.exitCode = 1;
   }
 }
 
-const redirectUri = new URL(process.env.GOOGLE_OAUTH_REDIRECT_URI.trim());
+const redirectUri = new URL(redirectUriStr);
 if (
   redirectUri.hostname !== "localhost" &&
   redirectUri.hostname !== "127.0.0.1"

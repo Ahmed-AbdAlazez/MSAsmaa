@@ -11,20 +11,23 @@ const requiredEnvironmentVariables = [
 ];
 
 function getDriveClient() {
-  const missing = requiredEnvironmentVariables.filter(
-    (name) => !String(process.env[name] || "").trim(),
-  );
-  if (missing.length) {
+  const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "").trim();
+  const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "").trim();
+  const redirectUri = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "http://localhost:3000/oauth2callback").trim();
+  const refreshToken = (process.env.GOOGLE_OAUTH_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN || "").trim();
+  const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+
+  if (!clientId || !clientSecret || !refreshToken || !folderId) {
     throw new Error("Google Drive configuration is incomplete.");
   }
 
   const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_OAUTH_CLIENT_ID.trim(),
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET.trim(),
-    process.env.GOOGLE_OAUTH_REDIRECT_URI.trim(),
+    clientId,
+    clientSecret,
+    redirectUri,
   );
   auth.setCredentials({
-    refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN.trim(),
+    refresh_token: refreshToken,
   });
   return google.drive({ version: "v3", auth });
 }

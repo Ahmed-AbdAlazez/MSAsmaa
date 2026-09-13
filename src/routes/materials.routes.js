@@ -80,7 +80,26 @@ router.post(
     } catch (error) {
       console.error("[materials] PDF normalization skipped:", error.message);
     }
-    const driveFile = await uploadPdf(buffer, req.file.originalname);
+    let driveFile;
+    try {
+      driveFile = await uploadPdf(buffer, req.file.originalname);
+    } catch (error) {
+      console.error("[materials] Google Drive upload failed:", error);
+      const errMessage = String(error.message || "");
+      if (errMessage.includes("invalid_grant") || errMessage.includes("expired or revoked") || errMessage.includes("invalid_client")) {
+        return next(
+          new AppError(
+            "فشل رفع الملف إلى Google Drive (انتهت صلاحية رمز الوصول invalid_grant). يرجى إعادة تشغيل سكربت التوثيق: node src/scripts/authorize-google-drive.js",
+            500,
+          ),
+        );
+      }
+      if (errMessage.includes("configuration is incomplete")) {
+        return next(new AppError("إعدادات Google Drive غير مكتملة في الخادم.", 500));
+      }
+      return next(new AppError(`فشل رفع ملف PDF إلى Google Drive: ${errMessage || "خطأ غير معروف"}`, 500));
+    }
+
     const material = await saveMaterialRecord(
       req.params.lessonId,
       cleanTitle(req),
