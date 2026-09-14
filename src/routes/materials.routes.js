@@ -29,7 +29,7 @@ const catchAsync = require("../utils/catchAsync");
 const { normalizePdf } = require("../services/pdfNormalize.service.js");
 
 const router = express.Router();
-const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_PDF_SIZE_BYTES },
@@ -55,7 +55,7 @@ function uploadSinglePdf(req, res, next) {
     ) {
       return next(
         new AppError(
-          "فشل رفع ملف PDF. يجب أن يكون حجم الملف 20 ميجابايت أو أقل.",
+          "فشل رفع ملف PDF. يجب أن يكون حجم الملف 50 ميجابايت أو أقل.",
           400,
         ),
       );
@@ -96,7 +96,7 @@ function validatePdfUploadDetails(fileName, mimeType, sizeBytes) {
     parsedSize <= 0 ||
     parsedSize > MAX_PDF_SIZE_BYTES
   ) {
-    throw new AppError("يُسمح فقط بملفات PDF بحجم 20 ميجابايت أو أقل.", 400);
+    throw new AppError("يُسمح فقط بملفات PDF بحجم 50 ميجابايت أو أقل.", 400);
   }
   return parsedSize;
 }

@@ -2927,9 +2927,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return null;
     }
 
-const maxPdfSizeBytes = 20 * 1024 * 1024;
+const maxPdfSizeBytes = 50 * 1024 * 1024;
     if (pdfFile.size <= 0 || pdfFile.size > maxPdfSizeBytes) {
-      showToast("يجب أن يكون حجم ملف PDF 20 ميجابايت أو أقل.", "warning");
+      showToast("يجب أن يكون حجم ملف PDF 50 ميجابايت أو أقل.", "warning");
       return null;
     }
 
@@ -2939,7 +2939,7 @@ const maxPdfSizeBytes = 20 * 1024 * 1024;
     // Direct browser -> Google Drive single-shot upload. The whole PDF is PUT
     // in one request to a Drive resumable session created by our server, so
     // the bytes never pass through Vercel (whose serverless body limit is
-    // ~4.5 MB). No chunking and no compression are needed — files up to 20MB
+    // ~4.5 MB). No chunking and no compression are needed — files up to 50MB
     // upload in a single request straight to Google Drive.
     const legacyProxyUpload = () =>
       new Promise((resolve, reject) => {
