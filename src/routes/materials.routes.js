@@ -156,8 +156,11 @@ async function completeDirectUpload(req, res, next) {
     return next(new AppError("Could not verify uploaded PDF in Google Drive.", 500));
   }
 
-  const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
   const actualSize = Number(driveFile.size);
+  // Validate against the parent recorded in the upload token at session
+  // creation time (falling back to the current env for pre-fix tokens).
+  const expectedParent = uploadClaims.parentId || folderId;
   const validFile =
     driveFile.id === fileId &&
     driveFile.mimeType === "application/pdf" &&
@@ -166,9 +169,9 @@ async function completeDirectUpload(req, res, next) {
     actualSize > 0 &&
     actualSize <= MAX_PDF_SIZE_BYTES &&
     (!uploadClaims.sizeBytes || actualSize === Number(uploadClaims.sizeBytes)) &&
-    (!folderId ||
+    (!expectedParent ||
       !Array.isArray(driveFile.parents) ||
-      driveFile.parents.includes(folderId));
+      driveFile.parents.includes(expectedParent));
 
   if (!validFile) {
     return next(new AppError("Uploaded PDF is invalid.", 400));
@@ -242,6 +245,7 @@ router.post(
         fileId: session.fileId,
         title,
         sizeBytes,
+        parentId: session.parentId || null,
       });
       return res.json({
         uploadUrl: session.uploadUrl,
@@ -298,8 +302,14 @@ router.post(
       return next(new AppError("تعذر التحقق من ملف PDF في Google Drive.", 500));
     }
 
-    const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
+const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
     const actualSize = Number(driveFile.size);
+    // Validate against the parent recorded in the upload token at session
+    // creation time (falling back to the current env for pre-fix tokens).
+    // This is immune to GOOGLE_DRIVE_FOLDER_ID changing between session
+    // creation and completion (stale warm lambdas keep old process.env),
+    // which caused "ملف PDF المرفوع غير صالح" for otherwise valid uploads.
+    const expectedParent = uploadClaims.parentId || folderId;
     const validFile =
       driveFile.id === fileId &&
       driveFile.mimeType === "application/pdf" &&
@@ -308,9 +318,9 @@ router.post(
       actualSize > 0 &&
       actualSize <= MAX_PDF_SIZE_BYTES &&
       (!uploadClaims.sizeBytes || actualSize === Number(uploadClaims.sizeBytes)) &&
-      (!folderId ||
+      (!expectedParent ||
         !Array.isArray(driveFile.parents) ||
-        driveFile.parents.includes(folderId));
+        driveFile.parents.includes(expectedParent));
 
     if (!validFile) {
       return next(new AppError("ملف PDF المرفوع غير صالح.", 400));

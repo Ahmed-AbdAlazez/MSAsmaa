@@ -198,12 +198,14 @@ async function createPdfUploadSession(fileName, sizeBytes) {
     });
   };
 
+let parentId = folderId || null;
   let response;
   try {
-    response = await makeRequest(folderId ? [folderId] : []);
+    response = await makeRequest(parentId ? [parentId] : []);
   } catch (error) {
-    if (folderId && (error.code === 404 || String(error.message || "").includes("File not found"))) {
+    if (parentId && (error.code === 404 || String(error.message || "").includes("File not found"))) {
       console.warn("[googleDriveStorage] Folder ID invalid for session, retrying without folder parent:", error.message);
+      parentId = null;
       response = await makeRequest([]);
     } else {
       throw error;
@@ -216,7 +218,7 @@ async function createPdfUploadSession(fileName, sizeBytes) {
     throw new Error("Google Drive did not return a resumable upload URL.");
   }
 
-  return { uploadUrl, fileId, fileName: safePdfName(fileName) };
+  return { uploadUrl, fileId, fileName: safePdfName(fileName), parentId };
 }
 
 async function getPdfMetadata(fileId) {
