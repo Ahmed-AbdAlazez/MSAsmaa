@@ -159,8 +159,9 @@ async function completeDirectUpload(req, res, next) {
 const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
   const actualSize = Number(driveFile.size);
   // Validate against the parent recorded in the upload token at session
-  // creation time (falling back to the current env for pre-fix tokens).
-  const expectedParent = uploadClaims.parentId || folderId;
+  // creation time (falling back to env only for tokens that lack the claim).
+  const expectedParent =
+    uploadClaims.parentId === undefined ? folderId : uploadClaims.parentId;
   const validFile =
     driveFile.id === fileId &&
     driveFile.mimeType === "application/pdf" &&
@@ -305,11 +306,14 @@ router.post(
 const folderId = String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim();
     const actualSize = Number(driveFile.size);
     // Validate against the parent recorded in the upload token at session
-    // creation time (falling back to the current env for pre-fix tokens).
+    // creation time. A token without a parent claim (old tokens) falls back
+    // to the current env; a token with parentId null means the session had
+    // to create the file without a folder, so skip the parents check.
     // This is immune to GOOGLE_DRIVE_FOLDER_ID changing between session
-    // creation and completion (stale warm lambdas keep old process.env),
-    // which caused "ملف PDF المرفوع غير صالح" for otherwise valid uploads.
-    const expectedParent = uploadClaims.parentId || folderId;
+    // creation and completion (or differing across warm lambdas), which
+    // caused "ملف PDF المرفوع غير صالح" for otherwise valid uploads.
+    const expectedParent =
+      uploadClaims.parentId === undefined ? folderId : uploadClaims.parentId;
     const validFile =
       driveFile.id === fileId &&
       driveFile.mimeType === "application/pdf" &&
