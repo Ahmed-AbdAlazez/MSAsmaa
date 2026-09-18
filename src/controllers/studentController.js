@@ -280,6 +280,20 @@ const getScoreboard = catchAsync(async (req, res, next) => {
   const attempts = await quizService.getAllSubmittedAttemptsWithQuiz();
   const quizIds = await quizService.quizIdsFromAttempts(attempts);
 
+  // No SUBMITTED results anywhere yet -> a natural empty state, NOT an
+  // error. Return an empty students array so the UI can render its
+  // "لا توجد نتائج بعد" state instead of a database error message.
+  if (!quizIds.length) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        generatedAt: new Date().toISOString(),
+        students: [],
+        quizzes: [],
+      },
+    });
+  }
+
   // Quiz metadata (title, possible questions) only for quizzes that actually
   // have submitted results — never computes against empty collections.
   const [quizRows, lessonRows] = await Promise.all([

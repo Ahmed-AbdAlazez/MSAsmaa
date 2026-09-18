@@ -4039,6 +4039,12 @@ html[data-auth="in"] .js-login-trigger:not(.footer-link) {
 .scoreboard-podium-row-3 { background: rgba(245,158,11,.08); }
 
 .scoreboard-empty { text-align: center; padding: 1.5rem 0; }
+.scoreboard-empty .scoreboard-empty-title {
+  margin: 0 0 .35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
 
 .scoreboard-summary-card {
   background: var(--color-bg);

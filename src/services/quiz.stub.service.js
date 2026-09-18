@@ -738,6 +738,8 @@ async function getSubmittedResultsForQuiz(quizId) {
  * @returns {Promise<Array<{id,studentId,quizId,quizTitle,isMixed,lessonId,score,totalMcq,submittedAt}>>}
  */
 async function getAllSubmittedAttemptsWithQuiz() {
+  // NOTE: Prisma rejects `select` and `include` side by side, so the quiz
+  // relation is pulled in through a nested select inside the projection.
   const rows = await prisma.quizAttempt.findMany({
     where: { status: "submitted" },
     orderBy: { submittedAt: "asc" },
@@ -750,8 +752,6 @@ async function getAllSubmittedAttemptsWithQuiz() {
       totalMcq: true,
       submittedAt: true,
       startedAt: true,
-    },
-    include: {
       quiz: { select: { title: true, isMixed: true, lessonId: true } },
     },
   });

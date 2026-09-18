@@ -120,16 +120,19 @@ export function initScoreboardPage({ API_BASE, authHeaders, fetchJson, showToast
     const rows = getFilteredSorted();
 
     if (countEl) countEl.textContent = rows.length > 0 ? `${rows.length} طالب` : "";
-    if (emptyEl) emptyEl.hidden = rows.length > 0;
+    // The dedicated empty state (#scoreboard-empty) says "لا توجد نتائج بعد"
+    // and must appear ONLY when there is genuinely no data yet. A search that
+    // matches nothing is a different message (handled below), not an error.
+    if (emptyEl) emptyEl.hidden = students.length > 0;
     renderPodium(rows);
 
     if (!rows.length) {
+      // Whole board empty: #scoreboard-empty is already visible — render
+      // nothing here so no duplicate/error-like message shows.
+      if (students.length === 0) return;
       const empty = document.createElement("p");
       empty.className = "text-muted";
-      empty.textContent =
-        students.length === 0
-          ? "لا توجد بيانات أداء متاحة بعد."
-          : "لا يوجد طالب يطابق البحث.";
+      empty.textContent = "لا يوجد طالب يطابق البحث.";
       list.appendChild(empty);
       return;
     }
