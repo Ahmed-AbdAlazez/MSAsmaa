@@ -15,6 +15,7 @@ const API_BASE = (typeof rawApiUrl === 'string' && rawApiUrl.includes('vercel.ap
 
 const normalizeCode = (value = '') => value.trim().toUpperCase();
 const isStrongPassword = (password) => /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+const ARABIC_DIGIT_PATTERN = /[\u0660-\u0669\u06F0-\u06F9]/;
 
 // Mirrors fetchJson() from src/main.js so both entry points surface
 // backend errors identically.
@@ -162,6 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
     event.currentTarget.textContent = willShowPassword ? '◉' : '◌';
   });
 
+  codeInput.addEventListener('input', () => {
+    if (ARABIC_DIGIT_PATTERN.test(codeInput.value)) {
+      showToast('يجب كتابة الكود بالأرقام الإنجليزية', 'warning');
+    }
+  });
+
   // --- Sign in: POST ${API_BASE}/auth/login -------------------------------
   // Body fields match the backend authController exactly:
   //   { studentCode, password }
@@ -181,6 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!code) {
       showToast('يرجى إدخال كود الدخول.', 'warning');
+      codeInput.focus();
+      return;
+    }
+
+    if (ARABIC_DIGIT_PATTERN.test(code)) {
+      showToast('يجب كتابة الكود بالأرقام الإنجليزية', 'warning');
       codeInput.focus();
       return;
     }
