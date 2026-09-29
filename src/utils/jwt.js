@@ -5,13 +5,23 @@ const jwt = require('jsonwebtoken');
  * @param {Object} payload - Token payload containing { id, role }
  * @returns {string} Signed JWT token
  */
-const signToken = (payload) => {
-  const secret = process.env.JWT_SECRET;
-  const expiresIn = process.env.JWT_EXPIRES_IN || '30d';
-
-  if (!secret) {
+const getCleanSecret = () => {
+  const raw = process.env.JWT_SECRET;
+  if (!raw) {
     throw new Error('JWT_SECRET is not configured in environment variables');
   }
+  return String(raw).replace(/^["']|["']$/g, '').trim();
+};
+
+const getCleanExpiresIn = () => {
+  const raw = process.env.JWT_EXPIRES_IN || '30d';
+  const clean = String(raw).replace(/^["']|["']$/g, '').trim();
+  return clean || '30d';
+};
+
+const signToken = (payload) => {
+  const secret = getCleanSecret();
+  const expiresIn = getCleanExpiresIn();
 
   return jwt.sign(
     {
@@ -31,11 +41,7 @@ const signToken = (payload) => {
  * @returns {Promise<Object>} Decoded token payload
  */
 const verifyToken = (token) => {
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error('JWT_SECRET is not configured in environment variables');
-  }
+  const secret = getCleanSecret();
 
   return new Promise((resolve, reject) => {
     jwt.verify(token, secret, (err, decoded) => {
