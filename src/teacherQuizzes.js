@@ -42,6 +42,15 @@ async function api(method, path, body) {
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401 && !path.includes("/auth/")) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("username");
+    localStorage.removeItem("userId");
+    if (!window.location.pathname.includes("login")) {
+      window.location.href = "/login";
+    }
+  }
   let data = null;
   try {
     data = await res.json();

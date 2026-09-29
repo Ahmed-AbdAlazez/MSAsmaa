@@ -3,12 +3,17 @@ import { initStudentsPage } from "./studentsPage.js";
 import { initScoreboardPage } from "./scoreboardPage.js";
 import { initStudentMistakesPage } from "./studentMistakesPage.js";
 import { skeletonRows, skeletonError } from "./components/skeleton.js";
-import { formatDuration } from "./utils.js";
+import { formatDuration, isTokenExpired, clearAuthSession, handleAutoLogout } from "./utils.js";
 import { renderCustomYouTubePlayer } from "./components/customYouTubePlayer.js";
 // Keep every OPEN tab in sync with theme toggles made elsewhere: the
 // 'storage' event fires only in other tabs/documents, so flipping dark
 // mode on one page instantly updates all the others without a reload.
 window.addEventListener("storage", (event) => {
+  if (event.key === "token" && !event.newValue) {
+    if (!window.location.pathname.includes("login")) {
+      window.location.href = "/login";
+    }
+  }
   if (
     event.key === "theme" &&
     (event.newValue === "dark" || event.newValue === "light")
@@ -18,6 +23,12 @@ window.addEventListener("storage", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+  const currentToken = localStorage.getItem("token");
+  if (currentToken && isTokenExpired(currentToken)) {
+    console.warn("[Auth] Token expired on page load. Auto logging out.");
+    handleAutoLogout("انتهت صلاحية الجلسة. تم تسجيل الخروج تلقائياً.");
+    return;
+  }
   const isStudentsPage = /\/students(?:\.html)?$/.test(
     window.location.pathname,
   );
@@ -990,6 +1001,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!response.ok) {
+      if (
+        response.status === 401 &&
+        !url.includes("/auth/login") &&
+        !url.includes("/auth/signup")
+      ) {
+        handleAutoLogout("انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.");
+      }
       // The v1 backend sends { message } (errorMiddleware); older routes send
       // { error }. Show whichever the backend actually returned.
       throw new Error(

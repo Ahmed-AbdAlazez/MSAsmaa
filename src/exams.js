@@ -57,6 +57,15 @@ async function api(method, path, body) {
        (which is what made buttons like "Start Exam" silently do nothing). */
     return { ok: false, status: 0, data: null };
   }
+  if (res && res.status === 401 && !path.includes("/auth/")) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("username");
+    localStorage.removeItem("userId");
+    if (!window.location.pathname.includes("login")) {
+      window.location.href = "/login";
+    }
+  }
   let data = null;
   try {
     data = await res.json();

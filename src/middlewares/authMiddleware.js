@@ -60,7 +60,14 @@ const protect = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 4. Attach user to request object
+  // 4. Check if student account was deactivated/disapproved by teacher
+  if (currentUser.role === 'STUDENT' && currentUser.status !== 'APPROVED') {
+    return next(
+      new AppError('تم إلغاء تفعيل حسابك من قبل المعلمة. تم تسجيل الخروج تلقائياً.', 401)
+    );
+  }
+
+  // 5. Attach user to request object
   req.user = currentUser;
   next();
 });
